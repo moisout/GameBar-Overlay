@@ -31,7 +31,46 @@
     color: white;
     margin-right: 10px;
     padding: 0;
-    width: 50px;
+}
+
+/*Output and input device selector*/
+.gamebar-device-section{
+    margin-bottom: 15px;
+}
+
+.gamebar-device-button{
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 6px 10px;
+    margin-top: 8px;
+}
+
+.gamebar-device-button:hover{
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.gamebar-device-list{
+    margin-top: 4px;
+}
+
+.gamebar-device-item{
+    color: white;
+    border-radius: 8px;
+    padding: 6px 10px;
+}
+
+.gamebar-device-item:hover{
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.gamebar-device-item:checked{
+    background-color: rgba(255, 255, 255, 0.2);
+    font-weight: bold;
+}
+
+.gamebar-device-item-icon{
+    margin-right: 10px;
 }
 
 .gamebar-volume-container{
@@ -46,7 +85,6 @@
     color: white; 
     margin-right: 10px;
     padding: 0;
-    width: 50px;
 }
 
 .gamebar-app-volume-label{

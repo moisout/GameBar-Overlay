@@ -69,6 +69,13 @@ const makeDraggable = (element, id) => {
             return Clutter.EVENT_STOP;
         }
 
+        // Buttons and sliders inside the card do not stop the press, and a grab would cancel their click.
+        for (let target = global.stage.get_event_actor(event); target && target !== element; target = target.get_parent()) {
+            if (target.reactive) {
+                return Clutter.EVENT_PROPAGATE;
+            }
+        }
+
         const [x, y] = event.get_coords();
         offset = [x - element.x, y - element.y];
         moved = false;

@@ -56,7 +56,7 @@
     </key>
 
     <key name="sound-controls-icon-size" type="i">
-      <default>48</default>
+      <default>32</default>
       <summary>Icon size for the sound controls</summary>
       <description>Icon size at the sound panel</description>
     </key>

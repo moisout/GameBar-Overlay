@@ -4,6 +4,7 @@ import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import Gio from 'gi://Gio';
 import { positionAddon, makeDraggable } from '../cardPosition.js';
+import { DeviceSection } from './deviceSection.js';
 import GLib from 'gi://GLib';
 
 export class SoundControls {
@@ -11,26 +12,18 @@ export class SoundControls {
         this._overlay = overlay;
         this._primaryMonitor = primaryMonitor;
         this._volumeControl = Volume.getMixerControl();
-        this._volumeSlider = null;
-        this._volumeIcon = null;
+        this._outputSection = null;
+        this._inputSection = null;
         this._appVolumesContainer = null;
         this._appVolumesBox = null;
-        this._stream = null;
         this._addonContainer = null;
         //Listeners:
         this._widthChangeId = null;
-        this._streamVolumeChangeId = null;
-        this._streamMutedChangeId = null;
-        this._isSyncingUI = false;
         this._heightChangeId = null;
-        this._VolumeSliderNotifyId = null;
-        this._VolumeIconCLickedId = null;
     }
 
     // Create the main volume controls
     _createVolumeControls() {
-        let iconType = (this._iconType === 'Symbolic' ? '-symbolic' : '');
-
         this._addonContainer = new St.Widget({
             layout_manager: new Clutter.BinLayout()
         });
@@ -43,33 +36,9 @@ export class SoundControls {
             style_class: 'gamebar-volume-container-global'
         });
 
-        // Create the main volume panel
-        let volumePanel = new St.BoxLayout({
-            vertical: false,
-            x_align: Clutter.ActorAlign.START,
-            y_align: Clutter.ActorAlign.CENTER
-        });
-
-        // Create the volume icon button
-        this._volumeIcon = new St.Button({
-            child: new St.Icon({
-                icon_name: 'audio-volume-high'+iconType,
-                style_class: 'gamebar-volume-icon',
-                icon_size: this._icon_Size
-            })
-        });
-
-        // Create the volume slider
-        this._volumeSlider = new Slider(0);
-        this._volumeSlider.set_style('width: 300px;');
-        this._VolumeSliderNotifyId = this._volumeSlider.connect('notify::value', this._onVolumeChanged.bind(this));
-
-        // Add the icon and slider to the panel
-        volumePanel.add_child(this._volumeIcon);
-        volumePanel.add_child(this._volumeSlider);
-
-        // Connect the mute toggle to the icon
-        this._VolumeIconCLickedId = this._volumeIcon.connect('clicked', this._toggleMute.bind(this));
+        // Create the output and input device controls
+        this._outputSection = new DeviceSection(this._volumeControl, 'output', this._icon_Size);
+        this._inputSection = new DeviceSection(this._volumeControl, 'input', this._icon_Size);
 
         // Create a box for app-specific volume controls
         this._appVolumesBox = new St.BoxLayout({
@@ -78,7 +47,8 @@ export class SoundControls {
             y_align: Clutter.ActorAlign.START,
         });
 
-        this._appVolumesContainer.add_child(volumePanel);
+        this._appVolumesContainer.add_child(this._outputSection.actor);
+        this._appVolumesContainer.add_child(this._inputSection.actor);
         this._appVolumesContainer.add_child(this._appVolumesBox);
 
         this._addonContainer.add_child(this._appVolumesContainer)
@@ -110,18 +80,8 @@ export class SoundControls {
 
     // Update all volume controls
     updateVolumeControls() {
-        this._disconnectMainStreamSignals();
-
-        // Get the default audio sink (main volume)
-        this._stream = this._volumeControl.get_default_sink();
-
-        if (this._stream) {
-            //Syncs actual state
-            this._syncUIFromStream();
-
-            this._streamVolumeChangeId = this._stream.connect('notify::volume', this._syncUIFromStream.bind(this));
-            this._streamMutedChangeId = this._stream.connect('notify::is-muted', this._syncUIFromStream.bind(this));
-        }
+        this._outputSection.sync();
+        this._inputSection.sync();
 
         // Clear existing app volume controls
         this._appVolumesBox.destroy_all_children();
@@ -300,70 +260,6 @@ export class SoundControls {
     }
     
 
-    // Handle changes to the main volume slider
-    _onVolumeChanged() {
-        if (this._stream && !this._isSyncingUI) {
-            let volume = this._volumeSlider.value * this._volumeControl.get_vol_max_norm();
-            this._stream.volume = volume;
-            this._stream.push_volume();
-            this._updateVolumeIcon(this._stream.is_muted);
-        }
-    }
-
-    // Toggle mute state for the main volume
-    _toggleMute() {
-        if (this._stream) {
-            let isMuted = !this._stream.is_muted;
-            this._stream.change_is_muted(isMuted);
-            this._updateVolumeIcon(isMuted);
-        }
-    }
-
-    // Update the main volume icon based on volume level and mute state
-    _updateVolumeIcon(isMuted) {
-        let iconName;
-        let iconType = (this._iconType === 'Symbolic' ? '-symbolic' : '');
-        if (isMuted) {
-            iconName = 'audio-volume-muted' + iconType;
-        } else {
-            let volume = this._volumeSlider.value;
-            if (volume <= 0) {
-                iconName = 'audio-volume-muted' + iconType;
-            } else if (volume <= 0.3) {
-                iconName = 'audio-volume-low' + iconType;
-            } else if (volume <= 0.7) {
-                iconName = 'audio-volume-medium' + iconType;
-            } else {
-                iconName = 'audio-volume-high' + iconType;
-            }
-        }
-        this._volumeIcon.child.icon_name = iconName;
-    }
-
-    _disconnectMainStreamSignals() {
-        if (this._stream) {
-            if (this._streamVolumeChangeId) {
-                this._stream.disconnect(this._streamVolumeChangeId);
-                this._streamVolumeChangeId = null;
-            }
-            if (this._streamMutedChangeId) {
-                this._stream.disconnect(this._streamMutedChangeId);
-                this._streamMutedChangeId = null;
-            }
-        }
-    }
-
-    _syncUIFromStream() {
-        if (!this._stream) return;
-
-        this._isSyncingUI = true;
-
-        this._volumeSlider.value = this._stream.volume / this._volumeControl.get_vol_max_norm();
-        this._updateVolumeIcon(this._stream.is_muted);
-
-        this._isSyncingUI = false;
-    }
-
     _updateSettings(settings) {
         this._icon_Size = settings.get_int('sound-controls-icon-size');
         this._showAppDesc = settings.get_boolean('sound-controls-show-app-description');
@@ -376,9 +272,6 @@ export class SoundControls {
     }
 
     destroy() {
-        //Disconnects the signals
-        this._disconnectMainStreamSignals();
-
         if(this._heightChangeId){
             this._addonContainer.disconnect(this._heightChangeId);
             this._heightChangeId = null;
@@ -389,25 +282,14 @@ export class SoundControls {
             this._widthChangeId = null;
         }
 
-        if(this._VolumeSliderNotifyId){
-            this._volumeSlider.disconnect(this._VolumeSliderNotifyId)
-            this._VolumeSliderNotifyId = null;
-        }
-        if(this._VolumeIconCLickedId){
-            this._volumeIcon.disconnect(this._VolumeIconCLickedId);
-            this._VolumeIconCLickedId = null;
-        }
-
         if (this._addonContainer) {
             this._addonContainer.destroy();
             this._addonContainer = null;
         }
 
-        this._volumeSlider = null;
-        this._volumeIcon = null;
-        this._volumePanel = null;
+        this._outputSection = null;
+        this._inputSection = null;
         this._appVolumesBox = null;
-        this._stream = null;
         this._volumeControl = null;
         this._appVolumesContainer = null;
     }

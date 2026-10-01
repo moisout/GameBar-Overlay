@@ -213,3 +213,11 @@ msgstr ""
 #: addons/cpu.js:189
 msgid "Temperature sensor not found"
 msgstr ""
+
+#: addons/deviceSection.js:21
+msgid "No output device"
+msgstr ""
+
+#: addons/deviceSection.js:35
+msgid "No input device"
+msgstr ""

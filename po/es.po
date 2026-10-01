@@ -213,3 +213,11 @@ msgstr "Falta GTop, instala 'libgtop' para ver la temperatura"
 #: addons/cpu.js:189
 msgid "Temperature sensor not found"
 msgstr "Sensor de temperatura no encontrado"
+
+#: addons/deviceSection.js:21
+msgid "No output device"
+msgstr "Sin dispositivo de salida"
+
+#: addons/deviceSection.js:35
+msgid "No input device"
+msgstr "Sin dispositivo de entrada"
