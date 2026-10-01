@@ -66,6 +66,18 @@ msgstr "Cerrar al hacer clic en un área vacía"
 msgid "Close the overlay by clicking on an empty area"
 msgstr "Cierra el overlay al hacer clic en un área vacía"
 
+#: prefs.js:183
+msgid "Reset"
+msgstr "Restablecer"
+
+#: prefs.js:192
+msgid "Addon Positions"
+msgstr "Posiciones de los elementos"
+
+#: prefs.js:193
+msgid "Drag an addon in the overlay to move it. Reset moves every addon back to its configured position"
+msgstr "Arrastra un elemento en el overlay para moverlo. Restablecer devuelve cada elemento a su posición configurada"
+
 #: prefs.js:108
 msgid "Keybinding"
 msgstr "Atajo de teclado"
