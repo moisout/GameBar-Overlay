@@ -3,7 +3,7 @@ import Clutter from 'gi://Clutter';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import Gio from 'gi://Gio';
-import { getPositionStyle } from '../utils.js';
+import { positionAddon, makeDraggable } from '../cardPosition.js';
 import GLib from 'gi://GLib';
 
 export class SoundControls {
@@ -85,6 +85,7 @@ export class SoundControls {
 
         // Add the addon container to the overlay
         this._overlay.add_child(this._addonContainer);
+        makeDraggable(this._addonContainer, 'sound');
 
         //Add the listeners for change width and height:
 
@@ -104,8 +105,7 @@ export class SoundControls {
     }
 
     set_addon_position(){
-        let position_style = getPositionStyle(this._primaryMonitor, this._position, this._addonContainer);
-        this._addonContainer.set_position(position_style.x,position_style.y);
+        positionAddon(this._primaryMonitor, this._position, this._addonContainer, 'sound');
       }
 
     // Update all volume controls

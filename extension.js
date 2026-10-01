@@ -10,6 +10,7 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { set_padding_setting } from './utils.js';
+import { set_position_settings, saveCustomPosition } from './cardPosition.js';
 
 //Addon Imports:
 import {Clock} from './addons/clock.js';
@@ -48,8 +49,13 @@ class GameBar extends PanelMenu.Button {
         // Call the _createOverlay method to create the overlay widget and addons
         this._createOverlay();
 
-        // Connect the 'button-press-event' signal of the GameBar panel button to the _toggleOverlay method
-        this.connect('button-press-event', this._toggleOverlay.bind(this));
+        // Toggle the overlay when the GameBar panel button is clicked.
+        // On GNOME 50 the panel button has a click gesture that claims the press, so 'button-press-event' is never emitted.
+        if (this._clickGesture) {
+            this._clickGesture.connect('recognize', () => this._toggleOverlay());
+        } else {
+            this.connect('button-press-event', this._toggleOverlay.bind(this));
+        }
 
         this._mutterSettings = new Gio.Settings({'schema': MUTTER_SCHEMA});
         this._ignoreOverlayKeyChangedEvent = false;
@@ -64,6 +70,11 @@ class GameBar extends PanelMenu.Button {
     _createOverlay() {
         // Get the primary monitor
         let primaryMonitor = Main.layoutManager.primaryMonitor;
+
+        // The darkened background is a separate actor so it can fade independently of the addons.
+        this._backdrop = new St.Widget({
+            visible: false, // Start hidden
+        });
 
         // Create the overlay widget
         this._overlay = new St.Widget({
@@ -86,6 +97,7 @@ class GameBar extends PanelMenu.Button {
         this._systemMonitor = new SystemMonitor(this._overlay, primaryMonitor); // System Monitor stats addon
 
         // Add the overlay widget to the global stage to affect the input region.
+        global.stage.add_child(this._backdrop);
         global.stage.add_child(this._overlay);
 
         // Connect to 'monitors-changed' signal to update overlay position and size
@@ -104,9 +116,23 @@ class GameBar extends PanelMenu.Button {
 
     //Update overlay geometry
     _updateOverlayGeometry(primaryMonitor) {
+        // The shell can start without a monitor, 'monitors-changed' calls this again once there is one.
+        if (!primaryMonitor) return;
+
         this._overlay.set_position(primaryMonitor.x, primaryMonitor.y);
         this._overlay.set_size(primaryMonitor.width, primaryMonitor.height);
         this._overlay.hide();
+
+        this._backdrop.set_position(primaryMonitor.x, primaryMonitor.y);
+        this._backdrop.set_size(primaryMonitor.width, primaryMonitor.height);
+        this._backdrop.hide();
+
+        // The addons keep the monitor they were created with, which is null if the shell had no monitor yet.
+        [this._clock, this._closeButton, this._soundControls, this._systemMonitor].forEach(addon => {
+            if (!addon) return;
+            addon._primaryMonitor = primaryMonitor;
+            addon.set_addon_position();
+        });
 
     }
 
@@ -162,6 +188,10 @@ class GameBar extends PanelMenu.Button {
             this._restoreOverlayKey();
 
         } else {
+            // The shell may have had no monitor when the overlay was created, so size it for the current one.
+            if (!Main.layoutManager.primaryMonitor) return;
+            this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
+
             // Disable unredirect before showing the overlay to prevent fullscreen windows from obstructing the overlay.
             if (isGnome48OrNewer()){
                 // Enable unredirect for GNOME 48 and above.
@@ -195,6 +225,19 @@ class GameBar extends PanelMenu.Button {
 
         const animationType = this._enterAnimation;
         const animationDuration = this._enterAnimationDuration;
+
+        this._backdrop.remove_all_transitions();
+        this._backdrop.show();
+        if (animationType === 'Fade' || animationType === 'Slide') {
+            this._backdrop.set_opacity(0);
+            this._backdrop.ease({
+                opacity: 255,
+                duration: animationDuration,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        } else {
+            this._backdrop.set_opacity(255);
+        }
 
         if (animationType === 'Fade') {
             this._overlay.get_children().forEach(child => {
@@ -243,6 +286,17 @@ class GameBar extends PanelMenu.Button {
 
         const animationType = this._exitAnimation;
         const animationDuration = this._exitAnimationDuration;
+
+        if (animationType === 'Fade' || animationType === 'Slide') {
+            this._backdrop.ease({
+                opacity: 0,
+                duration: animationDuration,
+                mode: Clutter.AnimationMode.EASE_IN_QUAD,
+                onComplete: () => this._backdrop?.hide(),
+            });
+        } else {
+            this._backdrop.hide();
+        }
 
         if (animationType === 'Fade') {
             this._overlay.get_children().forEach(child => {
@@ -318,12 +372,35 @@ class GameBar extends PanelMenu.Button {
     }
 
     // Called when any settings has changed
-    _onSettingsChanged(settings) {
+    _onSettingsChanged(settings, key) {
+        // A dragged addon is already in place, recreating every addon would only make them flicker.
+        if (key === 'addon-positions') {
+            this._clock.set_addon_position();
+            this._soundControls.set_addon_position();
+            this._systemMonitor.set_addon_position();
+            return;
+        }
+
+        // Choosing a preset position in the preferences replaces the dragged one.
+        const presetAddons = {
+            'clock-addon-position': ['clock', this._clock],
+            'sound-addon-position': ['sound', this._soundControls],
+            'cpu-addon-position': ['system-monitor', this._systemMonitor],
+        };
+        if (key in presetAddons) {
+            const [id, addon] = presetAddons[key];
+            if (settings.get_string(key) !== addon._position) {
+                saveCustomPosition(id, null);
+            }
+        }
+
         //load the new settings:
         this._loadSettings(settings);
     }
 
     _updateSettings(settings) {
+        set_position_settings(settings);
+
         //Update addons settings
         this._clock._updateSettings(settings);
         this._soundControls._updateSettings(settings);
@@ -339,7 +416,7 @@ class GameBar extends PanelMenu.Button {
 
         // TODO:: Overlay config styles
         const backgroundColor = settings.get_string('overlay-background-color');
-        this._overlay.style = `background-color: ${backgroundColor}`
+        this._backdrop.style = `background-color: ${backgroundColor}`
 
     }
 
@@ -362,6 +439,9 @@ class GameBar extends PanelMenu.Button {
         //Destroy overlay:
         this._overlay?.destroy();
         this._overlay = null;
+        this._backdrop?.destroy();
+        this._backdrop = null;
+        set_position_settings(null);
 
         //Destroy other variables:
         this._icon?.destroy();

@@ -1,7 +1,8 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
-import { getPositionStyle, readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
+import { positionAddon, makeDraggable } from '../cardPosition.js';
+import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
 
 // Import GTop conditionally
 let GTop = null;
@@ -121,6 +122,7 @@ export class SystemMonitor {
 
         // Add the addon container to the overlay
         this._overlay.add_child(this._addonContainer);
+        makeDraggable(this._addonContainer, 'system-monitor');
 
         //Add the listeners for change width and height:
         this._widthChangeId = this._addonContainer.connect('notify::width', () => {
@@ -174,8 +176,7 @@ export class SystemMonitor {
   }
 
   set_addon_position() {
-    let position_style = getPositionStyle(this._primaryMonitor, this._position, this._addonContainer);
-    this._addonContainer.set_position(position_style.x, position_style.y);
+    positionAddon(this._primaryMonitor, this._position, this._addonContainer, 'system-monitor');
   }
 
   _getCpuUsage() {

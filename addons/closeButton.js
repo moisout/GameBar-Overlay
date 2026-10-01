@@ -67,6 +67,8 @@ export class CloseButton {
     }
 
     set_addon_position(){
+        if (!this._primaryMonitor || !this._addonContainer) return;
+
         let position_style = getPositionStyle(this._primaryMonitor, this._position ?? "Top Right", this._addonContainer);
         this._addonContainer.set_position(position_style.x,position_style.y);
     }

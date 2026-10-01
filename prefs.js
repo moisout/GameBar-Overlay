@@ -178,6 +178,25 @@ export default class Preferences extends ExtensionPreferences {
         behaviorGroup.add(emptyAreaCloseRow);
         settings.bind('overlay-empty-area-close', emptyAreaCloseRow, 'active', Gio.SettingsBindFlags.DEFAULT);
 
+        // Reset dragged addon positions
+        const resetPositionsButton = new Gtk.Button({
+            label: _('Reset'),
+            valign: Gtk.Align.CENTER,
+        });
+
+        resetPositionsButton.connect('clicked', () => {
+            settings.reset('addon-positions');
+        });
+
+        const resetPositionsRow = new Adw.ActionRow({
+            title: _('Addon Positions'),
+            subtitle: _('Drag an addon in the overlay to move it. Reset moves every addon back to its configured position'),
+            activatable_widget: resetPositionsButton
+        });
+
+        resetPositionsRow.add_suffix(resetPositionsButton);
+        behaviorGroup.add(resetPositionsRow);
+
         //Keybinding group
 
         const keyBindingGroup = new Adw.PreferencesGroup({
