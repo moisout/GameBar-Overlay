@@ -50,9 +50,12 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - Without a voice channel the card says "Not in a voice channel" and keeps the mute and deafen buttons, which Discord also offers outside a call. Without a running client it says "Discord is not running".
   - Avatars are a background image like the covers of the Music card, downloaded from the Discord CDN (64px, the first frame of animated ones) to `~/.cache/gamebar-overlay@m0.is/avatars` and kept there. Until an avatar is there, and for members without one, the first letter of the name is shown. Avatars set for a single server are not part of the RPC.
 - **Hardware** (400px): one boxed list with these rows:
-  - **CPU** and **GPU**: the temperature as subtitle, a sparkline of the usage of the last 30 seconds in the accent colour and the usage in bold. On amdgpu the GPU subtitle adds the VRAM in use (sysfs `mem_info_vram_used`). Without libgtop the CPU row only shows the install hint.
+  - **CPU** and **GPU**: the temperature as subtitle, a sparkline of the usage of the last 30 seconds in the accent colour and the usage in bold. Without libgtop the CPU row only shows the install hint. What the GPU row shows depends on the driver:
+    - amdgpu: usage (`gpu_busy_percent`), temperature (hwmon) and the VRAM in use (`mem_info_vram_used`), all from sysfs.
+    - Nvidia: usage, temperature and VRAM from one `nvidia-smi` call a second. It runs as a process of its own and the row shows what its last run said, waiting for it would block the shell. Not tested on an Nvidia GPU.
+    - Intel (i915, xe) and nouveau: only the temperature where the GPU has a sensor, integrated Intel GPUs have none. Their usage is not in sysfs, the row shows "-". Not tested on these GPUs.
   - **Memory**: "used of total" in GiB, a level bar and the percentage. Used is total minus available from `/proc/meminfo`, like GNOME System Monitor.
-  - **Disk**: the same for the root filesystem in GB. The percentage is used of the whole size like GNOME Settings, so it is a few points lower than `df`, which leaves out the space reserved for root.
+  - **Disk**: the same for the filesystem of the home folder in GB, on image based systems the root filesystem is a small read-only image. The percentage is used of the whole size like GNOME Settings, so it is a few points lower than `df`, which leaves out the space reserved for root.
   - **Network**: download and upload rate from `/proc/net/dev`, counting only interfaces with a device behind them. Loopback, VPN and container interfaces would count the same traffic twice.
 
 ## Departures from the design
@@ -63,9 +66,8 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Mute and media buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons, instead of the design's 44×44.
 - **No pin button on the cards.** Pinning is not designed yet, the slot opposite the close button stays empty so the title stays centred.
 - **No overlay close button.** The overlay closes with Esc, the shortcut, the top bar indicator and a click on an empty area, which is now on by default.
-- **No VRAM on Nvidia GPUs.** It would need `nvidia-smi`, which is spawned synchronously (see the sparklines below). Intel GPUs have no VRAM of their own.
 - **Network arrows** are the Adwaita `go-down` and `go-up` chevrons. Adwaita has no plain arrows, and its `network-receive` and `network-transmit` icons are horizontal arrow pairs.
-- **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but `nvidia-smi` is spawned synchronously and would block the shell every second.
+- **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but would run `nvidia-smi` every second for nothing.
 - **Device picker** opens inside the card instead of as a popup menu.
 - **Player tabs** on the Music card, the design has no way to switch between players yet.
 - **Discord states** are shown without the design's "Speaking" and "Muted" texts: the ring is enough for speaking, muted and deafened are icons, a deafened member has both. Adwaita has no crossed out headphones, a deafened member and the active deafen button show `audio-volume-muted`. Active mute and deafen buttons switch to the muted glyph in secondary grey, like the mute buttons of the Audio card.

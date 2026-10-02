@@ -311,7 +311,7 @@ export default class Preferences extends ExtensionPreferences {
         [
             ['cpu-monitoring', _('CPU'), _('Usage and temperature')],
             ['memory-monitoring', _('Memory'), _('Used and total memory')],
-            ['disk-monitoring', _('Disk'), _('Used and total space of the root filesystem')],
+            ['disk-monitoring', _('Disk'), _('Used and total space of the filesystem of the home folder')],
             ['network-monitoring', _('Network'), _('Download and upload rate')],
         ].forEach(([key, title, subtitle]) => {
             const row = new Adw.SwitchRow({ title, subtitle });

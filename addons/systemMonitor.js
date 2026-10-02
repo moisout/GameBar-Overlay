@@ -9,6 +9,14 @@ import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js'
 import { createCard, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
 
+const NO_GPU_READING = { usage: null, temperature: null, vram: null };
+
+// A number read from sysfs or a tool, null without one.
+const toNumber = (text) => {
+    const number = Number(text);
+    return typeof text === 'string' && text.trim() !== '' && Number.isFinite(number) ? number : null;
+};
+
 // Import GTop conditionally
 let GTop = null;
 try {
@@ -138,6 +146,10 @@ export class SystemMonitor {
             this._prevCpu = new GTop.default.glibtop_cpu();
         }
         this._cpuHwmonPath = findCpuHwmon();
+        this._cancellable = new Gio.Cancellable();
+        this._nvidiaProcess = null;
+        this._nvidiaMissing = false;
+        this._findGpu();
 
         // Without any row there is no card. A hidden card would not finish the exit animation the overlay waits for.
         if (!this._cpuMonitoring && !this._gpuMonitoring && !this._memoryMonitoring && !this._diskMonitoring && !this._networkMonitoring) {
@@ -279,13 +291,20 @@ export class SystemMonitor {
     this._gpuRow?.sparkline?.clear();
     this._prevNetwork = null;
 
-    // Initial update
-    this._updateMonitor();
+    // An exception in the timer would end it, and the card would stand still.
+    const update = () => {
+      try {
+        this._updateMonitor();
+      } catch (e) {
+        console.warn(`GameBar: ${e.message}`);
+      }
+    };
+    update();
 
     // Start the timer only if it's not already running
     if (!this._timeoutId) {
       this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-        this._updateMonitor();
+        update();
         return GLib.SOURCE_CONTINUE;
       });
     }
@@ -321,84 +340,75 @@ export class SystemMonitor {
     return Math.round((user + sys + nice) / Math.max(total, 1.0) * 100);
   }
 
-  _getCpuTemperature() {
-    if (!this._cpuHwmonPath) {
-      return { temp: _("N/A"), unit: "" };
+  // Millidegrees Celsius as "45 °C" or "113 °F", null without a reading.
+  _formatTemperature(millidegrees) {
+    if (millidegrees === null) return null;
+    const celsius = Math.round(millidegrees / 1000);
+    return this._tempUnit === 'C' ? `${celsius} °C` : `${Math.round(celsiusToFahrenheit(celsius))} °F`;
+  }
+
+  // The GPU to read, the selected one or the first one if it does not exist, with its driver and temperature sensor.
+  _findGpu() {
+    const gpus = listGpus().map(([id]) => id);
+    if (!gpus.includes(this._gpuDevice)) {
+      this._gpuDevice = gpus[0] ?? null;
+    }
+    this._gpuDriver = this._gpuDevice ? getGpuDriver(this._gpuDevice) : null;
+    // Integrated Intel GPUs have no sensor.
+    this._gpuHwmonPath = this._gpuDevice ? findFirstHwmon(this._gpuDevice) : null;
+    this._nvidia = NO_GPU_READING;
+  }
+
+  // Usage in percent, temperature in millidegrees Celsius and VRAM in use in bytes, null for what the driver does not tell.
+  _readGpu() {
+    if (!this._gpuDevice) return NO_GPU_READING;
+
+    if (this._gpuDriver === 'nvidia') {
+      this._queryNvidia();
+      return this._nvidia;
     }
 
-    const temperature = readFile(this._cpuHwmonPath);
-    if (temperature === null) {
-      return { temp: _("Error"), unit: "" };
+    // Only amdgpu has the usage and the VRAM in sysfs, Intel and nouveau have neither.
+    const device = '/sys/class/drm/' + this._gpuDevice + '/device';
+    const amd = this._gpuDriver === 'amdgpu';
+    return {
+      usage: amd ? toNumber(readFile(device + '/gpu_busy_percent')) : null,
+      temperature: this._gpuHwmonPath ? toNumber(readFile(this._gpuHwmonPath + '/temp1_input')) : null,
+      vram: amd ? toNumber(readFile(device + '/mem_info_vram_used')) : null,
+    };
+  }
+
+  // nvidia-smi takes too long to wait for it in the shell. It runs on its own, the row shows what its last run said.
+  _queryNvidia() {
+    if (this._nvidiaProcess || this._nvidiaMissing) return;
+
+    let process;
+    try {
+      process = Gio.Subprocess.new(
+        ['nvidia-smi', '--query-gpu=utilization.gpu,temperature.gpu,memory.used', '--format=csv,noheader,nounits'],
+        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
+    } catch (e) {
+      this._nvidiaMissing = true;
+      return;
     }
 
-    let celsius = Math.round(parseInt(temperature) / 1000);
-    let tempValue;
-    let unitSymbol;
-
-    if (this._tempUnit === 'C') {
-      tempValue = celsius;
-      unitSymbol = "°C";
-    } else { // Fahrenheit
-      tempValue = Math.round(celsiusToFahrenheit(celsius));
-      unitSymbol = "°F";
-    }
-    return { temp: tempValue, unit: unitSymbol};
-    }
-
-    _getGpuUsage() {
-      this._checkValidGpuDevice();
-      if (!this._gpuDevice) return "-";
-      const driver = getGpuDriver(this._gpuDevice);
-      if (driver == "amdgpu" || driver == "i915" || driver == "xe") {
-        const usagePath = "/sys/class/drm/" + this._gpuDevice + "/device/gpu_busy_percent"
-        const usage = readFile(usagePath);
-        return usage;
-      }else if(driver == "nouveau"){
-        const usagePath = "/sys/class/drm/" + this._gpuDevice + "/device/power/runtime_usage"
-        const usage = readFile(usagePath);
-        return usage;
-      }else if(driver == "nvidia"){
-        const output = GLib.spawn_command_line_sync("nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits")[1];
-        const usage = output.toString().trim();
-        return usage;
+    this._nvidiaProcess = process;
+    process.communicate_utf8_async(null, this._cancellable, (source, result) => {
+      if (this._nvidiaProcess === process) this._nvidiaProcess = null;
+      try {
+        const [, stdout] = source.communicate_utf8_finish(result);
+        // One line per GPU, the first one. The memory is in MiB.
+        const [usage, temperature, memory] = (stdout ?? '').split('\n')[0].split(',').map(toNumber);
+        this._nvidia = {
+          usage: usage ?? null,
+          temperature: typeof temperature === 'number' ? temperature * 1000 : null,
+          vram: typeof memory === 'number' ? memory * 1024 ** 2 : null,
+        };
+      } catch (e) {
+        if (!e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) console.warn(`GameBar: ${e.message}`);
       }
-      return "-"
-    }
-
-    _getGpuTemperature() {
-      this._checkValidGpuDevice();
-      if (!this._gpuDevice) return { temp: _("N/A"), unit: "" };
-      const driver = getGpuDriver(this._gpuDevice);
-      let temperature;
-
-      if (driver == "amdgpu" || driver == "i915" || driver == "xe" || driver == "nouveau") {
-        const path = findFirstHwmon(this._gpuDevice) + "/temp1_input";
-        temperature = readFile(path);
-      }else if(driver == "nvidia"){
-        const output = GLib.spawn_command_line_sync("nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits")[1];
-        temperature = output.toString().trim() * 1000;
-      }
-
-      const celsius = Math.round(parseInt(temperature) / 1000);
-      let tempValue;
-      let unitSymbol;
-  
-      if (this._tempUnit === 'C') {
-          tempValue = celsius;
-          unitSymbol = "°C";
-      } else { // Fahrenheit
-          tempValue = Math.round(celsiusToFahrenheit(celsius));
-          unitSymbol = "°F";
-      }
-      return { temp: tempValue, unit: unitSymbol};
-    }
-
-    // VRAM in use, only amdgpu reports it in sysfs.
-    _getGpuVram() {
-      if (!this._gpuDevice || getGpuDriver(this._gpuDevice) !== 'amdgpu') return null;
-      const used = readFile('/sys/class/drm/' + this._gpuDevice + '/device/mem_info_vram_used');
-      return used === null ? null : Number(used);
-    }
+    });
+  }
 
     // Used memory like GNOME System Monitor: everything that is not available.
     _getMemory() {
@@ -412,10 +422,10 @@ export class SystemMonitor {
       return { used: total - available, total };
     }
 
-    // Usage of the root filesystem.
+    // Usage of the filesystem of the home folder. On image based systems the root filesystem is a small read-only image.
     _getDisk() {
       try {
-        const info = Gio.File.new_for_path('/').query_filesystem_info('filesystem::size,filesystem::used,filesystem::free', null);
+        const info = Gio.File.new_for_path(GLib.get_home_dir()).query_filesystem_info('filesystem::size,filesystem::used,filesystem::free', null);
         const total = info.get_attribute_uint64('filesystem::size');
         const used = info.has_attribute('filesystem::used')
           ? info.get_attribute_uint64('filesystem::used')
@@ -465,52 +475,38 @@ export class SystemMonitor {
       return { download: download / seconds, upload: upload / seconds };
     }
 
-    // Fallback to the first available GPU if the selected one does not exist
-    _checkValidGpuDevice() {
-        const gpus = listGpus().flat();
-
-        if (gpus.length === 0) {
-            this._gpuDevice = null;
-            return;
-        }
-
-        if (!gpus.includes(this._gpuDevice)) {
-            this._gpuDevice = gpus[0];
-        }
-    }
-
   _updateMonitor() {
     // Only update if the overlay is visible
     if (!this._overlay.visible) {
       return false;
     }
 
-    const formatTemperature = (temp) => `${temp.temp} ${temp.unit}`.trim();
-
     if (this._cpuRow && !this._gtopAvailable) {
-      this._cpuRow.subtitle.set_text(_("GTop missing, install 'libgtop' for temperature"));
+      this._cpuRow.subtitle.set_text(_("Install 'libgtop' for the CPU usage"));
     } else if (this._cpuRow) {
       const cpuUsage = this._getCpuUsage();
       this._cpuRow.usage.set_text(cpuUsage + "%");
       this._cpuRow.sparkline.push(cpuUsage);
 
       if (this._cpuHwmonPath) {
-        this._cpuRow.subtitle.set_text(formatTemperature(this._getCpuTemperature()));
+        this._cpuRow.subtitle.set_text(this._formatTemperature(toNumber(readFile(this._cpuHwmonPath))) ?? _("N/A"));
       } else {
         this._cpuRow.subtitle.set_text(_("Temperature sensor not found"));
       }
     }
 
-    if (this._gpuMonitoring) {
-        const gpuUsage = this._getGpuUsage();
-        this._gpuRow.usage.set_text(gpuUsage + (gpuUsage !== "-" ? "%" : ""));
-        this._gpuRow.sparkline.push(gpuUsage);
-        let gpuDetails = formatTemperature(this._getGpuTemperature());
-        const vram = this._getGpuVram();
-        if (vram !== null) {
-          gpuDetails += ` · ${(vram / 1024 ** 3).toFixed(1)} GiB`;
-        }
-        this._gpuRow.subtitle.set_text(gpuDetails);
+    if (this._gpuRow) {
+      const gpu = this._readGpu();
+      this._gpuRow.usage.set_text(gpu.usage === null ? "-" : Math.round(gpu.usage) + "%");
+      if (gpu.usage !== null) {
+        this._gpuRow.sparkline.push(gpu.usage);
+      }
+
+      const details = [this._formatTemperature(gpu.temperature) ?? _("N/A")];
+      if (gpu.vram !== null) {
+        details.push(`${(gpu.vram / 1024 ** 3).toFixed(1)} GiB`);
+      }
+      this._gpuRow.subtitle.set_text(details.join(' · '));
     }
 
     for (const [row, getUsage, binary] of [[this._memoryRow, () => this._getMemory(), true], [this._diskRow, () => this._getDisk(), false]]) {
@@ -550,6 +546,9 @@ export class SystemMonitor {
   destroy() {
     // Stop the monitor
     this._stopMonitor();
+    this._cancellable?.cancel();
+    this._nvidiaProcess?.force_exit();
+    this._nvidiaProcess = null;
 
     // Disconnect signals
     if (this._heightChangeId > 0) {

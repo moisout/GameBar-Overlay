@@ -151,8 +151,8 @@ msgid "Error"
 msgstr "Error"
 
 #: addons/cpu.js:185
-msgid "GTop missing, install 'libgtop' for temperature"
-msgstr "GTop missing, install 'libgtop' for temperature"
+msgid "Install 'libgtop' for the CPU usage"
+msgstr "Install 'libgtop' for the CPU usage"
 
 #: addons/cpu.js:189
 msgid "Temperature sensor not found"
@@ -233,8 +233,8 @@ msgid "Used and total memory"
 msgstr "Used and total memory"
 
 #: prefs.js
-msgid "Used and total space of the root filesystem"
-msgstr "Used and total space of the root filesystem"
+msgid "Used and total space of the filesystem of the home folder"
+msgstr "Used and total space of the filesystem of the home folder"
 
 #: prefs.js
 msgid "Download and upload rate"

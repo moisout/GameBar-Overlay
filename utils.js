@@ -54,12 +54,11 @@ const findCpuHwmon = () => {
     return hwmonPath;
 };
 
-// Find the first hwmon for a GPU
+// Find the first hwmon for a GPU, null for a GPU without one
 const findFirstHwmon = (drm_id) => {
     const basePath = '/sys/class/drm/' + drm_id + "/device/hwmon"; // This directory can contain multiple hwmon interfaces.
-    const hwmonList = listDir(basePath);
-    const firstHwmon = hwmonList[0];
-    return basePath + "/" + firstHwmon.get_name();
+    const firstHwmon = listDir(basePath)[0];
+    return firstHwmon ? basePath + "/" + firstHwmon.get_name() : null;
 }
 
 // Get the GPU driver name (eg. amdgpu/nvidia/i915/xe)
