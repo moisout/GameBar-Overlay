@@ -33,21 +33,6 @@ export default class Preferences extends ExtensionPreferences {
         appearanceGroup.add(showIndicatorRow);
         settings.bind('show-indicator', showIndicatorRow, 'active', Gio.SettingsBindFlags.DEFAULT);
 
-        //Padding
-
-        const overlayPaddingRow = new Adw.SpinRow({
-            title: _('Padding'),
-            subtitle: _('Space inside the overlay separating addons from screen edges'),
-            adjustment: new Gtk.Adjustment({
-                lower: 0,
-                upper: 512,
-                step_increment: 1,
-                page_increment: 10,
-            }),
-        });
-        appearanceGroup.add(overlayPaddingRow);
-        settings.bind('overlay-padding', overlayPaddingRow, 'value', Gio.SettingsBindFlags.DEFAULT);
-
         //Background color
 
         const colorButton = new Gtk.ColorButton();
@@ -154,22 +139,6 @@ export default class Preferences extends ExtensionPreferences {
         }); 
         generalPage.add(behaviorGroup);
 
-        /*
-        // Overlay Opening Monitor
-        const monitorRow = new Adw.ComboRow({
-            title: _('Overlay Opening Monitor'),
-            subtitle: _('Select the monitor to open the overlay on'),
-            model: new Gtk.StringList({strings: ['Primary', 'Focused']}),
-        });
-        behaviorGroup.add(monitorRow);
-        settings.bind('overlay-opening-monitor', monitorRow, 'selected', Gio.SettingsBindFlags.DEFAULT);
-
-        monitorRow.connect('notify::selected', () => {
-            const selectedIndex = monitorRow.selected;
-            const selectedValue = monitorRow.model.get_string(selectedIndex);
-            settings.set_string('overlay-opening-monitor', selectedValue);
-        });*/
-
         // Close on Empty Area Click
         const emptyAreaCloseRow = new Adw.SwitchRow({
             title: _('Close on Empty Area Click'),
@@ -190,7 +159,7 @@ export default class Preferences extends ExtensionPreferences {
 
         const resetPositionsRow = new Adw.ActionRow({
             title: _('Addon Positions'),
-            subtitle: _('Drag an addon in the overlay to move it. Reset moves every addon back to its configured position'),
+            subtitle: _('Drag an addon in the overlay to move it. Reset moves every addon back to its default position'),
             activatable_widget: resetPositionsButton
         });
 
@@ -279,30 +248,6 @@ export default class Preferences extends ExtensionPreferences {
         });
         clockPage.add(clockGroup);
 
-        // Clock addon position
-        const clockAddonPositionValues = [
-            'Top Left', 'Top Center', 'Top Right', 
-            'Center Left', 'Center Center', 'Center Right', 
-            'Bottom Left', 'Bottom Center', 'Bottom Right'
-        ];
- 
-        const clockAddonPosition = new Adw.ComboRow({
-            title: _('Position'),
-            subtitle: _('Position for the clock in the overlay'),
-            model: new Gtk.StringList({strings: clockAddonPositionValues}),
-        });
-
-        clockAddonPosition.set_selected(clockAddonPositionValues.indexOf(settings.get_string("clock-addon-position")));
-        
-        clockGroup.add(clockAddonPosition);
-        settings.bind('clock-addon-position', clockAddonPosition, 'selected', Gio.SettingsBindFlags.DEFAULT);
-
-        clockAddonPosition.connect('notify::selected', () => {
-            const selectedIndex = clockAddonPosition.selected;
-            const selectedValue = clockAddonPosition.model.get_string(selectedIndex);
-            settings.set_string('clock-addon-position', selectedValue);
-        });
-
         // Show Seconds
         const showSecondsRow = new Adw.SwitchRow({
             title: _('Show Seconds'),
@@ -325,90 +270,6 @@ export default class Preferences extends ExtensionPreferences {
         clockGroup.add(fontSizeRow);
         settings.bind('clock-addon-font-size', fontSizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
 
-        // Sound Controls Page
-        const soundPage = new Adw.PreferencesPage({
-            title: _('Sound Controls'),
-            icon_name: 'audio-volume-high-symbolic',
-        });
-        window.add(soundPage);
-
-        const soundGroup = new Adw.PreferencesGroup({
-            title: _('Sound Control Settings'),
-            description: _('Configure the sound control panel'),
-        });
-        soundPage.add(soundGroup);
-
-        // Sound addon position
-        const soundAddonPositionValues = [
-            'Top Left', 'Top Center', 'Top Right', 
-            'Center Left', 'Center Center', 'Center Right', 
-            'Bottom Left', 'Bottom Center', 'Bottom Right'
-        ];
-        const soundAddonPosition = new Adw.ComboRow({
-            title: _('Position'),
-            subtitle: _('Position for the sound panel in the overlay'),
-            model: new Gtk.StringList({strings: soundAddonPositionValues}),
-        });
-
-        soundAddonPosition.set_selected(soundAddonPositionValues.indexOf(settings.get_string("sound-addon-position")));
-
-        soundGroup.add(soundAddonPosition);
-        settings.bind('sound-addon-position', soundAddonPosition, 'selected', Gio.SettingsBindFlags.DEFAULT);
-
-        soundAddonPosition.connect('notify::selected', () => {
-            const selectedIndex = soundAddonPosition.selected;
-            const selectedValue = soundAddonPosition.model.get_string(selectedIndex);
-            settings.set_string('sound-addon-position', selectedValue);
-        });
-
-        // Icon Size
-        const iconSizeRow = new Adw.SpinRow({
-            title: _('Icon Size'),
-            subtitle: _('Icon size for the sound controls'),
-            adjustment: new Gtk.Adjustment({
-                lower: 16,
-                upper: 48,
-                step_increment: 1,
-                page_increment: 8,
-            }),
-        });
-        soundGroup.add(iconSizeRow);
-        settings.bind('sound-controls-icon-size', iconSizeRow, 'value', Gio.SettingsBindFlags.DEFAULT);
-
-        /*// Show App Description
-        const showAppDescRow = new Adw.SwitchRow({
-            title: _('Show App Description'),
-            subtitle: _('Show the description of the output audio stream'),
-        });
-        soundGroup.add(showAppDescRow);
-        settings.bind('sound-controls-show-app-description', showAppDescRow, 'active', Gio.SettingsBindFlags.DEFAULT);
-*/
-
-        const soundExperimentalGroup = new Adw.PreferencesGroup({
-            title: _('Experimental settings'),
-            description: _('These settings are experimental WIP features and may dont work as expected'),
-        });
-        soundPage.add(soundExperimentalGroup);
-
-        // Icon Type
-        const soundIconTypeRowValues = ['Default', 'Symbolic'];
-        const soundIconTypeRow = new Adw.ComboRow({
-            title: _('Icon Type'),
-            subtitle: _('Select the icon type: Default or Symbolic'),
-            model: new Gtk.StringList({strings: soundIconTypeRowValues}),
-        });
-
-        soundIconTypeRow.set_selected(soundIconTypeRowValues.indexOf(settings.get_string("sound-icon-type")));
-
-        soundExperimentalGroup.add(soundIconTypeRow);
-        settings.bind('sound-icon-type', soundIconTypeRow, 'selected', Gio.SettingsBindFlags.DEFAULT);
-
-        soundIconTypeRow.connect('notify::selected', () => {
-            const selectedIndex = soundIconTypeRow.selected;
-            const selectedValue = soundIconTypeRow.model.get_string(selectedIndex);
-            settings.set_string('sound-icon-type', selectedValue);
-        });
-
         // System Monitor addon page
         const monitorPage = new Adw.PreferencesPage({
             title: _('System Monitor'),
@@ -421,30 +282,6 @@ export default class Preferences extends ExtensionPreferences {
             description: _('Configure the System Monitor'),
         });
         monitorPage.add(cpuGroup);
-
-        // CPU addon position
-        const cpuAddonPositionValues = [
-            'Top Left', 'Top Center', 'Top Right', 
-            'Center Left', 'Center Center', 'Center Right', 
-            'Bottom Left', 'Bottom Center', 'Bottom Right'
-        ];
- 
-        const cpuAddonPosition = new Adw.ComboRow({
-            title: _('Position'),
-            subtitle: _('Position for the System Monitor in the overlay'),
-            model: new Gtk.StringList({strings: cpuAddonPositionValues}),
-        });
-
-        cpuAddonPosition.set_selected(cpuAddonPositionValues.indexOf(settings.get_string("cpu-addon-position")));
-        
-        cpuGroup.add(cpuAddonPosition);
-        settings.bind('cpu-addon-position', cpuAddonPosition, 'selected', Gio.SettingsBindFlags.DEFAULT);
-
-        cpuAddonPosition.connect('notify::selected', () => {
-            const selectedIndex = cpuAddonPosition.selected;
-            const selectedValue = cpuAddonPosition.model.get_string(selectedIndex);
-            settings.set_string('cpu-addon-position', selectedValue);
-        });
 
         // Temperature Unit
         const temperatureUnitValues = ['C', 'F'];

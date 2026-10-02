@@ -14,22 +14,12 @@
     </key>
 
     <key name="clock-addon-font-size" type="i">
-      <default>72</default>
+      <default>64</default>
       <summary>Font size for the clock</summary>
       <description>Font size for the clock</description>
     </key>
 
-    <key name="clock-addon-position" type="s">
-      <default>'Top Center'</default>
-      <summary>Position for the clock in the overlay</summary>
-      <description>Set the position for the clock in the overlay</description>
-    </key>
 
-    <key name="cpu-addon-position" type="s">
-      <default>'Bottom Left'</default>
-      <summary>Position for the System Monitor in the overlay</summary>
-      <description>Set the position for the System Monitor in the overlay</description>
-    </key>
 
     <key name="cpu-temperature-unit" type="s">
         <default>'C'</default>
@@ -49,29 +39,9 @@
         <description>Select the default GPU device to be monitored</description>
     </key>
 
-    <key name="sound-icon-type" type="s">
-      <default>'Default'</default>
-      <summary>Icon type</summary>
-      <description>Select the icon type: Default or Symbolic</description>
-    </key>
 
-    <key name="sound-controls-icon-size" type="i">
-      <default>32</default>
-      <summary>Icon size for the sound controls</summary>
-      <description>Icon size at the sound panel</description>
-    </key>
 
-    <key name="sound-controls-show-app-description" type="b">
-      <default>false</default>
-      <summary>Show the description of the output audio stream</summary>
-      <description>Show the description of the output audio stream</description>
-    </key>
 
-    <key name="sound-addon-position" type="s">
-      <default>'Top Left'</default>
-      <summary>Position for the sound panel addon in the overlay</summary>
-      <description>Set the position for the sound panel addon in the overlay</description>
-    </key>
 
     <key name="addon-positions" type="a{s(dd)}">
       <default>{}</default>
@@ -79,26 +49,16 @@
       <description>Position of each addon that was dragged in the overlay, as fractions of the monitor width and height. Addons without an entry use their configured position</description>
     </key>
 
-    <key name="overlay-opening-monitor" type="s">
-      <default>'Primary'</default>
-      <summary>Monitor to open the overlay on</summary>
-      <description>Monitor to open the overlay on</description>
-    </key>
 
     <key name="overlay-empty-area-close" type="b">
-      <default>false</default>
+      <default>true</default>
       <summary>Close the overlay by clicking on an empty area</summary>
       <description>Close the overlay by clicking on an empty area</description>
     </key>
 
-    <key name="overlay-padding" type="i">
-      <default>50</default>
-      <summary>Padding around the overlay</summary>
-      <description>Padding around the overlay</description>
-    </key>
 
     <key name="overlay-background-color" type="s">
-      <default>'rgba(0,0,0,0.8)'</default>
+      <default>'rgba(8,9,12,0.62)'</default>
       <summary>Overlay background color</summary>
       <description>Background color of the overlay</description>
     </key>

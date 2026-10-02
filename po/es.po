@@ -38,14 +38,6 @@ msgstr "Mostrar Indicador"
 msgid "Shows the GameBar Overlay indicator in the Top-Bar"
 msgstr "Muestra el indicador de GameBar Overlay en la barra superior"
 
-#: prefs.js:38
-msgid "Padding"
-msgstr "Relleno"
-
-#: prefs.js:39
-msgid "Space inside the overlay separating addons from screen edges"
-msgstr "Espacio dentro del overlay que separa los elementos de los bordes de la pantalla"
-
 #: prefs.js:66
 msgid "Overlay background color"
 msgstr "Color de fondo del overlay"
@@ -75,8 +67,8 @@ msgid "Addon Positions"
 msgstr "Posiciones de los elementos"
 
 #: prefs.js:193
-msgid "Drag an addon in the overlay to move it. Reset moves every addon back to its configured position"
-msgstr "Arrastra un elemento en el overlay para moverlo. Restablecer devuelve cada elemento a su posición configurada"
+msgid "Drag an addon in the overlay to move it. Reset moves every addon back to its default position"
+msgstr "Arrastra un elemento en el overlay para moverlo. Restablecer devuelve cada elemento a su posición predeterminada"
 
 #: prefs.js:108
 msgid "Keybinding"
@@ -106,14 +98,6 @@ msgstr "Configuración del reloj"
 msgid "Configure the clock addon"
 msgstr "Configura el reloj"
 
-#: prefs.js:195 prefs.js:253 prefs.js:338
-msgid "Position"
-msgstr "Posición"
-
-#: prefs.js:196
-msgid "Position for the clock in the overlay"
-msgstr "Posición del reloj en el overlay"
-
 #: prefs.js:213
 msgid "Show Seconds"
 msgstr "Mostrar segundos"
@@ -129,46 +113,6 @@ msgstr "Tamaño de fuente"
 #: prefs.js:222
 msgid "Font size for the clock"
 msgstr "Tamaño de fuente para el reloj"
-
-#: prefs.js:235
-msgid "Sound Controls"
-msgstr "Control de volumen"
-
-#: prefs.js:241
-msgid "Sound Control Settings"
-msgstr "Configuración del control de volumen"
-
-#: prefs.js:242
-msgid "Configure the sound control panel"
-msgstr "Configura el control de volumen"
-
-#: prefs.js:254
-msgid "Position for the sound panel in the overlay"
-msgstr "Posición del control de volumen en el overlay"
-
-#: prefs.js:271
-msgid "Icon Size"
-msgstr "Tamaño de iconos"
-
-#: prefs.js:272
-msgid "Icon size for the sound controls"
-msgstr "Tamaño de los iconos del control de volumen"
-
-#: prefs.js:293
-msgid "Experimental settings"
-msgstr "Configuración experimental"
-
-#: prefs.js:294
-msgid "These settings are experimental WIP features and may dont work as expected"
-msgstr "Estas configuraciones son características experimentales y pueden no funcionar como se espera"
-
-#: prefs.js:301
-msgid "Icon Type"
-msgstr "Tipo de icono"
-
-#: prefs.js:302
-msgid "Select the icon type: Default or Symbolic"
-msgstr "Selecciona el tipo de icono: Predeterminado o Simbólico"
 
 #: prefs.js:319
 msgid "CPU Addon"
@@ -221,3 +165,36 @@ msgstr "Sin dispositivo de salida"
 #: addons/deviceSection.js:35
 msgid "No input device"
 msgstr "Sin dispositivo de entrada"
+
+#: addons/soundControls.js
+msgid "Audio"
+msgstr "Audio"
+
+#: addons/soundControls.js
+msgid "Output"
+msgstr "Salida"
+
+#: addons/soundControls.js
+msgid "Input"
+msgstr "Entrada"
+
+#: addons/soundControls.js
+msgid "Applications"
+msgstr "Aplicaciones"
+
+#: addons/deviceSection.js
+msgid "Device"
+msgstr "Dispositivo"
+
+#: addons/systemMonitor.js
+msgid "Hardware"
+msgstr "Hardware"
+
+#: addons/systemMonitor.js
+msgid "GPU"
+msgstr "GPU"
+
+#: addons/clock.js
+#, no-c-format
+msgid "%A, %-d %B"
+msgstr "%A, %-d de %B"

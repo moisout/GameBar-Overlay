@@ -9,12 +9,10 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { set_padding_setting } from './utils.js';
-import { set_position_settings, saveCustomPosition } from './cardPosition.js';
+import { set_position_settings } from './cardPosition.js';
 
 //Addon Imports:
 import {Clock} from './addons/clock.js';
-import {CloseButton} from './addons/closeButton.js';
 import {SoundControls} from './addons/soundControls.js';
 import {SystemMonitor} from './addons/systemMonitor.js';
 //TODO:: screenshot addon
@@ -92,7 +90,6 @@ class GameBar extends PanelMenu.Button {
 
         // Create instances of addons and pass the overlay widget and the primary monitor
         this._clock = new Clock(this._overlay, primaryMonitor); // Clock addon
-        this._closeButton = new CloseButton(this._overlay, primaryMonitor, this._toggleOverlay.bind(this)); // Close button addon
         this._soundControls = new SoundControls(this._overlay, primaryMonitor); // Sound controls addon
         this._systemMonitor = new SystemMonitor(this._overlay, primaryMonitor); // System Monitor stats addon
 
@@ -104,6 +101,13 @@ class GameBar extends PanelMenu.Button {
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             //TODO:: fix bug: when change to a diferent resolution monitor, the size wont update properly
             this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
+        });
+
+        // Close the overlay when clicking on an empty area, the cards stop the clicks on them
+        this._overlay.connect('button-release-event', () => {
+            if (this._emptyAreaClose && this._overlay.visible) {
+                this._toggleOverlay();
+            }
         });
 
         // Connect to 'key-press-event' signal to close the overlay when ESC key is clicked
@@ -128,7 +132,7 @@ class GameBar extends PanelMenu.Button {
         this._backdrop.hide();
 
         // The addons keep the monitor they were created with, which is null if the shell had no monitor yet.
-        [this._clock, this._closeButton, this._soundControls, this._systemMonitor].forEach(addon => {
+        [this._clock, this._soundControls, this._systemMonitor].forEach(addon => {
             if (!addon) return;
             addon._primaryMonitor = primaryMonitor;
             addon.set_addon_position();
@@ -381,19 +385,6 @@ class GameBar extends PanelMenu.Button {
             return;
         }
 
-        // Choosing a preset position in the preferences replaces the dragged one.
-        const presetAddons = {
-            'clock-addon-position': ['clock', this._clock],
-            'sound-addon-position': ['sound', this._soundControls],
-            'cpu-addon-position': ['system-monitor', this._systemMonitor],
-        };
-        if (key in presetAddons) {
-            const [id, addon] = presetAddons[key];
-            if (settings.get_string(key) !== addon._position) {
-                saveCustomPosition(id, null);
-            }
-        }
-
         //load the new settings:
         this._loadSettings(settings);
     }
@@ -404,9 +395,8 @@ class GameBar extends PanelMenu.Button {
         //Update addons settings
         this._clock._updateSettings(settings);
         this._soundControls._updateSettings(settings);
-        this._closeButton._updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
-        set_padding_setting(settings.get_int('overlay-padding'));
+        this._emptyAreaClose = settings.get_boolean('overlay-empty-area-close');
         this._enterAnimation = settings.get_string('enter-animation');
         this._enterAnimationDuration = settings.get_int('enter-animation-duration');
         this._exitAnimation = settings.get_string('exit-animation');
@@ -429,8 +419,6 @@ class GameBar extends PanelMenu.Button {
         // Call the addon destroy:
         this._clock?.destroy();
         this._clock = null;
-        this._closeButton?.destroy();
-        this._closeButton = null;
         this._soundControls?.destroy();
         this._soundControls = null;
         this._systemMonitor?.destroy();

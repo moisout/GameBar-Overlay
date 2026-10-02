@@ -1,9 +1,10 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import Pango from 'gi://Pango';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
+import { createGroupTitle, BoxedList, createSeparator, createRow, createLabel, createIconButton } from '../card.js';
 
 const KINDS = {
     output: {
@@ -34,78 +35,66 @@ const KINDS = {
     },
 };
 
-// Mute button, volume slider and device selector for the default output or input device.
+// Boxed list with a device picker and a mute button and volume slider for the default output or input device.
 export class DeviceSection {
-    constructor(control, kind, iconSize) {
+    constructor(control, kind, title) {
         this._control = control;
         this._kind = KINDS[kind];
         this._stream = null;
         this._isSyncingUI = false;
-        // Long device names are ellipsized to the width of the icon and slider row instead of widening the card.
-        this._deviceStyle = `max-width: ${iconSize + 10 + 300 - 20}px;`;
+        this._isSettingVolume = false;
 
-        this.actor = new St.BoxLayout({
-            vertical: true,
-            x_expand: false, // Keeps the expanding labels from stretching the card over the whole overlay.
-            style_class: 'gamebar-device-section'
-        });
+        this.actor = new St.BoxLayout({ vertical: true });
+        this.title = createGroupTitle(title);
+        this.actor.add_child(this.title);
 
-        // Mute button and volume slider
-        let volumePanel = new St.BoxLayout({
-            vertical: false,
-            x_align: Clutter.ActorAlign.START,
-            y_align: Clutter.ActorAlign.CENTER
-        });
+        const list = new BoxedList();
+        this.actor.add_child(list.actor);
 
-        this._muteButton = new St.Button({
-            child: new St.Icon({
-                icon_name: this._kind.icons[3],
-                style_class: 'gamebar-volume-icon',
-                icon_size: iconSize
-            })
-        });
-        this._muteButton.connect('clicked', this._toggleMute.bind(this));
-
-        this._slider = new Slider(0);
-        this._slider.set_style('width: 300px;');
-        this._slider.connect('notify::value', this._onVolumeChanged.bind(this));
-
-        volumePanel.add_child(this._muteButton);
-        volumePanel.add_child(this._slider);
-
-        // Button with the name of the current device, opens the device list
-        this._deviceLabel = new St.Label({
+        // Row with the name of the current device, opens the device list
+        this._deviceLabel = createLabel('', 'gamebar-device-name', {
             x_expand: true,
-            y_align: Clutter.ActorAlign.CENTER
+            x_align: Clutter.ActorAlign.END,
         });
-        this._deviceLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
 
         this._arrow = new St.Icon({
             icon_name: 'pan-down-symbolic',
-            icon_size: 16
+            icon_size: 16,
+            y_align: Clutter.ActorAlign.CENTER,
         });
 
-        let deviceBox = new St.BoxLayout({ vertical: false, x_expand: true });
-        deviceBox.add_child(this._deviceLabel);
-        deviceBox.add_child(this._arrow);
+        const deviceRow = createRow();
+        deviceRow.add_child(new St.Label({ text: _('Device'), y_align: Clutter.ActorAlign.CENTER }));
+        deviceRow.add_child(this._deviceLabel);
+        deviceRow.add_child(this._arrow);
 
         this._deviceButton = new St.Button({
-            style_class: 'gamebar-device-button',
-            style: this._deviceStyle,
-            child: deviceBox,
+            style_class: 'gamebar-row-button gamebar-device-row',
+            child: deviceRow,
             x_expand: true
         });
         this._deviceButton.connect('clicked', () => this._setExpanded(!this._deviceList.visible));
+        list.addRow(this._deviceButton);
 
+        // Every item adds its own separator, so the hidden list leaves no double line.
         this._deviceList = new St.BoxLayout({
             vertical: true,
-            style_class: 'gamebar-device-list',
             visible: false
         });
+        list.actor.add_child(this._deviceList);
 
-        this.actor.add_child(volumePanel);
-        this.actor.add_child(this._deviceButton);
-        this.actor.add_child(this._deviceList);
+        // Mute button and volume slider
+        this._muteButton = createIconButton(this._kind.icons[3]);
+        this._muteButton.connect('clicked', this._toggleMute.bind(this));
+
+        this._slider = new Slider(0);
+        this._slider.x_expand = true;
+        this._slider.connect('notify::value', this._onVolumeChanged.bind(this));
+
+        const volumeRow = createRow('gamebar-row-leading-button');
+        volumeRow.add_child(this._muteButton);
+        volumeRow.add_child(this._slider);
+        list.addRow(volumeRow);
 
         // Disconnected automatically when the actor is destroyed.
         this._control.connectObject(
@@ -139,32 +128,42 @@ export class DeviceSection {
     }
 
     _syncUIFromStream() {
+        // The slider already shows the volume being set, and the stream still reports the old mute state.
+        if (this._isSettingVolume) {
+            return;
+        }
+
+        // A muted stream shows an empty slider, like the quick settings.
+        const muted = !this._stream || this._stream.is_muted;
         this._isSyncingUI = true;
-        this._slider.value = this._stream ? this._stream.volume / this._control.get_vol_max_norm() : 0;
+        this._slider.value = muted ? 0 : this._stream.volume / this._control.get_vol_max_norm();
         this._isSyncingUI = false;
+        this._isSettingVolume = false;
 
         this._updateIcon();
     }
 
     _onVolumeChanged() {
         if (this._stream && !this._isSyncingUI) {
-            this._stream.volume = this._slider.value * this._control.get_vol_max_norm();
-            this._stream.push_volume();
+            this._isSettingVolume = true;
+            setStreamVolume(this._control, this._stream, this._slider.value);
+            this._isSettingVolume = false;
             this._updateIcon();
         }
     }
 
     _toggleMute() {
         if (this._stream) {
-            this._stream.change_is_muted(!this._stream.is_muted);
+            toggleStreamMute(this._control, this._stream);
         }
     }
 
     _updateIcon() {
         const [muted, low, medium, high] = this._kind.icons;
         const volume = this._slider.value;
+        const isMuted = !this._stream || this._stream.is_muted || volume <= 0;
         let iconName;
-        if (!this._stream || this._stream.is_muted || volume <= 0) {
+        if (isMuted) {
             iconName = muted;
         } else if (volume <= 0.3) {
             iconName = low;
@@ -174,6 +173,11 @@ export class DeviceSection {
             iconName = high;
         }
         this._muteButton.child.icon_name = iconName;
+        if (isMuted) {
+            this._muteButton.add_style_class_name('gamebar-dim');
+        } else {
+            this._muteButton.remove_style_class_name('gamebar-dim');
+        }
     }
 
     _getDevices() {
@@ -217,32 +221,31 @@ export class DeviceSection {
         this._deviceList.destroy_all_children();
         devices.forEach(device => {
             let icon = new St.Icon({
-                style_class: 'gamebar-device-item-icon',
                 gicon: device.get_gicon(),
                 fallback_icon_name: 'audio-card-symbolic',
-                icon_size: 16
-            });
-
-            let label = new St.Label({
-                text: this._getDeviceName(device),
-                x_expand: true,
+                icon_size: 16,
                 y_align: Clutter.ActorAlign.CENTER
             });
-            label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
 
-            let itemBox = new St.BoxLayout({ vertical: false, x_expand: true });
-            itemBox.add_child(icon);
-            itemBox.add_child(label);
+            let label = createLabel(this._getDeviceName(device), '', { x_expand: true });
+
+            let check = new St.Icon({
+                icon_name: 'object-select-symbolic',
+                icon_size: 16,
+                y_align: Clutter.ActorAlign.CENTER,
+                opacity: device === activeDevice ? 255 : 0
+            });
+
+            let itemRow = createRow();
+            itemRow.add_child(icon);
+            itemRow.add_child(label);
+            itemRow.add_child(check);
 
             let item = new St.Button({
-                style_class: 'gamebar-device-item',
-                style: this._deviceStyle,
-                child: itemBox,
+                style_class: 'gamebar-row-button',
+                child: itemRow,
                 x_expand: true
             });
-            if (device === activeDevice) {
-                item.add_style_pseudo_class('checked');
-            }
 
             const id = device.get_id();
             item.connect('clicked', () => {
@@ -253,6 +256,7 @@ export class DeviceSection {
                 this._setExpanded(false);
             });
 
+            this._deviceList.add_child(createSeparator());
             this._deviceList.add_child(item);
         });
 

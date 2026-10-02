@@ -5,7 +5,10 @@ import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import Gio from 'gi://Gio';
 import { positionAddon, makeDraggable } from '../cardPosition.js';
 import { DeviceSection } from './deviceSection.js';
+import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
+import { createCard, createGroupTitle, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
 import GLib from 'gi://GLib';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export class SoundControls {
     constructor(overlay, primaryMonitor) {
@@ -14,8 +17,8 @@ export class SoundControls {
         this._volumeControl = Volume.getMixerControl();
         this._outputSection = null;
         this._inputSection = null;
-        this._appVolumesContainer = null;
-        this._appVolumesBox = null;
+        this._appVolumesGroup = null;
+        this._appVolumesList = null;
         this._addonContainer = null;
         //Listeners:
         this._widthChangeId = null;
@@ -28,30 +31,25 @@ export class SoundControls {
             layout_manager: new Clutter.BinLayout()
         });
 
-        // Create a container for all volume controls
-        this._appVolumesContainer = new St.BoxLayout({
-            vertical: true,
-            x_align: Clutter.ActorAlign.START,
-            y_align: Clutter.ActorAlign.START,
-            style_class: 'gamebar-volume-container-global'
-        });
+        const { card, body } = createCard(_('Audio'), 'gamebar-audio-card');
 
         // Create the output and input device controls
-        this._outputSection = new DeviceSection(this._volumeControl, 'output', this._icon_Size);
-        this._inputSection = new DeviceSection(this._volumeControl, 'input', this._icon_Size);
+        this._outputSection = new DeviceSection(this._volumeControl, 'output', _('Output'));
+        this._inputSection = new DeviceSection(this._volumeControl, 'input', _('Input'));
+        // The first group sits closer to the header bar.
+        this._outputSection.title.add_style_class_name('gamebar-group-title-first');
 
-        // Create a box for app-specific volume controls
-        this._appVolumesBox = new St.BoxLayout({
-            vertical: true,
-            x_align: Clutter.ActorAlign.START,
-            y_align: Clutter.ActorAlign.START,
-        });
+        // Create a group for app-specific volume controls, hidden while no app plays audio
+        this._appVolumesGroup = new St.BoxLayout({ vertical: true });
+        this._appVolumesList = new BoxedList();
+        this._appVolumesGroup.add_child(createGroupTitle(_('Applications')));
+        this._appVolumesGroup.add_child(this._appVolumesList.actor);
 
-        this._appVolumesContainer.add_child(this._outputSection.actor);
-        this._appVolumesContainer.add_child(this._inputSection.actor);
-        this._appVolumesContainer.add_child(this._appVolumesBox);
+        body.add_child(this._outputSection.actor);
+        body.add_child(this._inputSection.actor);
+        body.add_child(this._appVolumesGroup);
 
-        this._addonContainer.add_child(this._appVolumesContainer)
+        this._addonContainer.add_child(card);
 
         // Add the addon container to the overlay
         this._overlay.add_child(this._addonContainer);
@@ -75,7 +73,7 @@ export class SoundControls {
     }
 
     set_addon_position(){
-        positionAddon(this._primaryMonitor, this._position, this._addonContainer, 'sound');
+        positionAddon(this._primaryMonitor, this._addonContainer, 'sound');
       }
 
     // Update all volume controls
@@ -84,61 +82,19 @@ export class SoundControls {
         this._inputSection.sync();
 
         // Clear existing app volume controls
-        this._appVolumesBox.destroy_all_children();
-        
-        // Get all audio streams (for app-specific volumes)
-        let sinkInputs = this._volumeControl.get_sink_inputs();
-        
-        // Create volume controls for each app
-        sinkInputs.forEach((inputStream, index) => {
-            if (inputStream.is_event_stream) {
-                return; // Skip event streams
-            }
-        
-            // Create a box for label and volumeBox
-            let labelBox = new St.BoxLayout({
-                vertical: true,
-                x_align: Clutter.ActorAlign.START,
-                y_align: Clutter.ActorAlign.START
-            });
-        
-            // Create a label for the app name
-            let label = new St.Label({
-                text: inputStream.get_name() || inputStream.get_description(),
-                y_align: Clutter.ActorAlign.CENTER
-            });
+        this._appVolumesList.clear();
 
-            // Add the separator for only first item
-            if (index == 0) {
-                labelBox.add_child(new St.DrawingArea({
-                    style_class: 'separator',
-                    x_expand: true,
-                }));
-            }
-        
-            label.style_class = 'gamebar-app-volume-label';
-            labelBox.add_child(label);
-            labelBox.add_child(this._createAppVolumeControl(inputStream));
-        
-            // Add the separator except for the last item
-            if (index < sinkInputs.length - 1) {
-                labelBox.add_child(new St.DrawingArea({
-                    style_class: 'separator',
-                    x_expand: true,
-                }));
-            }
-        
-            this._appVolumesBox.add_child(labelBox);
-        });        
+        // Get all audio streams (for app-specific volumes), skipping event streams
+        this._volumeControl.get_sink_inputs()
+            .filter(inputStream => !inputStream.is_event_stream)
+            .forEach(inputStream => this._appVolumesList.addRow(this._createAppVolumeControl(inputStream)));
+
+        this._appVolumesGroup.visible = !this._appVolumesList.isEmpty;
     }
 
     // Create a volume control for a specific app
     _getAppIcon(stream) {
         let icon = null;
-        let iconType = (this._iconType === 'Symbolic' ? '-symbolic' : '');
-        
-        // TODO:: Search for symbolic icons
-
         // Check if the stream has an icon saved in system icons:
         icon = this._getAppInfoIconFromStreamName(stream);
         if (icon) return icon;
@@ -149,8 +105,8 @@ export class SoundControls {
             if (icon) return icon;
         }
 
-        // Return generic if no icon found:
-        return new Gio.ThemedIcon({ name: 'application-x-executable'+iconType });
+        // Return generic if no icon found, symbolic like the other icons of the card:
+        return new Gio.ThemedIcon({ name: 'application-x-executable-symbolic' });
     }
     
     _getAppInfoIconFromStreamName(stream) {
@@ -210,61 +166,74 @@ export class SoundControls {
     
     // Create a volume control for a specific app
     _createAppVolumeControl(stream) {
-        let container = new St.BoxLayout({
-            style_class: 'gamebar-app-volume-control',
-            vertical: false,
-            x_align: Clutter.ActorAlign.START,
+        let row = createRow('gamebar-app-row');
+
+        // Create an icon for the app
+        let appIcon = new St.Icon({
+            gicon: this._getAppIcon(stream),
+            icon_size: 24,
             y_align: Clutter.ActorAlign.CENTER
         });
-    
-        let icon = this._getAppIcon(stream);
-    
-        // Create an icon for the app
-        let APPicon = new St.Icon({
-            style_class: 'gamebar-app-volume-icon',
-            gicon: icon,
-            icon_size: this._icon_Size
-        });
-    
+
+        let label = createLabel(stream.get_name() || stream.get_description(), 'gamebar-app-name');
+
+        let muteButton = createIconButton('audio-volume-high-symbolic');
+        muteButton.connect('clicked', () => toggleStreamMute(this._volumeControl, stream));
+
         // Create a volume slider for the app
-        let slider = new Slider(stream.volume / this._volumeControl.get_vol_max_norm());
-        slider.set_style('width: 300px;'); //TODO:: make configurable
+        let slider = new Slider(0);
+        slider.x_expand = true;
 
         let isSyncing = false;
+        let isSettingVolume = false;
+
+        // A muted app shows an empty slider and a grey name, like the quick settings.
+        const syncFromStream = () => {
+            // The slider already shows the volume being set, and the stream still reports the old mute state.
+            if (isSettingVolume) {
+                return;
+            }
+
+            isSyncing = true;
+            slider.value = stream.is_muted ? 0 : stream.volume / this._volumeControl.get_vol_max_norm();
+            isSyncing = false;
+
+            const muted = stream.is_muted || slider.value <= 0;
+            muteButton.child.icon_name = muted ? 'audio-volume-muted-symbolic' : 'audio-volume-high-symbolic';
+            [muteButton, label].forEach(actor => {
+                if (muted) {
+                    actor.add_style_class_name('gamebar-dim');
+                } else {
+                    actor.remove_style_class_name('gamebar-dim');
+                }
+            });
+        };
 
         slider.connect('notify::value', () => {
             if (!isSyncing) {
-                stream.volume = slider.value * this._volumeControl.get_vol_max_norm();
-                stream.push_volume();
+                isSettingVolume = true;
+                setStreamVolume(this._volumeControl, stream, slider.value);
+                isSettingVolume = false;
             }
         });
 
-        let streamVolId = stream.connect('notify::volume', () => {
-            isSyncing = true;
-            slider.value = stream.volume / this._volumeControl.get_vol_max_norm();
-            isSyncing = false;
-        });
+        // Disconnected automatically when the row is destroyed.
+        stream.connectObject(
+            'notify::volume', syncFromStream,
+            'notify::is-muted', syncFromStream,
+            row);
+        syncFromStream();
 
-        container.connect('destroy', () => {
-            if (streamVolId) {
-                stream.disconnect(streamVolId);
-            }
-        });
+        // Add all elements to the row
+        row.add_child(appIcon);
+        row.add_child(label);
+        row.add_child(muteButton);
+        row.add_child(slider);
 
-    
-        // Add all elements to the container
-        container.add_child(APPicon);
-        container.add_child(slider);
-    
-        return container;
+        return row;
     }
-    
 
     _updateSettings(settings) {
-        this._icon_Size = settings.get_int('sound-controls-icon-size');
-        this._showAppDesc = settings.get_boolean('sound-controls-show-app-description');
-        this._iconType = settings.get_string('sound-icon-type');
-        this._position = settings.get_string('sound-addon-position');
         this.destroy();
         this._volumeControl = Volume.getMixerControl();
         this._createVolumeControls();
@@ -289,8 +258,8 @@ export class SoundControls {
 
         this._outputSection = null;
         this._inputSection = null;
-        this._appVolumesBox = null;
+        this._appVolumesGroup = null;
+        this._appVolumesList = null;
         this._volumeControl = null;
-        this._appVolumesContainer = null;
     }
 }

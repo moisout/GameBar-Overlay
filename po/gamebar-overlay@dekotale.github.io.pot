@@ -37,14 +37,6 @@ msgstr ""
 msgid "Shows the GameBar Overlay indicator in the Top-Bar"
 msgstr ""
 
-#: prefs.js:38
-msgid "Padding"
-msgstr ""
-
-#: prefs.js:39
-msgid "Space inside the overlay separating addons from screen edges"
-msgstr ""
-
 #: prefs.js:66
 msgid "Overlay background color"
 msgstr ""
@@ -74,7 +66,7 @@ msgid "Addon Positions"
 msgstr ""
 
 #: prefs.js:193
-msgid "Drag an addon in the overlay to move it. Reset moves every addon back to its configured position"
+msgid "Drag an addon in the overlay to move it. Reset moves every addon back to its default position"
 msgstr ""
 
 #: prefs.js:108
@@ -105,14 +97,6 @@ msgstr ""
 msgid "Configure the clock addon"
 msgstr ""
 
-#: prefs.js:195 prefs.js:253 prefs.js:338
-msgid "Position"
-msgstr ""
-
-#: prefs.js:196
-msgid "Position for the clock in the overlay"
-msgstr ""
-
 #: prefs.js:213
 msgid "Show Seconds"
 msgstr ""
@@ -127,47 +111,6 @@ msgstr ""
 
 #: prefs.js:222
 msgid "Font size for the clock"
-msgstr ""
-
-#: prefs.js:235
-msgid "Sound Controls"
-msgstr ""
-
-#: prefs.js:241
-msgid "Sound Control Settings"
-msgstr ""
-
-#: prefs.js:242
-msgid "Configure the sound control panel"
-msgstr ""
-
-#: prefs.js:254
-msgid "Position for the sound panel in the overlay"
-msgstr ""
-
-#: prefs.js:271
-msgid "Icon Size"
-msgstr ""
-
-#: prefs.js:272
-msgid "Icon size for the sound controls"
-msgstr ""
-
-#: prefs.js:293
-msgid "Experimental settings"
-msgstr ""
-
-#: prefs.js:294
-msgid ""
-"These settings are experimental WIP features and may dont work as expected"
-msgstr ""
-
-#: prefs.js:301
-msgid "Icon Type"
-msgstr ""
-
-#: prefs.js:302
-msgid "Select the icon type: Default or Symbolic"
 msgstr ""
 
 #: prefs.js:319
@@ -220,4 +163,37 @@ msgstr ""
 
 #: addons/deviceSection.js:35
 msgid "No input device"
+msgstr ""
+
+#: addons/soundControls.js
+msgid "Audio"
+msgstr ""
+
+#: addons/soundControls.js
+msgid "Output"
+msgstr ""
+
+#: addons/soundControls.js
+msgid "Input"
+msgstr ""
+
+#: addons/soundControls.js
+msgid "Applications"
+msgstr ""
+
+#: addons/deviceSection.js
+msgid "Device"
+msgstr ""
+
+#: addons/systemMonitor.js
+msgid "Hardware"
+msgstr ""
+
+#: addons/systemMonitor.js
+msgid "GPU"
+msgstr ""
+
+#: addons/clock.js
+#, no-c-format
+msgid "%A, %-d %B"
 msgstr ""

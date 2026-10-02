@@ -38,14 +38,6 @@ msgstr "Show Indicator"
 msgid "Shows the GameBar Overlay indicator in the Top-Bar"
 msgstr "Shows the GameBar Overlay indicator in the Top-Bar"
 
-#: prefs.js:38
-msgid "Padding"
-msgstr "Padding"
-
-#: prefs.js:39
-msgid "Space inside the overlay separating addons from screen edges"
-msgstr "Space inside the overlay separating addons from screen edges"
-
 #: prefs.js:66
 msgid "Overlay background color"
 msgstr "Overlay background color"
@@ -75,8 +67,8 @@ msgid "Addon Positions"
 msgstr "Addon Positions"
 
 #: prefs.js:193
-msgid "Drag an addon in the overlay to move it. Reset moves every addon back to its configured position"
-msgstr "Drag an addon in the overlay to move it. Reset moves every addon back to its configured position"
+msgid "Drag an addon in the overlay to move it. Reset moves every addon back to its default position"
+msgstr "Drag an addon in the overlay to move it. Reset moves every addon back to its default position"
 
 #: prefs.js:108
 msgid "Keybinding"
@@ -106,14 +98,6 @@ msgstr "Clock Settings"
 msgid "Configure the clock addon"
 msgstr "Configure the clock addon"
 
-#: prefs.js:195 prefs.js:253 prefs.js:338
-msgid "Position"
-msgstr "Position"
-
-#: prefs.js:196
-msgid "Position for the clock in the overlay"
-msgstr "Position for the clock in the overlay"
-
 #: prefs.js:213
 msgid "Show Seconds"
 msgstr "Show Seconds"
@@ -129,46 +113,6 @@ msgstr "Font Size"
 #: prefs.js:222
 msgid "Font size for the clock"
 msgstr "Font size for the clock"
-
-#: prefs.js:235
-msgid "Sound Controls"
-msgstr "Sound Controls"
-
-#: prefs.js:241
-msgid "Sound Control Settings"
-msgstr "Sound Control Settings"
-
-#: prefs.js:242
-msgid "Configure the sound control panel"
-msgstr "Configure the sound control panel"
-
-#: prefs.js:254
-msgid "Position for the sound panel in the overlay"
-msgstr "Position for the sound panel in the overlay"
-
-#: prefs.js:271
-msgid "Icon Size"
-msgstr "Icon Size"
-
-#: prefs.js:272
-msgid "Icon size for the sound controls"
-msgstr "Icon size for the sound controls"
-
-#: prefs.js:293
-msgid "Experimental settings"
-msgstr "Experimental settings"
-
-#: prefs.js:294
-msgid "These settings are experimental WIP features and may dont work as expected"
-msgstr "These settings are experimental WIP features and may dont work as expected"
-
-#: prefs.js:301
-msgid "Icon Type"
-msgstr "Icon Type"
-
-#: prefs.js:302
-msgid "Select the icon type: Default or Symbolic"
-msgstr "Select the icon type: Default or Symbolic"
 
 #: prefs.js:319
 msgid "CPU Addon"
@@ -221,3 +165,36 @@ msgstr "No output device"
 #: addons/deviceSection.js:35
 msgid "No input device"
 msgstr "No input device"
+
+#: addons/soundControls.js
+msgid "Audio"
+msgstr "Audio"
+
+#: addons/soundControls.js
+msgid "Output"
+msgstr "Output"
+
+#: addons/soundControls.js
+msgid "Input"
+msgstr "Input"
+
+#: addons/soundControls.js
+msgid "Applications"
+msgstr "Applications"
+
+#: addons/deviceSection.js
+msgid "Device"
+msgstr "Device"
+
+#: addons/systemMonitor.js
+msgid "Hardware"
+msgstr "Hardware"
+
+#: addons/systemMonitor.js
+msgid "GPU"
+msgstr "GPU"
+
+#: addons/clock.js
+#, no-c-format
+msgid "%A, %-d %B"
+msgstr "%A, %-d %B"

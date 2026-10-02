@@ -2,6 +2,8 @@ import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import { positionAddon, makeDraggable } from '../cardPosition.js';
+import { createCard } from '../card.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export class Clock {
   constructor(overlay, primaryMonitor) {
@@ -10,6 +12,7 @@ export class Clock {
     this._widthChangeId = null;
     this._heightChangeId = null;
     this._timeLabel = null;
+    this._dateLabel = null;
     this._timeoutId = null;
     this._addonContainer = null;
     this._visibilityChangedId = null;
@@ -21,20 +24,32 @@ export class Clock {
     this._timeLabel = new St.Label({
       style_class: 'gamebar-time',
       text: '',
+      x_align: Clutter.ActorAlign.CENTER,
     });
 
-    // Set the left margin of the label to center it horizontally on the primary monitor
     this._timeLabel.set_style(`
       font-size: ${this._clockFontSize}px;
     `);
 
-    // Create a box layout to hold the label and position it
+    // Create a label to display the date below the time
+    this._dateLabel = new St.Label({
+      style_class: 'gamebar-date',
+      text: '',
+      x_align: Clutter.ActorAlign.CENTER,
+    });
+
+    // The clock card has no header bar, the whole card is the drag handle.
+    const { card, body } = createCard(null, 'gamebar-clock-card');
+    body.add_child(this._timeLabel);
+    body.add_child(this._dateLabel);
+
+    // Create a box layout to hold the card and position it
     this._addonContainer = new St.Widget({
       layout_manager: new Clutter.BinLayout()
     });
 
-    // Add the label to the box
-    this._addonContainer.add_child(this._timeLabel);
+    // Add the card to the box
+    this._addonContainer.add_child(card);
 
     // Add the box to the overlay
     this._overlay.add_child(this._addonContainer);
@@ -91,7 +106,7 @@ export class Clock {
   }
 
   set_addon_position() {
-    positionAddon(this._primaryMonitor, this._position, this._addonContainer, 'clock');
+    positionAddon(this._primaryMonitor, this._addonContainer, 'clock');
   }
 
   _updateClock() {
@@ -108,6 +123,7 @@ export class Clock {
 
     // Update the clock widget with the new time
     this._timeLabel.set_text(time);
+    this._dateLabel.set_text(now.format(_('%A, %-d %B')));
 
     return true;
   }
@@ -115,7 +131,6 @@ export class Clock {
   _updateSettings(settings) {
     this._clockFontSize = settings.get_int('clock-addon-font-size');
     this._showSeconds = settings.get_boolean('clock-addon-show-seconds');
-    this._position = settings.get_string('clock-addon-position');
 
     // Recreate the widget with new settings
     this._stopClock();
@@ -151,5 +166,6 @@ export class Clock {
 
     // Cleanup
     this._timeLabel = null;
+    this._dateLabel = null;
   }
 }

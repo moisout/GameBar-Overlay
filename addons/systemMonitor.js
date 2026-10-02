@@ -1,7 +1,11 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import Cairo from 'cairo';
+import Pango from 'gi://Pango';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, makeDraggable } from '../cardPosition.js';
+import { createCard, BoxedList, createRow, createLabel } from '../card.js';
 import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
 
 // Import GTop conditionally
@@ -12,6 +16,70 @@ try {
     // GTop is not available, it is already null
 }
 
+// Number of usage samples in a sparkline, one per second.
+const HISTORY_LENGTH = 30;
+
+// Line chart of the latest usage percentages, drawn in the colour of the stylesheet (the accent colour).
+class Sparkline {
+    constructor() {
+        this._values = [];
+        this.actor = new St.DrawingArea({
+            style_class: 'gamebar-sparkline',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.actor.connect('repaint', () => this._draw());
+    }
+
+    push(value) {
+        const percent = parseFloat(value);
+        if (!Number.isFinite(percent)) {
+            return;
+        }
+
+        this._values.push(Math.max(0, Math.min(percent, 100)));
+        if (this._values.length > HISTORY_LENGTH) {
+            this._values.shift();
+        }
+        this.actor.queue_repaint();
+    }
+
+    clear() {
+        this._values = [];
+        this.actor.queue_repaint();
+    }
+
+    _draw() {
+        const cr = this.actor.get_context();
+        const [width, height] = this.actor.get_surface_size();
+        const lineWidth = 2;
+
+        if (this._values.length > 1) {
+            const color = this.actor.get_theme_node().get_foreground_color();
+            cr.setSourceRGBA(color.red / 255, color.green / 255, color.blue / 255, color.alpha / 255);
+            cr.setLineWidth(lineWidth);
+            cr.setLineJoin(Cairo.LineJoin.ROUND);
+            cr.setLineCap(Cairo.LineCap.ROUND);
+
+            // The newest value is at the right edge, the line grows in from there.
+            const step = (width - lineWidth) / (HISTORY_LENGTH - 1);
+            const offset = HISTORY_LENGTH - this._values.length;
+            this._values.forEach((value, index) => {
+                const x = lineWidth / 2 + (offset + index) * step;
+                const y = lineWidth / 2 + (height - lineWidth) * (1 - value / 100);
+                if (index === 0) {
+                    cr.moveTo(x, y);
+                } else {
+                    cr.lineTo(x, y);
+                }
+            });
+            cr.stroke();
+        }
+
+        cr.$dispose();
+    }
+}
+
 export class SystemMonitor {
     constructor(overlay, primaryMonitor) {
         this._overlay = overlay;
@@ -19,22 +87,15 @@ export class SystemMonitor {
         this._widthChangeId = null;
         this._heightChangeId = null;
         
-        this._cpuContainer = null;
-        this._cpuUsageLabel = null;
-        this._cpuLabel = null;
-        this._cpuTempLabel = null;
+        this._cpuRow = null;
         this._cpuHwmonPath = null;
 
-        this._gpuContainer = null;
+        this._gpuRow = null;
         this._gpuMonitoring = null;
-        this._gpuUsageLabel = null;
-        this._gpuLabel = null;
-        this._gpuTempLabel = null;
         this._gpuDevice = null;
         
         this._timeoutId = null;
         this._addonContainer = null;
-        this._systemMonitorContainer = null;
         this._visibilityChangedId = null;
         this._prevCpu = null;
         this._gtopAvailable = GTop !== null;
@@ -52,73 +113,22 @@ export class SystemMonitor {
             layout_manager: new Clutter.BinLayout()
         });
 
-        this._systemMonitorContainer = new St.BoxLayout({
-          vertical: false
-        });
+        const { card, body } = createCard(_('Hardware'), 'gamebar-hardware-card');
+        const list = new BoxedList();
+        body.add_child(list.actor);
 
-        // Create a container for CPU stats
-        this._cpuContainer = new St.BoxLayout({
-            vertical: true,
-            style_class: 'gamebar-monitor-container'
-        });
+        // Without GTop there is no usage to chart, the row only explains what is missing.
+        this._cpuRow = this._createStatRow(_('CPU'), this._gtopAvailable);
+        list.addRow(this._cpuRow.actor);
 
-        // Create the CPU title label
-        this._cpuLabel = new St.Label({
-            style_class: 'gamebar-monitor-label',
-            text: _('CPU')
-        });
-
-        // Create CPU usage label
-        this._cpuUsageLabel = new St.Label({
-            style_class: 'gamebar-monitor-usage',
-        });
-
-        // Create CPU temperature label (or GTop missing message)
-        this._cpuTempLabel = new St.Label({
-            style_class: 'gamebar-monitor-temp'
-        });
-
-        this._cpuContainer.add_child(this._cpuLabel);
-        this._cpuContainer.add_child(this._cpuUsageLabel);
-        this._cpuContainer.add_child(this._cpuTempLabel);
-        
-        // Add the CPU container to the main container
-        this._systemMonitorContainer.add_child(this._cpuContainer);
-
-        // Add GPU container if GPU monitoring is enabled.
+        // Add the GPU row if GPU monitoring is enabled.
         if (this._gpuMonitoring) {
-            // Create a container for GPU stats
-            this._gpuContainer = new St.BoxLayout({
-              vertical: true,
-              style_class: 'gamebar-monitor-container'
-          });
-
-          // Create the GPU title label
-          this._gpuLabel = new St.Label({
-              style_class: 'gamebar-monitor-label',
-              text: _('GPU')
-          });
-
-          // Create GPU usage label
-          this._gpuUsageLabel = new St.Label({
-              style_class: 'gamebar-monitor-usage',
-          });
-
-          // Create GPU temperature label (or GTop missing message)
-          this._gpuTempLabel = new St.Label({
-              style_class: 'gamebar-monitor-temp'
-          });
-
-          this._gpuContainer.add_child(this._gpuLabel);
-          this._gpuContainer.add_child(this._gpuUsageLabel);
-          this._gpuContainer.add_child(this._gpuTempLabel);
-
-          // Add the GPU container to the main container
-          this._systemMonitorContainer.add_child(this._gpuContainer);
+            this._gpuRow = this._createStatRow(_('GPU'), true);
+            list.addRow(this._gpuRow.actor);
         }
 
-        // Add the main container to the addon container
-        this._addonContainer.add_child(this._systemMonitorContainer);
+        // Add the card to the addon container
+        this._addonContainer.add_child(card);
 
         // Add the addon container to the overlay
         this._overlay.add_child(this._addonContainer);
@@ -154,7 +164,43 @@ export class SystemMonitor {
         }
     }
 
+  // Row with the name and temperature, a sparkline of the usage and the current usage.
+  _createStatRow(name, showUsage) {
+    const row = createRow('gamebar-stat-row');
+
+    const info = new St.BoxLayout({
+      vertical: true,
+      style_class: showUsage ? 'gamebar-stat-info' : '',
+      x_expand: !showUsage,
+      y_align: Clutter.ActorAlign.CENTER,
+    });
+    info.add_child(createLabel(name));
+
+    const subtitle = createLabel('', 'gamebar-subtitle gamebar-numeric');
+    info.add_child(subtitle);
+    row.add_child(info);
+
+    if (!showUsage) {
+      // Long hints wrap instead of being cut off.
+      subtitle.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
+      subtitle.clutter_text.line_wrap = true;
+      return { actor: row, subtitle, sparkline: null, usage: null };
+    }
+
+    const sparkline = new Sparkline();
+    row.add_child(sparkline.actor);
+
+    const usage = createLabel('', 'gamebar-stat-usage gamebar-numeric');
+    row.add_child(usage);
+
+    return { actor: row, subtitle, sparkline, usage };
+  }
+
   _startMonitor() {
+    // A sparkline with a gap from the time the overlay was closed would be misleading.
+    this._cpuRow?.sparkline?.clear();
+    this._gpuRow?.sparkline?.clear();
+
     // Initial update
     this._updateMonitor();
 
@@ -176,7 +222,7 @@ export class SystemMonitor {
   }
 
   set_addon_position() {
-    positionAddon(this._primaryMonitor, this._position, this._addonContainer, 'system-monitor');
+    positionAddon(this._primaryMonitor, this._addonContainer, 'system-monitor');
   }
 
   _getCpuUsage() {
@@ -289,30 +335,33 @@ export class SystemMonitor {
       return false;
     }
 
-    this._cpuUsageLabel.set_text(this._getCpuUsage() + "%");
-    const temp = this._getCpuTemperature();
+    const formatTemperature = (temp) => `${temp.temp} ${temp.unit}`.trim();
 
-    if (this._gtopAvailable && this._cpuHwmonPath) {
-      this._cpuTempLabel.set_text(temp.temp + temp.unit);
-    } else if (!this._gtopAvailable) {
-      this._cpuTempLabel.set_text(_("GTop missing, install 'libgtop' for temperature"));
-      this._cpuUsageLabel.set_text(""); //Dont show anything here when GTop is not available
-    } else if (!this._cpuHwmonPath) {
-      this._cpuTempLabel.set_text(_("Temperature sensor not found"));
+    if (!this._gtopAvailable) {
+      this._cpuRow.subtitle.set_text(_("GTop missing, install 'libgtop' for temperature"));
+    } else {
+      const cpuUsage = this._getCpuUsage();
+      this._cpuRow.usage.set_text(cpuUsage + "%");
+      this._cpuRow.sparkline.push(cpuUsage);
+
+      if (this._cpuHwmonPath) {
+        this._cpuRow.subtitle.set_text(formatTemperature(this._getCpuTemperature()));
+      } else {
+        this._cpuRow.subtitle.set_text(_("Temperature sensor not found"));
+      }
     }
 
     if (this._gpuMonitoring) {
         const gpuUsage = this._getGpuUsage();
-        this._gpuUsageLabel.set_text(gpuUsage + (gpuUsage !== "-" ? "%" : ""));
-        const gpuTemp = this._getGpuTemperature();
-        this._gpuTempLabel.set_text(gpuTemp.temp + gpuTemp.unit);
+        this._gpuRow.usage.set_text(gpuUsage + (gpuUsage !== "-" ? "%" : ""));
+        this._gpuRow.sparkline.push(gpuUsage);
+        this._gpuRow.subtitle.set_text(formatTemperature(this._getGpuTemperature()));
     } 
 
     return true;
   }
 
   _updateSettings(settings) {
-    this._position = settings.get_string('cpu-addon-position');
     this._tempUnit = settings.get_string('cpu-temperature-unit'); // Get unit from settings
     this._gpuDevice = settings.get_string('gpu-device');
     this._gpuMonitoring = settings.get_boolean('gpu-monitoring');
@@ -351,17 +400,8 @@ export class SystemMonitor {
     }
 
     // Cleanup properties
-    this._cpuContainer = null;
-    this._cpuUsageLabel = null;
-    this._cpuLabel = null;
-    this._cpuTempLabel = null;
-    
-    this._gpuContainer = null;
-    this._gpuUsageLabel = null;
-    this._gpuLabel = null;
-    this._gpuTempLabel = null;
-    
-    this._systemMonitorContainer = null;
+    this._cpuRow = null;
+    this._gpuRow = null;
     this._prevCpu = null;
     this._cpuHwmonPath = null;
   }

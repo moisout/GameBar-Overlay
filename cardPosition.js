@@ -1,8 +1,18 @@
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
-import { getPositionStyle } from './utils.js';
 
 const POSITIONS_KEY = 'addon-positions';
+
+// Default layout from the design (design/gnome-game-overlay-handoff.md): columns of cards, centred on the monitor.
+// The second column is kept free for the capture and gallery cards of the design.
+const COLUMN_WIDTHS = [400, 520, 400, 400];
+const COLUMN_GAP = 40;
+const LAYOUT_TOP = 84;
+const DEFAULT_COLUMNS = {
+    'sound': 0,
+    'clock': 2,
+    'system-monitor': 3,
+};
 
 let position_settings = null;
 
@@ -31,22 +41,44 @@ const saveCustomPosition = (id, position) => {
     position_settings.set_value(POSITIONS_KEY, new GLib.Variant('a{s(dd)}', positions));
 };
 
-// Place an addon at its dragged position if it has one, or at its preset position otherwise.
-const positionAddon = (primaryMonitor, position, element, id) => {
-    if (!primaryMonitor || !element || element._dragging) return;
+const getLayoutWidth = (columns) => {
+    return columns.reduce((width, column) => width + COLUMN_WIDTHS[column], 0) + COLUMN_GAP * (columns.length - 1);
+};
 
-    const custom = getCustomPositions()[id];
-    if (!custom) {
-        const position_style = getPositionStyle(primaryMonitor, position, element);
-        element.set_position(position_style.x, position_style.y);
-        return;
+const getDefaultPosition = (primaryMonitor, id) => {
+    let columns = COLUMN_WIDTHS.map((width, column) => column);
+    // On narrow monitors the free columns make room for the cards.
+    if (getLayoutWidth(columns) + 2 * COLUMN_GAP > primaryMonitor.width) {
+        columns = columns.filter(column => Object.values(DEFAULT_COLUMNS).includes(column));
     }
 
-    // Positions are saved as fractions of the monitor size, so they survive a resolution change.
+    const column = DEFAULT_COLUMNS[id];
+    const columnsBefore = columns.filter(other => other < column);
+    let x = (primaryMonitor.width - getLayoutWidth(columns)) / 2;
+    if (columnsBefore.length > 0) {
+        x += getLayoutWidth(columnsBefore) + COLUMN_GAP;
+    }
+    return [x, LAYOUT_TOP];
+};
+
+// Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
+const positionAddon = (primaryMonitor, element, id) => {
+    if (!primaryMonitor || !element || element._dragging) return;
+
     const [, , width, height] = element.get_preferred_size();
+    const custom = getCustomPositions()[id];
+    let x, y;
+    if (custom) {
+        // Positions are saved as fractions of the monitor size, so they survive a resolution change.
+        x = custom[0] * primaryMonitor.width;
+        y = custom[1] * primaryMonitor.height;
+    } else {
+        [x, y] = getDefaultPosition(primaryMonitor, id);
+    }
+
     element.set_position(
-        clamp(Math.round(custom[0] * primaryMonitor.width), 1, primaryMonitor.width - width), // x >= 1, see the 0,0 bug in getPositionStyle.
-        clamp(Math.round(custom[1] * primaryMonitor.height), 0, primaryMonitor.height - height)
+        clamp(Math.round(x), 1, primaryMonitor.width - width), // x >= 1, an actor at 0,0 is shown in the centre of the screen.
+        clamp(Math.round(y), 0, primaryMonitor.height - height)
     );
 };
 

@@ -1,135 +1,158 @@
-/*-Addons styles-*/
+/*-Card styles, see design/gnome-game-overlay-handoff.md-*/
 
-/*Clock styles*/
-.gamebar-time {
-    font-size: 72px;
+.gamebar-card {
+    color: #ffffff;
+    font-size: 15px;
+    background-color: #222226;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 15px;
+    /*The shadow of the shell popup menus, the one in the design is much heavier*/
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.gamebar-card-header {
+    height: 46px;
+    padding: 0 2px;
+}
+
+.gamebar-card-title {
+    font-weight: bold;
     text-align: center;
-    color: white;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 15px; 
-    padding: 5px 20px;
-    font-weight: 500;
-    font-feature-settings: "tnum";
 }
 
-/*Close button styles*/
-.gamebar-close-button{
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 15px; 
-    padding: 5px;
+.gamebar-card-body {
+    padding: 0 12px 12px;
 }
 
-/*Volume styles*/
-.gamebar-volume-container-global{
-    height: auto; 
-    background-color: rgba(255, 255, 255, 0.2); 
-    border-radius: 15px; 
-    padding: 20px;
+.gamebar-card-body-headerless {
+    padding: 20px 12px;
 }
 
-.gamebar-volume-icon{
-    color: white;
-    margin-right: 10px;
-    padding: 0;
+.gamebar-group-title {
+    font-weight: bold;
+    margin: 14px 4px 8px;
 }
 
-/*Output and input device selector*/
-.gamebar-device-section{
-    margin-bottom: 15px;
-}
-
-.gamebar-device-button{
-    color: white;
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    padding: 6px 10px;
-    margin-top: 8px;
-}
-
-.gamebar-device-button:hover{
-    background-color: rgba(255, 255, 255, 0.2);
-}
-
-.gamebar-device-list{
+.gamebar-group-title-first {
     margin-top: 4px;
 }
 
-.gamebar-device-item{
-    color: white;
-    border-radius: 8px;
-    padding: 6px 10px;
+/*Boxed list, like the lists in GNOME Settings*/
+.gamebar-boxed-list {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
 }
 
-.gamebar-device-item:hover{
-    background-color: rgba(255, 255, 255, 0.1);
+/*The card background shows through between the rows, like the separators of GNOME lists*/
+.gamebar-row-separator {
+    height: 1px;
+    background-color: #222226;
 }
 
-.gamebar-device-item:checked{
-    background-color: rgba(255, 255, 255, 0.2);
+.gamebar-row {
+    min-height: 50px;
+    padding: 0 12px;
+    spacing: 10px;
+}
+
+.gamebar-row-button:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.gamebar-row-button:active {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+/*Flat circular button with a symbolic icon, the size of the quick settings slider buttons*/
+.gamebar-icon-button {
+    padding: 6px;
+    border-radius: 999px;
+}
+
+.gamebar-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gamebar-icon-button:active {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+/*Lines the icon of a button that starts a row up with the row padding, St breaks on negative margins*/
+.gamebar-row-leading-button {
+    padding-left: 6px;
+}
+
+.gamebar-dim,
+.gamebar-subtitle {
+    color: #b5b5ba;
+}
+
+.gamebar-subtitle {
+    font-size: 13px;
+}
+
+.gamebar-numeric {
+    font-feature-settings: "tnum";
+}
+
+/*-Addons styles-*/
+
+/*Clock styles*/
+.gamebar-clock-card {
+    min-width: 400px;
+}
+
+.gamebar-time {
+    font-size: 64px;
     font-weight: bold;
+    font-feature-settings: "tnum";
 }
 
-.gamebar-device-item-icon{
-    margin-right: 10px;
+.gamebar-date {
+    color: #b5b5ba;
 }
 
-.gamebar-volume-container{
-    margin-top: 100%;
+/*Audio styles*/
+.gamebar-audio-card {
+    width: 400px;
 }
 
-.gamebar-app-volume-control{
-    margin-top: 5px;
+.gamebar-device-row:hover,
+.gamebar-device-row:active {
+    border-radius: 12px 12px 0 0;
 }
 
-.gamebar-app-volume-icon{
-    color: white; 
-    margin-right: 10px;
-    padding: 0;
+.gamebar-app-row {
+    spacing: 6px;
 }
 
-.gamebar-app-volume-label{
-    color: white; 
-    margin-right: 10px;
+.gamebar-app-name {
+    width: 68px;
+    margin-left: 4px;
 }
 
-.slider-default{
-    width: 300px;
+/*Hardware styles*/
+.gamebar-hardware-card {
+    width: 400px;
 }
 
-/*System Monitor addon styles*/
-.gamebar-monitor-container {
-    height: auto; 
-    background-color: rgba(255, 255, 255, 0.2); 
-    border-radius: 15px; 
-    padding: 20px;
-    margin-right: 20px;
+.gamebar-stat-row {
+    min-height: 64px;
 }
 
-.gamebar-monitor-label {
-    color: white; 
-    font-size: 38px;
-    font-weight: lighter;
-    text-align: left;
+.gamebar-stat-info {
+    width: 124px;
 }
 
-.gamebar-monitor-usage {
-    color: white;
-    font-size: 28px;
+/*The sparkline is drawn in the text colour, the accent colour where the shell has one (GNOME 47+)*/
+.gamebar-sparkline {
+    height: 32px;
+    color: #3584e4;
+    color: -st-accent-color;
+}
+
+.gamebar-stat-usage {
+    width: 52px;
     font-weight: bold;
     text-align: right;
-}
-
-.gamebar-monitor-temp {
-    color: white;
-    font-size: 16px;
-    font-weight: lighter;
-    text-align: right;
-}
-
-/*Generic styles*/
-
-.separator{
-    background-color: gray; 
-    height: 1px; 
-    margin: 20px 0;
 }
