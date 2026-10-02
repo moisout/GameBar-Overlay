@@ -67,16 +67,16 @@
 
 
 
-    <key name="hidden-cards" type="as">
-      <default>[]</default>
-      <summary>Hidden cards</summary>
-      <description>Cards closed with their close button or the dash</description>
+    <key name="monitor-hidden-cards" type="a{sas}">
+      <default>{}</default>
+      <summary>Hidden cards of every monitor</summary>
+      <description>Cards closed with their close button or the dash, by the connector of the monitor</description>
     </key>
 
-    <key name="addon-positions" type="a{s(dd)}">
+    <key name="monitor-card-positions" type="a{sa{s(dd)}}">
       <default>{}</default>
-      <summary>Dragged positions of the addons</summary>
-      <description>Position of each addon that was dragged in the overlay, as fractions of the monitor width and height. Addons without an entry use their configured position</description>
+      <summary>Dragged positions of the cards on every monitor</summary>
+      <description>Position of each card that was dragged in the overlay, as fractions of the monitor width and height, by the connector of the monitor. Cards without an entry use the column layout</description>
     </key>
 
 

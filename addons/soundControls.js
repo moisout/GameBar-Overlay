@@ -31,9 +31,9 @@ const getParentPid = (pid) => {
 };
 
 export class SoundControls {
-    constructor(overlay, primaryMonitor) {
+    constructor(overlay, monitor) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         this._volumeControl = Volume.getMixerControl();
         this._outputSection = null;
         this._inputSection = null;
@@ -90,7 +90,7 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
     }
 
     set_addon_position(){
-        positionAddon(this._primaryMonitor, this._addonContainer, 'sound');
+        positionAddon(this._monitor, this._addonContainer, 'sound');
       }
 
     // Called every time the overlay opens

@@ -213,9 +213,9 @@ class CaptureLibrary {
 
 export class Gallery {
     // runWithOverlayClosed(callback) closes the overlay first, so the opened file or folder is not behind it.
-    constructor(overlay, primaryMonitor, runWithOverlayClosed) {
+    constructor(overlay, monitor, runWithOverlayClosed) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
         this._visibilityChangedId = null;
@@ -358,7 +358,7 @@ export class Gallery {
     }
 
     set_addon_position() {
-        positionAddon(this._primaryMonitor, this._addonContainer, 'gallery');
+        positionAddon(this._monitor, this._addonContainer, 'gallery');
     }
 
     _destroyWidget() {

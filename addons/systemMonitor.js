@@ -110,9 +110,9 @@ const formatRate = (bytesPerSecond) => {
 };
 
 export class SystemMonitor {
-    constructor(overlay, primaryMonitor) {
+    constructor(overlay, monitor) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         
         this._cpuRow = null;
         this._cpuHwmonPath = null;
@@ -304,7 +304,7 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
   }
 
   set_addon_position() {
-    positionAddon(this._primaryMonitor, this._addonContainer, 'system-monitor');
+    positionAddon(this._monitor, this._addonContainer, 'system-monitor');
   }
 
   _getCpuUsage() {

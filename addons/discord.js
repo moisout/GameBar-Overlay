@@ -539,9 +539,9 @@ const setStyleClass = (actor, styleClass, enabled) => {
 // The voice channel of Discord: its members, who is speaking, and mute, deafen and disconnect.
 export class Discord {
     // runWithOverlayClosed(callback) closes the overlay first, the prompt of Discord is in its window behind it.
-    constructor(overlay, primaryMonitor, runWithOverlayClosed) {
+    constructor(overlay, monitor, runWithOverlayClosed) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
         this._authorizeTimeoutId = 0;
@@ -780,7 +780,7 @@ export class Discord {
     }
 
     set_addon_position() {
-        positionAddon(this._primaryMonitor, this._addonContainer, 'discord');
+        positionAddon(this._monitor, this._addonContainer, 'discord');
     }
 
     _destroyWidget() {

@@ -7,9 +7,9 @@ import { createCard } from '../card.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export class Clock {
-  constructor(overlay, primaryMonitor) {
+  constructor(overlay, monitor) {
     this._overlay = overlay;
-    this._primaryMonitor = primaryMonitor;
+    this._monitor = monitor;
     this._timeLabel = null;
     this._dateLabel = null;
     this._timeoutId = null;
@@ -94,7 +94,7 @@ export class Clock {
   }
 
   set_addon_position() {
-    positionAddon(this._primaryMonitor, this._addonContainer, 'clock');
+    positionAddon(this._monitor, this._addonContainer, 'clock');
   }
 
   _updateClock() {

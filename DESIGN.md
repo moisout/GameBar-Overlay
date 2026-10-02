@@ -86,7 +86,7 @@ The dash (`addons/dash.js`) sits at the bottom centre, 20px from the edge: `#363
 
 Audio and Hardware have the Adwaita window control in their header bar: a 24px circle filled `rgba(255,255,255,0.10)` with the 16px `window-close-symbolic` icon in a 44px hit area. The Clock has no header bar and is only hidden from the dash, as in the design.
 
-- Closed cards are saved in the `hidden-cards` setting and stay closed across sessions, like dragged positions.
+- Closed cards are saved for the monitor of the overlay in the `monitor-hidden-cards` setting and stay closed across sessions, like dragged positions. A card closed on one monitor is still shown on the others.
 - Closing and showing a card while the overlay is open fades and scales it (200ms, from 90%).
 - The enter and exit animations only move the shown cards.
 - The Hardware card does not exist without any row, the dash then has no button for it.
@@ -100,6 +100,12 @@ Audio and Hardware have the Adwaita window control in their header bar: a 24px c
 - Whether the overlay is open is a flag of its own, the actor stays visible until the exit animation ends. Toggling during the exit animation opens the overlay again.
 - The overlay is hidden when the fade of the backdrop stops, which takes as long as the cards move. The cards cannot tell: a card recreated or shown during the animation never finishes it.
 - Disabling the extension (the shell does that when the screen locks) and a change of the monitors close an open overlay and release the grab.
+
+## Monitors
+
+- The overlay covers one monitor: the one of the focused window when it opens, the game, or the one of the pointer when no window has the focus. The other monitors stay as they are. The Capture card captures the monitor of the overlay.
+- Every monitor has its own card positions and closed cards. A monitor is known by its connector (`DP-1`, `eDP-1`), which stays the same across sessions unlike its index. A monitor plugged into another port is a new monitor. GNOME 49 and newer list the connectors of the monitors (`Meta.MonitorManager.get_logical_monitors()`), GNOME 46 to 48 do not: there the connectors are read from `/sys/class/drm` and matched with `get_monitor_for_connector()`. That path is not tested.
+- A monitor without saved positions starts in the column layout with every card shown.
 
 ## Layout
 
@@ -124,7 +130,7 @@ Monitors too narrow for the four columns get fewer:
 
 On 1280×800 not every card fits above the dash, the bottom of the Hardware card reaches behind it. The dash is always kept above the cards.
 
-Cards can still be dragged anywhere. Dragged positions are saved as fractions of the monitor size, the Reset button in the preferences moves the cards back to the column layout.
+Cards can still be dragged anywhere. Dragged positions are saved for the monitor in `monitor-card-positions`, as fractions of its size. The Reset button in the preferences moves the cards back to the column layout on every monitor.
 
 ## Behaviour matched to GNOME Shell
 
@@ -168,6 +174,7 @@ These settings were removed together with their rows in the preferences:
 - Overlay Opening Monitor and Show App Description (were already unused).
 - Padding and the Position of every addon (replaced by the column layout).
 - Icon Size (app icons are 24px) and Icon Type (the fallback icon is always symbolic).
+- `hidden-cards` and `addon-positions`, replaced by `monitor-hidden-cards` and `monitor-card-positions` with an entry per monitor. Cards closed or dragged before start shown and in the column layout again.
 - First key and Last key of the shortcut. The Shortcut row records any combination with Ctrl, Alt or Super instead, several of the keys in the old list had names the shell does not know. The shortcuts of the shell still work while it records, holding them back makes the shell ask for permission.
 
 The schema defaults changed to match the design: overlay background `rgba(8,9,12,0.62)`, clock size 64, close on empty area click on.
@@ -181,6 +188,7 @@ tests/run.sh tests/overlay.test.js
 ```
 
 - A scenario is JavaScript that runs at the end of `enable()` of a copy of the extension, with the helpers of `tests/prelude.js`: `click(actor)`, `drag(actor, dx, dy)` and `key(keyval)` with a virtual pointer and keyboard, `shot(name, actor)` for a screenshot in `tests/output`, `check(condition, message)`, `openOverlay()` and `sleep(ms)`.
+- `MONITORS="1920x1080 1280x800"` starts the shell with a virtual monitor of each size, `tests/monitors.test.js` needs two.
 - It prints one line per check and exits with 1 if a check failed. The log of the shell is in `tests/output/shell.log`.
 - At the end the extension is disabled, what it leaves behind shows up in the log.
 - The absolute motion of a virtual pointer loses the y coordinate in the headless shell, the helpers steer it with relative motion.

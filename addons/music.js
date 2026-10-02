@@ -414,9 +414,9 @@ class CoverCache {
 }
 
 export class Music {
-    constructor(overlay, primaryMonitor) {
+    constructor(overlay, monitor) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         this._addonContainer = null;
         this._visibilityChangedId = null;
         this._timeoutId = null;
@@ -653,7 +653,7 @@ export class Music {
     }
 
     set_addon_position() {
-        positionAddon(this._primaryMonitor, this._addonContainer, 'music');
+        positionAddon(this._monitor, this._addonContainer, 'music');
     }
 
     _destroyWidget() {

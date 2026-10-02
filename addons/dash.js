@@ -10,9 +10,9 @@ const BOTTOM_MARGIN = 20;
 // A dot below the icon shows that the card is shown, clicking the button shows or hides the card.
 export class Dash {
     // cards: [{ id, name, iconName }] in the order of the buttons.
-    constructor(overlay, primaryMonitor, cards) {
+    constructor(overlay, monitor, cards) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         this._buttons = new Map();
 
         this._addonContainer = new St.BoxLayout({
@@ -65,14 +65,14 @@ export class Dash {
     }
 
     set_addon_position() {
-        if (!this._primaryMonitor || !this._addonContainer) return;
+        if (!this._monitor || !this._addonContainer) return;
 
         const [, , width, height] = this._addonContainer.get_preferred_size();
         // The margin is in pixels of the stylesheet, which the shell multiplies by its scale factor.
         const scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         this._addonContainer.set_position(
-            Math.round((this._primaryMonitor.width - width) / 2),
-            this._primaryMonitor.height - height - BOTTOM_MARGIN * scaleFactor
+            Math.round((this._monitor.width - width) / 2),
+            this._monitor.height - height - BOTTOM_MARGIN * scaleFactor
         );
     }
 

@@ -2,9 +2,10 @@ import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 
-const POSITIONS_KEY = 'addon-positions';
+// Both per monitor, by its connector.
+const POSITIONS_KEY = 'monitor-card-positions';
 // Cards closed with their close button or the dash stay closed until they are shown from the dash again.
-const HIDDEN_KEY = 'hidden-cards';
+const HIDDEN_KEY = 'monitor-hidden-cards';
 
 // Default layout from the design (design/gnome-game-overlay-handoff.md): columns of stacked cards, centred on the monitor.
 // A monitor too narrow for a layout gets the next one, the first one fits 1920px.
@@ -32,22 +33,29 @@ const getScaleFactor = () => St.ThemeContext.get_for_stage(global.stage).scale_f
 const cardElements = new Map();
 
 let position_settings = null;
+// The monitor the overlay is on, the positions and closed cards are the ones of this monitor.
+let monitorKey = null;
 
 const set_position_settings = (settings) => {
     position_settings = settings;
 };
 
+const setCardMonitor = (key) => {
+    monitorKey = key;
+};
+
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
 const getCustomPositions = () => {
-    return position_settings?.get_value(POSITIONS_KEY).deepUnpack() ?? {};
+    return position_settings?.get_value(POSITIONS_KEY).deepUnpack()[monitorKey] ?? {};
 };
 
 // Pass a null position to go back to the preset position of the addon.
 const saveCustomPosition = (id, position) => {
     if (!position_settings) return;
 
-    const positions = getCustomPositions();
+    const monitors = position_settings.get_value(POSITIONS_KEY).deepUnpack();
+    const positions = monitors[monitorKey] ?? {};
     if (position) {
         positions[id] = position;
     } else if (id in positions) {
@@ -55,7 +63,8 @@ const saveCustomPosition = (id, position) => {
     } else {
         return;
     }
-    position_settings.set_value(POSITIONS_KEY, new GLib.Variant('a{s(dd)}', positions));
+    monitors[monitorKey] = positions;
+    position_settings.set_value(POSITIONS_KEY, new GLib.Variant('a{sa{s(dd)}}', monitors));
 };
 
 const getColumnWidth = (column) => Math.max(...column.map(id => CARD_WIDTHS[id] ?? DEFAULT_CARD_WIDTH)) * getScaleFactor();
@@ -64,18 +73,18 @@ const getLayoutWidth = (layout) => {
     return layout.reduce((width, column) => width + getColumnWidth(column), 0) + COLUMN_GAP * getScaleFactor() * (layout.length - 1);
 };
 
-const getLayout = (primaryMonitor) => {
+const getLayout = (monitor) => {
     const margin = COLUMN_GAP * getScaleFactor();
-    return LAYOUTS.find(layout => getLayoutWidth(layout) + 2 * margin <= primaryMonitor.width) ?? LAYOUTS[LAYOUTS.length - 1];
+    return LAYOUTS.find(layout => getLayoutWidth(layout) + 2 * margin <= monitor.width) ?? LAYOUTS[LAYOUTS.length - 1];
 };
 
-const getDefaultPosition = (primaryMonitor, id) => {
+const getDefaultPosition = (monitor, id) => {
     const scaleFactor = getScaleFactor();
-    const layout = getLayout(primaryMonitor);
+    const layout = getLayout(monitor);
     const columnIndex = layout.findIndex(column => column.includes(id));
     if (columnIndex === -1) return [COLUMN_GAP * scaleFactor, LAYOUT_TOP * scaleFactor];
 
-    let x = (primaryMonitor.width - getLayoutWidth(layout)) / 2;
+    let x = (monitor.width - getLayoutWidth(layout)) / 2;
     for (const column of layout.slice(0, columnIndex)) {
         x += getColumnWidth(column) + COLUMN_GAP * scaleFactor;
     }
@@ -93,21 +102,27 @@ const getDefaultPosition = (primaryMonitor, id) => {
     return [x, y];
 };
 
+const getHiddenCards = () => {
+    return position_settings?.get_value(HIDDEN_KEY).deepUnpack() ?? {};
+};
+
 const isCardHidden = (id) => {
-    return position_settings?.get_strv(HIDDEN_KEY).includes(id) ?? false;
+    return getHiddenCards()[monitorKey]?.includes(id) ?? false;
 };
 
 const setCardHidden = (id, hidden) => {
     if (!position_settings || isCardHidden(id) === hidden) return;
 
-    const hiddenCards = position_settings.get_strv(HIDDEN_KEY).filter(other => other !== id);
+    const monitors = getHiddenCards();
+    const hiddenCards = (monitors[monitorKey] ?? []).filter(other => other !== id);
     if (hidden) {
         hiddenCards.push(id);
     }
-    position_settings.set_strv(HIDDEN_KEY, hiddenCards);
+    monitors[monitorKey] = hiddenCards;
+    position_settings.set_value(HIDDEN_KEY, new GLib.Variant('a{sas}', monitors));
 };
 
-const placeCard = (primaryMonitor, element, id) => {
+const placeCard = (monitor, element, id) => {
     if (element._dragging) return;
 
     const [, , width, height] = element.get_preferred_size();
@@ -115,22 +130,22 @@ const placeCard = (primaryMonitor, element, id) => {
     let x, y;
     if (custom) {
         // Positions are saved as fractions of the monitor size, so they survive a resolution change.
-        x = custom[0] * primaryMonitor.width;
-        y = custom[1] * primaryMonitor.height;
+        x = custom[0] * monitor.width;
+        y = custom[1] * monitor.height;
     } else {
-        [x, y] = getDefaultPosition(primaryMonitor, id);
+        [x, y] = getDefaultPosition(monitor, id);
     }
 
     element.set_position(
-        clamp(Math.round(x), 1, primaryMonitor.width - width), // x >= 1, an actor at 0,0 is shown in the centre of the screen.
-        clamp(Math.round(y), 0, primaryMonitor.height - height)
+        clamp(Math.round(x), 1, monitor.width - width), // x >= 1, an actor at 0,0 is shown in the centre of the screen.
+        clamp(Math.round(y), 0, monitor.height - height)
     );
 };
 
 // Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
 // The cards below it in its column move along, they depend on its height.
-const positionAddon = (primaryMonitor, element, id) => {
-    if (!primaryMonitor || !element) return;
+const positionAddon = (monitor, element, id) => {
+    if (!monitor || !element) return;
 
     if (cardElements.get(id) !== element) {
         cardElements.set(id, element);
@@ -139,12 +154,12 @@ const positionAddon = (primaryMonitor, element, id) => {
         });
     }
 
-    placeCard(primaryMonitor, element, id);
+    placeCard(monitor, element, id);
 
-    const column = getLayout(primaryMonitor).find(other => other.includes(id)) ?? [];
+    const column = getLayout(monitor).find(other => other.includes(id)) ?? [];
     for (const below of column.slice(column.indexOf(id) + 1)) {
         const belowElement = cardElements.get(below);
-        if (belowElement) placeCard(primaryMonitor, belowElement, below);
+        if (belowElement) placeCard(monitor, belowElement, below);
     }
 };
 
@@ -235,4 +250,4 @@ const makeDraggable = (element, id) => {
     element.connect('destroy', endDrag);
 };
 
-export { set_position_settings, saveCustomPosition, isCardHidden, setCardHidden, positionAddon, followCardSize, makeDraggable };
+export { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, saveCustomPosition, isCardHidden, setCardHidden, positionAddon, followCardSize, makeDraggable };
