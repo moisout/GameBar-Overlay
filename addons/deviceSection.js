@@ -1,10 +1,14 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import Graphene from 'gi://Graphene';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
 import { createGroupTitle, BoxedList, createSeparator, createRow, createLabel, createIconButton } from '../card.js';
+
+// Expanding the device list animates like a submenu of the shell (js/ui/popupMenu.js).
+const EXPAND_DURATION = 250;
 
 const KINDS = {
     output: {
@@ -43,6 +47,7 @@ export class DeviceSection {
         this._stream = null;
         this._isSyncingUI = false;
         this._isSettingVolume = false;
+        this._expanded = false;
 
         this.actor = new St.BoxLayout({ vertical: true });
         this.title = createGroupTitle(title);
@@ -61,6 +66,7 @@ export class DeviceSection {
             icon_name: 'pan-down-symbolic',
             icon_size: 16,
             y_align: Clutter.ActorAlign.CENTER,
+            pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
         });
 
         const deviceRow = createRow();
@@ -73,13 +79,14 @@ export class DeviceSection {
             child: deviceRow,
             x_expand: true
         });
-        this._deviceButton.connect('clicked', () => this._setExpanded(!this._deviceList.visible));
+        this._deviceButton.connect('clicked', () => this._setExpanded(!this._expanded, true));
         list.addRow(this._deviceButton);
 
         // Every item adds its own separator, so the hidden list leaves no double line.
         this._deviceList = new St.BoxLayout({
             vertical: true,
-            visible: false
+            visible: false,
+            clip_to_allocation: true // Hides the items that do not fit yet while the list grows.
         });
         list.actor.add_child(this._deviceList);
 
@@ -138,7 +145,6 @@ export class DeviceSection {
         this._isSyncingUI = true;
         this._slider.value = muted ? 0 : this._stream.volume / this._control.get_vol_max_norm();
         this._isSyncingUI = false;
-        this._isSettingVolume = false;
 
         this._updateIcon();
     }
@@ -253,7 +259,7 @@ export class DeviceSection {
                 if (selected) {
                     this._kind.changeDevice(this._control, selected);
                 }
-                this._setExpanded(false);
+                this._setExpanded(false, true);
             });
 
             this._deviceList.add_child(createSeparator());
@@ -269,8 +275,45 @@ export class DeviceSection {
         }
     }
 
-    _setExpanded(expanded) {
-        this._deviceList.visible = expanded;
-        this._arrow.icon_name = expanded ? 'pan-up-symbolic' : 'pan-down-symbolic';
+    _setExpanded(expanded, animate = false) {
+        this._expanded = expanded;
+
+        // Continue from where a running animation is, it stops at its current height.
+        this._deviceList.remove_all_transitions();
+        this._arrow.remove_all_transitions();
+
+        const duration = animate ? EXPAND_DURATION : 0;
+        const mode = Clutter.AnimationMode.EASE_OUT_EXPO;
+
+        if (expanded) {
+            const startHeight = this._deviceList.visible ? this._deviceList.height : 0;
+            this._deviceList.show();
+            this._deviceList.set_height(-1);
+            const [, naturalHeight] = this._deviceList.get_preferred_height(-1);
+            this._deviceList.height = startHeight;
+            this._deviceList.ease({
+                height: naturalHeight,
+                duration,
+                mode,
+                onComplete: () => this._deviceList.set_height(-1),
+            });
+        } else {
+            this._deviceList.ease({
+                height: 0,
+                duration,
+                mode,
+                onComplete: () => {
+                    this._deviceList.hide();
+                    this._deviceList.set_height(-1);
+                },
+            });
+        }
+
+        // The down arrow turns to point up.
+        this._arrow.ease({
+            rotation_angle_z: expanded ? 180 : 0,
+            duration,
+            mode,
+        });
     }
 }
