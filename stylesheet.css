@@ -411,18 +411,6 @@
     background-color: rgba(255, 255, 255, 0.20);
 }
 
-.gamebar-call-button-destructive {
-    background-color: #c01c28;
-}
-
-.gamebar-call-button-destructive:hover {
-    background-color: #c6343f;
-}
-
-.gamebar-call-button-destructive:active {
-    background-color: #9a1620;
-}
-
 /*Small button at the end of a row*/
 .gamebar-row-action {
     padding: 5px 14px;
