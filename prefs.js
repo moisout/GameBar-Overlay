@@ -2,7 +2,6 @@ import Gio from 'gi://Gio';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
-import GLib from 'gi://GLib';
 
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { listGpus, getGpuModel, readFile } from './utils.js';
@@ -74,7 +73,6 @@ export default class Preferences extends ExtensionPreferences {
 
         enterAnimationRow.set_selected(enterAnimationValues.indexOf(settings.get_string("enter-animation")));
         appearanceGroup.add(enterAnimationRow);
-        settings.bind('enter-animation', enterAnimationRow, 'selected', Gio.SettingsBindFlags.DEFAULT);
 
         enterAnimationRow.connect('notify::selected', () => {
             const selectedIndex = enterAnimationRow.selected;
@@ -109,7 +107,6 @@ export default class Preferences extends ExtensionPreferences {
 
         exitAnimationRow.set_selected(exitAnimationValues.indexOf(settings.get_string("exit-animation")));
         appearanceGroup.add(exitAnimationRow);
-        settings.bind('exit-animation', exitAnimationRow, 'selected', Gio.SettingsBindFlags.DEFAULT);
 
         exitAnimationRow.connect('notify::selected', () => {
             const selectedIndex = exitAnimationRow.selected;
@@ -175,67 +172,73 @@ export default class Preferences extends ExtensionPreferences {
         }); 
         generalPage.add(keyBindingGroup);
 
-        //Custom Keyboard keybinding
-        const shortcutComboValues = [
-            'Super',
-            'Shift',
-            'Control',
-            'Alt'
-        ];
-        
-        const shortcutCombo = new Adw.ComboRow({
-            title: _('First key'),
-            model: new Gtk.StringList({strings: shortcutComboValues}),
+        // The row records the next key combination pressed, like the shortcut rows of GNOME Settings.
+        // The shortcuts of the shell are not held back while recording, the shell would ask for permission first.
+        // They would clash with the overlay anyway.
+        const shortcutLabel = new Gtk.ShortcutLabel({
+            disabled_text: _('Disabled'),
+            valign: Gtk.Align.CENTER,
+        });
+        const shortcutRow = new Adw.ActionRow({
+            title: _('Shortcut'),
+            activatable: true,
+        });
+        shortcutRow.add_suffix(shortcutLabel);
+        keyBindingGroup.add(shortcutRow);
+
+        const hint = _('Click to change it');
+        const syncShortcut = () => {
+            shortcutLabel.accelerator = settings.get_strv('toggle-gamebar')[0] ?? '';
+            shortcutRow.subtitle = hint;
+        };
+        settings.connect('changed::toggle-gamebar', syncShortcut);
+        syncShortcut();
+
+        let keyController = null;
+        const stopRecording = () => {
+            if (!keyController) return;
+            window.remove_controller(keyController);
+            keyController = null;
+            syncShortcut();
+        };
+
+        shortcutRow.connect('activated', () => {
+            if (keyController) {
+                stopRecording();
+                return;
+            }
+
+            shortcutRow.subtitle = _('Press the new shortcut. Esc cancels, Backspace disables the shortcut');
+
+            keyController = new Gtk.EventControllerKey({ propagation_phase: Gtk.PropagationPhase.CAPTURE });
+            keyController.connect('key-pressed', (controller, keyval, keycode, state) => {
+                const modifiers = state & Gtk.accelerator_get_default_mod_mask();
+                const key = Gdk.keyval_to_lower(keyval);
+
+                if (!modifiers && key === Gdk.KEY_Escape) {
+                    stopRecording();
+                } else if (!modifiers && key === Gdk.KEY_BackSpace) {
+                    settings.set_strv('toggle-gamebar', []);
+                    stopRecording();
+                } else if (Gtk.accelerator_valid(key, modifiers)) {
+                    // A key alone or with Shift would be taken from every app.
+                    if (modifiers & (Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.ALT_MASK | Gdk.ModifierType.SUPER_MASK)) {
+                        settings.set_strv('toggle-gamebar', [Gtk.accelerator_name(key, modifiers)]);
+                        stopRecording();
+                    } else {
+                        shortcutRow.subtitle = _('The shortcut needs Ctrl, Alt or Super');
+                    }
+                }
+                // A modifier on its own is not a shortcut yet.
+                return Gdk.EVENT_STOP;
+            });
+            window.add_controller(keyController);
+        });
+        window.connect('close-request', () => {
+            stopRecording();
+            return false;
         });
 
-        shortcutCombo.set_selected(shortcutComboValues.indexOf(settings.get_string("toggle-gamebar-1")));
-        
-        keyBindingGroup.add(shortcutCombo);
-        settings.bind('toggle-gamebar-1', shortcutCombo, 'selected', Gio.SettingsBindFlags.DEFAULT);
-
-        shortcutCombo.connect('notify::selected', () => {
-            const selectedIndex = shortcutCombo.selected;
-            const selectedValue = shortcutCombo.model.get_string(selectedIndex);
-            settings.set_string('toggle-gamebar-1', selectedValue);
-            updateToggleGameBar();
-        });
-
-        const shortkeysValues = [
-            'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 
-            'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-            '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
-            'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
-            'Escape', 'Tab', 'CapsLock', 'Space', 
-            'Enter', 'Backspace', 'Delete', 'Insert', 'Home', 'End', 'PageUp', 'PageDown',
-            'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Pause', 'ScrollLock'
-        ];
-
-        const shortkeys = new Adw.ComboRow({
-            title: _('Last key'),
-            model: new Gtk.StringList({strings: shortkeysValues}),
-        });
-
-        shortkeys.set_selected(shortkeysValues.indexOf(settings.get_string("toggle-gamebar-2")));
-        keyBindingGroup.add(shortkeys);
-        settings.bind('toggle-gamebar-2', shortkeys, 'selected', Gio.SettingsBindFlags.DEFAULT);
-
-        shortkeys.connect('notify::selected', () => {
-            const selectedIndex = shortkeys.selected;
-            const selectedValue = shortkeys.model.get_string(selectedIndex);
-            settings.set_string('toggle-gamebar-2', selectedValue);
-            updateToggleGameBar();
-        });
-
-
-        function updateToggleGameBar() {
-            const key1 = settings.get_string('toggle-gamebar-1');
-            const key2 = settings.get_string('toggle-gamebar-2');
-        
-            const newShortcut = [`<${key1}>${key2}`];
-            
-            settings.set_value('toggle-gamebar', new GLib.Variant('as', newShortcut));
-        }        
- 
         // Clock Addon Page
         const clockPage = new Adw.PreferencesPage({
             title: _('Clock Addon'),
@@ -293,7 +296,6 @@ export default class Preferences extends ExtensionPreferences {
         });
         temperatureUnitRow.set_selected(temperatureUnitValues.indexOf(settings.get_string('cpu-temperature-unit')));
         cpuGroup.add(temperatureUnitRow);
-        settings.bind('cpu-temperature-unit', temperatureUnitRow, 'selected', Gio.SettingsBindFlags.DEFAULT);
 
         temperatureUnitRow.connect('notify::selected', () => {
             const selectedIndex = temperatureUnitRow.selected;
@@ -353,9 +355,10 @@ export default class Preferences extends ExtensionPreferences {
         gpuRow.set_selected(index >= 0 ? index : 0);
 
         gpuRow.connect('notify::selected', () => {
-            const selectedIndex = gpuRow.selected;
-            const [selectedDevice] = gpuList[selectedIndex];
-            settings.set_string('gpu-device', selectedDevice);
+            const selected = gpuList[gpuRow.selected];
+            if (selected) {
+                settings.set_string('gpu-device', selected[0]);
+            }
         });
         gpuGroup.add(gpuRow);
 

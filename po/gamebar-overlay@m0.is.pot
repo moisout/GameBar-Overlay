@@ -77,13 +77,7 @@ msgstr ""
 msgid "Configure the keybinding of the overlay"
 msgstr ""
 
-#: prefs.js:122
-msgid "First key"
-msgstr ""
 
-#: prefs.js:149
-msgid "Last key"
-msgstr ""
 
 #: prefs.js:176
 msgid "Clock Addon"
@@ -438,4 +432,24 @@ msgstr ""
 #: addons/discord.js
 #, c-format
 msgid "+%d more"
+msgstr ""
+
+#: prefs.js
+msgid "Shortcut"
+msgstr ""
+
+#: prefs.js
+msgid "Disabled"
+msgstr ""
+
+#: prefs.js
+msgid "Click to change it"
+msgstr ""
+
+#: prefs.js
+msgid "Press the new shortcut. Esc cancels, Backspace disables the shortcut"
+msgstr ""
+
+#: prefs.js
+msgid "The shortcut needs Ctrl, Alt or Super"
 msgstr ""

@@ -105,8 +105,8 @@ const listGpus = () => {
 // Searches for the device string in the hwdata database.
 const getGpuModel = (drm_id) => {
     const basePath = '/sys/class/drm/' + drm_id + "/device";
-    const expectedVendorId = readFile(basePath + "/vendor").replace("0x", "");
-    const expectedDeviceId = readFile(basePath + "/device").replace("0x", "");
+    const expectedVendorId = readFile(basePath + "/vendor")?.replace("0x", "");
+    const expectedDeviceId = readFile(basePath + "/device")?.replace("0x", "");
     const hwdata = readFile("/usr/share/hwdata/pci.ids");
 
     // Some distributions (for example Debian) don't install hwdata by default.
@@ -128,7 +128,8 @@ const getGpuModel = (drm_id) => {
         else if (foundVendor && /^\t[0-9a-fA-F]{4}/.test(line)) {
             const [deviceId, ...name] = line.trim().split(/\s+/);
             if (deviceId.toLowerCase() === expectedDeviceId) {
-                return name.join(' ').match(/\[(.*?)\]/)?.[1]; // Extract only the model name from the full string.
+                // Only the model name in the brackets, names without brackets are the model name.
+                return name.join(' ').match(/\[(.*?)\]/)?.[1] ?? name.join(' ');
             }
         }
     }

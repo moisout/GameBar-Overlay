@@ -32,6 +32,8 @@ export HOME="$work/home" XDG_CONFIG_HOME="$work/home/.config" XDG_DATA_HOME="$wo
 gsettings set org.gnome.shell enabled-extensions "['$uuid']"
 gsettings set org.gnome.shell disable-extension-version-validation true
 gsettings set org.gnome.shell welcome-dialog-last-shown-version '999'
+# The pointer starts in the hot corner.
+gsettings set org.gnome.desktop.interface enable-hot-corners false
 
 timeout "${2:-60}" dbus-run-session -- gnome-shell --headless --virtual-monitor 1920x1080 --wayland --no-x11 > "$work/log" 2>&1
 cp "$work/log" "$repo/tests/output/shell.log"

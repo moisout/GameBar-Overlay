@@ -53,6 +53,30 @@
             await sleep(150);
         };
 
+        // Scrolls with the pointer over the target, a positive number of notches scrolls down.
+        const scroll = async (target, notches) => {
+            await moveTo(...centre(target));
+            for (let i = 0; i < Math.abs(notches); i++) {
+                pointer.notify_discrete_scroll(now(), notches > 0 ? Clutter.ScrollDirection.DOWN : Clutter.ScrollDirection.UP,
+                    Clutter.ScrollSource.WHEEL);
+                await sleep(50);
+            }
+            await sleep(300);
+        };
+
+        // Keys held together by their symbols, like Clutter.KEY_Control_L, Clutter.KEY_k.
+        const chord = async (...keyvals) => {
+            for (const keyval of keyvals) {
+                keyboard.notify_keyval(now(), keyval, Clutter.KeyState.PRESSED);
+                await sleep(50);
+            }
+            for (const keyval of keyvals.reverse()) {
+                keyboard.notify_keyval(now(), keyval, Clutter.KeyState.RELEASED);
+                await sleep(50);
+            }
+            await sleep(150);
+        };
+
         // A key by its symbol, like Clutter.KEY_Escape.
         const key = async keyval => {
             keyboard.notify_keyval(now(), keyval, Clutter.KeyState.PRESSED);

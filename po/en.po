@@ -24,7 +24,7 @@ msgstr "General"
 
 #: prefs.js:22
 msgid "Appearance"
-msgstr "Apperance"
+msgstr "Appearance"
 
 #: prefs.js:23
 msgid "Configure the appearance of the extension"
@@ -78,13 +78,7 @@ msgstr "Keybinding"
 msgid "Configure the keybinding of the overlay"
 msgstr "Configure the keybinding of the overlay"
 
-#: prefs.js:122
-msgid "First key"
-msgstr "First key"
 
-#: prefs.js:149
-msgid "Last key"
-msgstr "Last key"
 
 #: prefs.js:176
 msgid "Clock Addon"
@@ -440,3 +434,23 @@ msgstr "Show more"
 #, c-format
 msgid "+%d more"
 msgstr "+%d more"
+
+#: prefs.js
+msgid "Shortcut"
+msgstr "Shortcut"
+
+#: prefs.js
+msgid "Disabled"
+msgstr "Disabled"
+
+#: prefs.js
+msgid "Click to change it"
+msgstr "Click to change it"
+
+#: prefs.js
+msgid "Press the new shortcut. Esc cancels, Backspace disables the shortcut"
+msgstr "Press the new shortcut. Esc cancels, Backspace disables the shortcut"
+
+#: prefs.js
+msgid "The shortcut needs Ctrl, Alt or Super"
+msgstr "The shortcut needs Ctrl, Alt or Super"

@@ -155,6 +155,7 @@ These settings were removed together with their rows in the preferences:
 - Overlay Opening Monitor and Show App Description (were already unused).
 - Padding and the Position of every addon (replaced by the column layout).
 - Icon Size (app icons are 24px) and Icon Type (the fallback icon is always symbolic).
+- First key and Last key of the shortcut. The Shortcut row records any combination with Ctrl, Alt or Super instead, several of the keys in the old list had names the shell does not know. The shortcuts of the shell still work while it records, holding them back makes the shell ask for permission.
 
 The schema defaults changed to match the design: overlay background `rgba(8,9,12,0.62)`, clock size 64, close on empty area click on.
 
