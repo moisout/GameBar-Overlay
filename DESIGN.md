@@ -131,7 +131,9 @@ Volume and mute follow the Quick Settings sliders (`js/ui/status/volume.js`), in
 - Clicking the mute button of a stream muted at volume 0 unmutes it at 25%.
 - Setting the volume makes the stream notify while it still reports the old mute state. The rows ignore the stream while they set the volume themselves, otherwise the slider jumps back to 0 and that jump is taken as a drag to 0.
 
-Apps without an icon get the symbolic `application-x-executable-symbolic`, app icons are 24px.
+The Applications group follows the apps while the overlay is open (`stream-added` and `stream-removed` of the mixer).
+
+PulseAudio does not tell which app a stream belongs to. The icon is the one of the app with the app id of the stream, if the app set one, then of the installed app with exactly the name of the stream (its name, desktop file or program), then the icon name the app set. Apps that name their stream after their audio library (Discord is "WEBRTC VoiceEngine", many games "FMOD Ex App") get the symbolic `application-x-executable-symbolic`, guessing from parts of the name gave apps the icon of another one. App icons are 24px.
 
 ## Accent colour
 

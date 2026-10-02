@@ -3,12 +3,18 @@ import Clutter from 'gi://Clutter';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import Gio from 'gi://Gio';
+import Shell from 'gi://Shell';
 import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { DeviceSection } from './deviceSection.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
 import { createCard, createGroupTitle, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
 import GLib from 'gi://GLib';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+
+// Icon names streams have when their app did not set one.
+const GENERIC_ICONS = ['application-x-executable', 'applications-multimedia', 'audio-card', 'audio'];
+
+const normalize = (name) => name?.trim().toLowerCase() ?? '';
 
 export class SoundControls {
     constructor(overlay, primaryMonitor) {
@@ -20,6 +26,8 @@ export class SoundControls {
         this._appVolumesGroup = null;
         this._appVolumesList = null;
         this._addonContainer = null;
+        this._appStreamIds = null;
+        this._appsByName = null;
         //Listeners:
         this._widthChangeId = null;
         this._heightChangeId = null;
@@ -51,6 +59,12 @@ export class SoundControls {
 
         this._addonContainer.add_child(card);
 
+        // Apps start and stop playing while the overlay is open. Disconnected when the card is destroyed.
+        this._volumeControl.connectObject(
+            'stream-added', () => this._syncApps(),
+            'stream-removed', () => this._syncApps(),
+            this._addonContainer);
+
         // Add the addon container to the overlay
         this._overlay.add_child(this._addonContainer);
         makeDraggable(this._addonContainer, 'sound');
@@ -76,94 +90,68 @@ export class SoundControls {
         positionAddon(this._primaryMonitor, this._addonContainer, 'sound');
       }
 
-    // Update all volume controls
+    // Called every time the overlay opens
     updateVolumeControls() {
         this._outputSection.sync();
         this._inputSection.sync();
 
-        // Clear existing app volume controls
+        // Apps may have been installed since.
+        this._appsByName = null;
+        this._appStreamIds = null;
+        this._syncApps();
+    }
+
+    // One row per app playing audio, without the event sounds. Only rebuilt when the apps change,
+    // a row being dragged is not destroyed by a volume change.
+    _syncApps() {
+        if (!this._appVolumesList || !this._overlay.visible) return;
+
+        const streams = this._volumeControl.get_sink_inputs().filter(stream => !stream.is_event_stream);
+        const ids = streams.map(stream => stream.id).join(',');
+        if (ids === this._appStreamIds) return;
+        this._appStreamIds = ids;
+
         this._appVolumesList.clear();
-
-        // Get all audio streams (for app-specific volumes), skipping event streams
-        this._volumeControl.get_sink_inputs()
-            .filter(inputStream => !inputStream.is_event_stream)
-            .forEach(inputStream => this._appVolumesList.addRow(this._createAppVolumeControl(inputStream)));
-
-        this._appVolumesGroup.visible = !this._appVolumesList.isEmpty;
+        streams.forEach(stream => this._appVolumesList.addRow(this._createAppVolumeControl(stream)));
+        this._appVolumesGroup.visible = streams.length > 0;
     }
 
-    // Create a volume control for a specific app
-    _getAppIcon(stream) {
-        let icon = null;
-        // Check if the stream has an icon saved in system icons:
-        icon = this._getAppInfoIconFromStreamName(stream);
-        if (icon) return icon;
-
-        let iconName = stream.get_icon_name();
-        if (iconName && iconName != 'application-x-executable') {
-            icon = new Gio.ThemedIcon({ name: iconName});
-            if (icon) return icon;
-        }
-
-        // Return generic if no icon found, symbolic like the other icons of the card:
-        return new Gio.ThemedIcon({ name: 'application-x-executable-symbolic' });
-    }
-    
-    _getAppInfoIconFromStreamName(stream) {
-        const cleanString = (str) => {
-            if (!str) return '';
-            return str.toLowerCase()
-                .replace(/[^\w\s]/g, '')
-                .replace(/\s+/g, '')
-                .replace(/browser|player|viewer/g, '');
-        };
-    
-        const calculateMatchScore = (str1, str2) => {
-            const clean1 = cleanString(str1);
-            const clean2 = cleanString(str2);
-            if (clean1 === clean2) return 100;
-            if (clean1.includes(clean2)) return 75;
-            if (clean2.includes(clean1)) return 75;
-            return 0;
-        };
-    
-        const streamName = cleanString(stream.get_name());
-        const streamIconName = cleanString(stream.get_icon_name());
-        const allApps = Gio.AppInfo.get_all();
-    
-        let bestMatch = {
-            app: null,
-            score: 0
-        };
-    
-        for (let app of allApps) {
-            const appName = cleanString(app.get_display_name());
-            const appId = cleanString(app.get_id());
-    
-            if (appName && streamName && stream.get_name()) {
-                const nameScore = Math.max(
-                    calculateMatchScore(appName, streamName),
-                    calculateMatchScore(appId, streamName),
-                    calculateMatchScore(appName, streamIconName),
-                    calculateMatchScore(appId, streamIconName)
-                );
-    
-                if (nameScore > bestMatch.score) {
-                    bestMatch = {
-                        app: app,
-                        score: nameScore
-                    };
-                }
+    // The installed apps by their name, the name of their desktop file and of their program.
+    _getAppsByName() {
+        if (!this._appsByName) {
+            this._appsByName = new Map();
+            for (const app of Shell.AppSystem.get_default().get_installed()) {
+                const id = app.get_id()?.replace(/\.desktop$/, '');
+                const executable = app.get_executable();
+                [app.get_name(), id, id?.split('.').pop(), executable ? GLib.path_get_basename(executable) : null]
+                    .map(normalize)
+                    .filter(name => name && !this._appsByName.has(name))
+                    .forEach(name => this._appsByName.set(name, app));
             }
         }
-    
-        if (bestMatch.app) {
-            return bestMatch.app.get_icon();
-        }
-    
-        return null;
+        return this._appsByName;
     }
-    
+
+    // PulseAudio does not tell which app a stream belongs to. In this order: the app id, if the app set one,
+    // the installed app with exactly the name of the stream, and the icon the app set. Guessing from parts
+    // of the name gave apps the icon of another one.
+    _getAppIcon(stream) {
+        const id = stream.get_application_id();
+        const app = id ? Shell.AppSystem.get_default().lookup_app(`${id}.desktop`) : null;
+        if (app) return app.get_icon();
+
+        const namedApp = this._getAppsByName().get(normalize(stream.get_name()));
+        if (namedApp?.get_icon()) return namedApp.get_icon();
+
+        const iconName = stream.get_icon_name();
+        if (iconName && !GENERIC_ICONS.includes(iconName)) {
+            return new Gio.ThemedIcon({ name: iconName });
+        }
+
+        // Symbolic like the other icons of the card.
+        return new Gio.ThemedIcon({ name: 'application-x-executable-symbolic' });
+    }
+
     // Create a volume control for a specific app
     _createAppVolumeControl(stream) {
         let row = createRow('gamebar-app-row');
@@ -171,6 +159,8 @@ export class SoundControls {
         // Create an icon for the app
         let appIcon = new St.Icon({
             gicon: this._getAppIcon(stream),
+            // The icon theme may not have the icon an app names.
+            fallback_icon_name: 'application-x-executable-symbolic',
             icon_size: 24,
             y_align: Clutter.ActorAlign.CENTER
         });
@@ -260,6 +250,7 @@ export class SoundControls {
         this._inputSection = null;
         this._appVolumesGroup = null;
         this._appVolumesList = null;
+        this._appsByName = null;
         this._volumeControl = null;
     }
 }
