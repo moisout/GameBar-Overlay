@@ -5,7 +5,7 @@ The overlay follows the GNOME Adwaita look. The design was made with claude.desi
 - `design/gnome-game-overlay-handoff.md`: design tokens, layout and the description of every card.
 - `design/overlay-mockup.dc.html`: the HTML/CSS mockup at 1920×1080. It needs the design tool's runtime and does not render in a browser, read it as text for exact values.
 
-The design has more cards (Battery, Capture, Gallery, Music, Discord). Only the cards the extension already had are implemented: Audio, Clock and Hardware, together with the dash at the bottom that shows and hides them.
+Implemented are the Audio, Capture, Clock, Hardware and Battery cards, together with the dash at the bottom that shows and hides them. The Gallery, Music and Discord cards of the design are not implemented yet.
 
 This file records where the implementation follows the design, where it departs from it and why.
 
@@ -26,6 +26,11 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 
 - **Audio** (400px): groups Output, Input and Applications. Output and Input have a device row (opens the device list inside the card, with a check on the active device) and a row with the mute button and the volume slider. Applications has one row per app: icon, name, mute button, slider. The group is hidden when no app plays audio.
 - **Clock** (min 400px): no header bar, time and the date below it in secondary grey. The time size is the Font Size setting, 64px by default.
+- **Capture** (520px): the pill buttons "Take Screenshot" and "Record Screen" (destructive). Both close the overlay first and wait until the overlay and its backdrop are gone, showing the overlay again in between cancels them. Both capture the monitor of the overlay right away:
+  - The screenshot works like the Shift+Print key of the shell (`Shell.Screenshot.screenshot_stage_to_content()` and `captureScreenshot()` from `screenshot.js`), cropped to the monitor: saved to the screenshots folder and the clipboard, with the sound and the notification of the shell, without the pointer.
+  - The recording goes through the screenshot UI of the shell, so the shell shows its recording indicator with the stop button and the notification. The screenshot UI has no API to record a monitor right away: its screen mode and the monitor are set on its private buttons, `_startScreencast()` reads the area before its first await, and the previous mode is restored right after. Without these internals the screenshot UI opens in screencast mode instead.
+  - While a recording runs the record button turns into "Stop Recording", the design has no recording state. Without PipeWire or the GStreamer plugins the record button is disabled.
+- **Battery** (400px): "This Device" with the state as subtitle ("3 h 10 min remaining", "Fully charged", ...), a level bar and the percentage, from the UPower display device. Below it the group "Connected Devices": mice, headsets, controllers and other devices with a battery, with an icon for their type. A low battery (the warning level of UPower) shows "Low battery" and the bar in the warning colour `#ff938c`. Without any battery the card says so. UPower is read over D-Bus with proxies, the device lists of UPowerGlib are freed too early in GJS.
 - **Hardware** (400px): one boxed list with these rows:
   - **CPU** and **GPU**: the temperature as subtitle, a sparkline of the usage of the last 30 seconds in the accent colour and the usage in bold. On amdgpu the GPU subtitle adds the VRAM in use (sysfs `mem_info_vram_used`). Without libgtop the CPU row only shows the install hint.
   - **Memory**: "used of total" in GiB, a level bar and the percentage. Used is total minus available from `/proc/meminfo`, like GNOME System Monitor.
@@ -61,14 +66,24 @@ Audio and Hardware have the Adwaita window control in their header bar: a 24px c
 
 Cards start in the column layout of the design (`cardPosition.js`):
 
-| Column | Width | Cards |
+| Column | Width | Cards, top to bottom |
 |---|---|---|
-| 1 | 400 | Audio |
-| 2 | 520 | (kept free for Capture and Gallery) |
+| 1 | 400 | Audio, Battery |
+| 2 | 520 | Capture |
 | 3 | 400 | Clock |
 | 4 | 400 | Hardware |
 
-Columns are 40px apart and the grid is centred on the monitor, at y = 84. On 1920×1080 this gives the design's x positions 40, 480, 1040 and 1480. On monitors too narrow for the grid the free column is dropped (1280px fits the three cards exactly).
+Columns are 40px apart and the grid is centred on the monitor, at y = 84. The cards of a column are stacked 24px apart, closed, dragged away and missing cards leave no gap, and the cards below a card move along when its height changes. On 1920×1080 this gives the design's x positions 40, 480, 1040 and 1480.
+
+Monitors too narrow for the four columns get fewer:
+
+| Monitor width | Columns |
+|---|---|
+| 1920 and more | Audio, Battery · Capture · Clock · Hardware |
+| 1480 to 1919 | Audio, Battery · Clock, Capture · Hardware |
+| below 1480 | Audio, Battery · Clock, Capture, Hardware |
+
+On 1280×800 not every card fits above the dash, the bottom of the Hardware card reaches behind it. The dash is always kept above the cards.
 
 Cards can still be dragged anywhere. Dragged positions are saved as fractions of the monitor size, the Reset button in the preferences moves the cards back to the column layout.
 
@@ -118,4 +133,4 @@ gsettings set org.gnome.shell disable-extension-version-validation true
 dbus-run-session -- gnome-shell --headless --virtual-monitor 1920x1080 --wayland --no-x11
 ```
 
-Copy the extension to `$HOME/.local/share/gnome-shell/extensions/` first. Real clicks can be tested with a virtual pointer from `Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE)`. Its absolute motion loses the y coordinate in the headless shell, so steer it with relative motion and check `global.get_pointer()`. Hide the overview first, it grabs the input. A `pacat --raw /dev/zero` stream gives the Applications group a silent app to show.
+Copy the extension to `$HOME/.local/share/gnome-shell/extensions/` first. Export the variables before `dbus-run-session`: services started by D-Bus, like the screen recorder of the shell, take their home from the D-Bus daemon and would otherwise save to the real home. Real clicks can be tested with a virtual pointer from `Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE)`. Its absolute motion loses the y coordinate in the headless shell, so steer it with relative motion and check `global.get_pointer()`. Hide the overview first, it grabs the input. A `pacat --raw /dev/zero` stream gives the Applications group a silent app to show.

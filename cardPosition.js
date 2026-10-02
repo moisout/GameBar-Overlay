@@ -5,16 +5,24 @@ const POSITIONS_KEY = 'addon-positions';
 // Cards closed with their close button or the dash stay closed until they are shown from the dash again.
 const HIDDEN_KEY = 'hidden-cards';
 
-// Default layout from the design (design/gnome-game-overlay-handoff.md): columns of cards, centred on the monitor.
-// The second column is kept free for the capture and gallery cards of the design.
-const COLUMN_WIDTHS = [400, 520, 400, 400];
-const COLUMN_GAP = 40;
-const LAYOUT_TOP = 84;
-const DEFAULT_COLUMNS = {
-    'sound': 0,
-    'clock': 2,
-    'system-monitor': 3,
+// Default layout from the design (design/gnome-game-overlay-handoff.md): columns of stacked cards, centred on the monitor.
+// A monitor too narrow for a layout gets the next one, the first one fits 1920px.
+const LAYOUTS = [
+    [['sound', 'battery'], ['capture'], ['clock'], ['system-monitor']],
+    [['sound', 'battery'], ['clock', 'capture'], ['system-monitor']],
+    [['sound', 'battery'], ['clock', 'capture', 'system-monitor']],
+];
+// Width of the cards in the design, a column is as wide as its widest card.
+const CARD_WIDTHS = {
+    'capture': 520,
 };
+const DEFAULT_CARD_WIDTH = 400;
+const COLUMN_GAP = 40;
+const CARD_GAP = 24;
+const LAYOUT_TOP = 84;
+
+// The cards placed so far, the cards below a card in its column follow its height.
+const cardElements = new Map();
 
 let position_settings = null;
 
@@ -43,24 +51,37 @@ const saveCustomPosition = (id, position) => {
     position_settings.set_value(POSITIONS_KEY, new GLib.Variant('a{s(dd)}', positions));
 };
 
-const getLayoutWidth = (columns) => {
-    return columns.reduce((width, column) => width + COLUMN_WIDTHS[column], 0) + COLUMN_GAP * (columns.length - 1);
+const getColumnWidth = (column) => Math.max(...column.map(id => CARD_WIDTHS[id] ?? DEFAULT_CARD_WIDTH));
+
+const getLayoutWidth = (layout) => {
+    return layout.reduce((width, column) => width + getColumnWidth(column), 0) + COLUMN_GAP * (layout.length - 1);
+};
+
+const getLayout = (primaryMonitor) => {
+    return LAYOUTS.find(layout => getLayoutWidth(layout) + 2 * COLUMN_GAP <= primaryMonitor.width) ?? LAYOUTS[LAYOUTS.length - 1];
 };
 
 const getDefaultPosition = (primaryMonitor, id) => {
-    let columns = COLUMN_WIDTHS.map((width, column) => column);
-    // On narrow monitors the free columns make room for the cards.
-    if (getLayoutWidth(columns) + 2 * COLUMN_GAP > primaryMonitor.width) {
-        columns = columns.filter(column => Object.values(DEFAULT_COLUMNS).includes(column));
+    const layout = getLayout(primaryMonitor);
+    const columnIndex = layout.findIndex(column => column.includes(id));
+    if (columnIndex === -1) return [COLUMN_GAP, LAYOUT_TOP];
+
+    let x = (primaryMonitor.width - getLayoutWidth(layout)) / 2;
+    for (const column of layout.slice(0, columnIndex)) {
+        x += getColumnWidth(column) + COLUMN_GAP;
     }
 
-    const column = DEFAULT_COLUMNS[id];
-    const columnsBefore = columns.filter(other => other < column);
-    let x = (primaryMonitor.width - getLayoutWidth(columns)) / 2;
-    if (columnsBefore.length > 0) {
-        x += getLayoutWidth(columnsBefore) + COLUMN_GAP;
+    let y = LAYOUT_TOP;
+    const customPositions = getCustomPositions();
+    for (const other of layout[columnIndex]) {
+        if (other === id) break;
+
+        // Closed, dragged away and missing cards leave no gap.
+        const element = cardElements.get(other);
+        if (!element?.visible || customPositions[other]) continue;
+        y += element.get_preferred_size()[3] + CARD_GAP;
     }
-    return [x, LAYOUT_TOP];
+    return [x, y];
 };
 
 const isCardHidden = (id) => {
@@ -77,9 +98,8 @@ const setCardHidden = (id, hidden) => {
     position_settings.set_strv(HIDDEN_KEY, hiddenCards);
 };
 
-// Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
-const positionAddon = (primaryMonitor, element, id) => {
-    if (!primaryMonitor || !element || element._dragging) return;
+const placeCard = (primaryMonitor, element, id) => {
+    if (element._dragging) return;
 
     const [, , width, height] = element.get_preferred_size();
     const custom = getCustomPositions()[id];
@@ -96,6 +116,27 @@ const positionAddon = (primaryMonitor, element, id) => {
         clamp(Math.round(x), 1, primaryMonitor.width - width), // x >= 1, an actor at 0,0 is shown in the centre of the screen.
         clamp(Math.round(y), 0, primaryMonitor.height - height)
     );
+};
+
+// Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
+// The cards below it in its column move along, they depend on its height.
+const positionAddon = (primaryMonitor, element, id) => {
+    if (!primaryMonitor || !element) return;
+
+    if (cardElements.get(id) !== element) {
+        cardElements.set(id, element);
+        element.connect('destroy', () => {
+            if (cardElements.get(id) === element) cardElements.delete(id);
+        });
+    }
+
+    placeCard(primaryMonitor, element, id);
+
+    const column = getLayout(primaryMonitor).find(other => other.includes(id)) ?? [];
+    for (const below of column.slice(column.indexOf(id) + 1)) {
+        const belowElement = cardElements.get(below);
+        if (belowElement) placeCard(primaryMonitor, belowElement, below);
+    }
 };
 
 // Let the user move an addon around the overlay by dragging any non-interactive part of it.

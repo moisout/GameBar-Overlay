@@ -246,3 +246,75 @@ msgstr ""
 #: extension.js
 msgid "Clock"
 msgstr ""
+
+#: addons/capture.js
+msgid "Capture"
+msgstr ""
+
+#: addons/capture.js
+msgid "Take Screenshot"
+msgstr ""
+
+#: addons/capture.js
+msgid "Record Screen"
+msgstr ""
+
+#: addons/capture.js
+msgid "Stop Recording"
+msgstr ""
+
+#: addons/battery.js
+msgid "Battery"
+msgstr ""
+
+#: addons/battery.js
+msgid "This Device"
+msgstr ""
+
+#: addons/battery.js
+msgid "Connected Devices"
+msgstr ""
+
+#: addons/battery.js
+msgid "Low battery"
+msgstr ""
+
+#: addons/battery.js
+msgid "No devices with a battery"
+msgstr ""
+
+#: addons/battery.js
+#, c-format
+msgid "%d h %d min"
+msgstr ""
+
+#: addons/battery.js
+#, c-format
+msgid "%d min"
+msgstr ""
+
+#: addons/battery.js
+#, c-format
+msgid "%s until full"
+msgstr ""
+
+#: addons/battery.js
+msgid "Charging"
+msgstr ""
+
+#: addons/battery.js
+#, c-format
+msgid "%s remaining"
+msgstr ""
+
+#: addons/battery.js
+msgid "Estimating…"
+msgstr ""
+
+#: addons/battery.js
+msgid "Fully charged"
+msgstr ""
+
+#: addons/battery.js
+msgid "Not charging"
+msgstr ""

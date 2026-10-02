@@ -128,10 +128,42 @@ class LevelBar {
         this._sync();
     }
 
+    // A low battery, for example.
+    set warning(warning) {
+        if (warning) {
+            this._fill.add_style_class_name('gamebar-level-bar-fill-warning');
+        } else {
+            this._fill.remove_style_class_name('gamebar-level-bar-fill-warning');
+        }
+    }
+
     _sync() {
+        // Before the bar is laid out its size would have to be computed from the theme, which needs the stage.
+        if (!this.actor.has_allocation()) return;
         this._fill.set_size(Math.round(this.actor.width * this._value), this.actor.height);
     }
 }
+
+// Large rounded button with an icon and a bold label, like the pill buttons of Adwaita.
+const createPillButton = (iconName, text, styleClass = '') => {
+    const icon = new St.Icon({ icon_name: iconName, icon_size: 16 });
+    const label = new St.Label({ text, y_align: Clutter.ActorAlign.CENTER });
+
+    const content = new St.BoxLayout({
+        style_class: 'gamebar-pill-button-content',
+        x_align: Clutter.ActorAlign.CENTER,
+        y_align: Clutter.ActorAlign.CENTER,
+    });
+    content.add_child(icon);
+    content.add_child(label);
+
+    const button = new St.Button({
+        style_class: `gamebar-pill-button ${styleClass}`,
+        child: content,
+        x_expand: true,
+    });
+    return { button, icon, label };
+};
 
 // Flat circular button holding a symbolic icon.
 const createIconButton = (iconName, styleClass = '') => new St.Button({
@@ -140,4 +172,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, LevelBar, createIconButton };
+export { createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, LevelBar, createPillButton, createIconButton };

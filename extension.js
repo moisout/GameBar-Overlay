@@ -16,6 +16,8 @@ import {Clock} from './addons/clock.js';
 import {SoundControls} from './addons/soundControls.js';
 import {SystemMonitor} from './addons/systemMonitor.js';
 import {Dash} from './addons/dash.js';
+import {Capture} from './addons/capture.js';
+import {Battery} from './addons/battery.js';
 //TODO:: screenshot addon
 //TODO:: weather addon
 //TODO:: battery addon
@@ -102,12 +104,16 @@ class GameBar extends PanelMenu.Button {
         this._clock = new Clock(this._overlay, primaryMonitor); // Clock addon
         this._soundControls = new SoundControls(this._overlay, primaryMonitor); // Sound controls addon
         this._systemMonitor = new SystemMonitor(this._overlay, primaryMonitor); // System Monitor stats addon
+        this._capture = new Capture(this._overlay, primaryMonitor, callback => this._runWithOverlayClosed(callback)); // Screenshot and screencast buttons
+        this._battery = new Battery(this._overlay, primaryMonitor); // Battery of the computer and connected devices
 
         // The cards the dash shows and hides, in the order of its buttons
         this._cards = [
             { id: 'sound', name: _('Audio'), iconName: 'audio-volume-high-symbolic', addon: this._soundControls },
+            { id: 'capture', name: _('Capture'), iconName: 'camera-photo-symbolic', addon: this._capture },
             { id: 'clock', name: _('Clock'), iconName: 'preferences-system-time-symbolic', addon: this._clock },
             { id: 'system-monitor', name: _('Hardware'), iconName: 'computer-symbolic', addon: this._systemMonitor },
+            { id: 'battery', name: _('Battery'), iconName: 'battery-symbolic', addon: this._battery },
         ];
         // Cards fading out after being closed, they are still visible until the animation ends.
         this._hidingCards = new Set();
@@ -152,7 +158,7 @@ class GameBar extends PanelMenu.Button {
         this._backdrop.hide();
 
         // The addons keep the monitor they were created with, which is null if the shell had no monitor yet.
-        [this._clock, this._soundControls, this._systemMonitor, this._dash].forEach(addon => {
+        [...(this._cards ?? []).map(card => card.addon), this._dash].forEach(addon => {
             if (!addon) return;
             addon._primaryMonitor = primaryMonitor;
             addon.set_addon_position();
@@ -441,6 +447,30 @@ class GameBar extends PanelMenu.Button {
         }
     }
 
+    _positionCards() {
+        this._cards.forEach(({ addon }) => addon.set_addon_position());
+    }
+
+    // Closes the overlay and runs callback once the overlay and its backdrop are gone, so they are not in a screenshot.
+    // Showing the overlay again before that cancels it.
+    _runWithOverlayClosed(callback) {
+        const waitForHidden = (actor, next) => {
+            if (!actor.visible) {
+                next();
+                return;
+            }
+            const visibleChangedId = actor.connect('notify::visible', () => {
+                actor.disconnect(visibleChangedId);
+                if (!actor.visible) next();
+            });
+        };
+
+        if (this._overlay.visible) {
+            this._toggleOverlay();
+        }
+        waitForHidden(this._overlay, () => waitForHidden(this._backdrop, callback));
+    }
+
     // The children the animations move, closed cards are hidden and left alone.
     _getShownChildren() {
         return this._overlay.get_children().filter(child => child.visible);
@@ -495,6 +525,8 @@ class GameBar extends PanelMenu.Button {
                     onComplete: () => {
                         this._hidingCards.delete(id);
                         container.hide();
+                        // The cards below it in its column move up.
+                        this._positionCards();
                         container.set_opacity(255);
                         container.set_scale(1, 1);
                         container.set_translation(0, 0, 0);
@@ -502,6 +534,9 @@ class GameBar extends PanelMenu.Button {
                 });
             }
         });
+
+        // Cards in a column stack, they move when a card above them is shown or hidden.
+        this._positionCards();
     }
 
     _resetOverlayChildren() {
@@ -533,9 +568,7 @@ class GameBar extends PanelMenu.Button {
     _onSettingsChanged(settings, key) {
         // A dragged addon is already in place, recreating every addon would only make them flicker.
         if (key === 'addon-positions') {
-            this._clock.set_addon_position();
-            this._soundControls.set_addon_position();
-            this._systemMonitor.set_addon_position();
+            this._positionCards();
             return;
         }
 
@@ -556,8 +589,11 @@ class GameBar extends PanelMenu.Button {
         this._clock._updateSettings(settings);
         this._soundControls._updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
-        // The addons recreate their cards, which start visible.
+        this._capture._updateSettings(settings);
+        this._battery._updateSettings(settings);
+        // The addons recreate their cards, which start visible and on top of the dash.
         this._syncCardVisibility(false);
+        this._overlay.set_child_above_sibling(this._dash._addonContainer, null);
         this._emptyAreaClose = settings.get_boolean('overlay-empty-area-close');
         this._enterAnimation = settings.get_string('enter-animation');
         this._enterAnimationDuration = settings.get_int('enter-animation-duration');
@@ -585,6 +621,10 @@ class GameBar extends PanelMenu.Button {
         this._soundControls = null;
         this._systemMonitor?.destroy();
         this._systemMonitor = null;
+        this._capture?.destroy();
+        this._capture = null;
+        this._battery?.destroy();
+        this._battery = null;
         this._dash?.destroy();
         this._dash = null;
         this._cards = null;

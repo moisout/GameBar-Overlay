@@ -116,6 +116,44 @@
     font-feature-settings: "tnum";
 }
 
+/*Low battery*/
+.gamebar-warning {
+    color: #ff938c;
+}
+
+/*Pill buttons of Adwaita, 46px high*/
+.gamebar-pill-button {
+    height: 46px;
+    padding: 0 24px;
+    border-radius: 23px;
+    font-weight: bold;
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gamebar-pill-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.gamebar-pill-button:active {
+    background-color: rgba(255, 255, 255, 0.20);
+}
+
+.gamebar-pill-button-destructive {
+    background-color: #c01c28;
+}
+
+.gamebar-pill-button-destructive:hover {
+    background-color: #c6343f;
+}
+
+.gamebar-pill-button-destructive:active {
+    background-color: #9a1620;
+}
+
+.gamebar-pill-button-content {
+    spacing: 8px;
+}
+
 /*-Addons styles-*/
 
 /*Clock styles*/
@@ -169,6 +207,30 @@
     height: 5px;
     border-radius: 3px;
     background-color: #ffffff;
+}
+
+/*Capture styles*/
+.gamebar-capture-card {
+    width: 520px;
+}
+
+.gamebar-capture-body {
+    padding-top: 4px;
+    spacing: 12px;
+}
+
+/*Battery styles*/
+.gamebar-battery-card {
+    width: 400px;
+}
+
+.gamebar-battery-info {
+    width: 150px;
+}
+
+.gamebar-battery-percentage {
+    width: 44px;
+    text-align: right;
 }
 
 /*Audio styles*/
@@ -235,4 +297,8 @@
     border-radius: 3px;
     background-color: #3584e4;
     background-color: -st-accent-color;
+}
+
+.gamebar-level-bar-fill-warning {
+    background-color: #ff938c;
 }

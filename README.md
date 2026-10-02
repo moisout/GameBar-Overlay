@@ -12,7 +12,10 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 
 - Fullscreen overlay for quick access to essential information, styled after GNOME Adwaita
 - Audio controls: output and input device switching, volume and mute for the devices and every app
-- CPU/GPU usage and temperature monitor
+- CPU/GPU usage and temperature monitor, memory, disk and network
+- Instant screenshot and screen recording of the monitor, saved and shown like GNOME's own
+- Battery of the computer and of connected devices like mice, headsets and controllers
+- A dash to show and hide the cards
 - Cards can be dragged anywhere on the overlay
 - Fly In, Fade and Slide animations
 
@@ -40,9 +43,9 @@ Open the Overlay by clicking the top-bar button or by pressing `Super + G`. Clos
 - [x] Make configuration of the extension
 - [x] CPU usage and temperature addon
 - [x] GPU usage and temperature addon
-- [ ] Screenshot addon
+- [x] Screenshot addon
 - [ ] Weather addon
-- [ ] Battery addon
+- [x] Battery addon
 - [ ] Brightness addon
 
 ## Known issues
