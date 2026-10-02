@@ -1,6 +1,6 @@
 {
-  "description": "A fullscreen overlay widget for GNOME that displays useful information, audio controls and more. The default key to open is Super + G, and it is configurable in the settings.",
-  "gettext-domain": "gamebar-overlay@dekotale.github.io",
+  "description": "A fullscreen overlay widget for GNOME that displays useful information, audio controls and more. The default key to open is Super + G, and it is configurable in the settings.\n\nFork of GameBar Overlay by Dekotale.",
+  "gettext-domain": "gamebar-overlay@m0.is",
   "name": "GameBar Overlay",
   "settings-schema": "org.gnome.shell.extensions.gamebar-overlay",
   "shell-version": [
@@ -10,7 +10,7 @@
     "49",
     "50"
   ],
-  "url": "https://github.com/dekotale/GameBar-Overlay",
-  "uuid": "gamebar-overlay@dekotale.github.io",
+  "url": "https://github.com/moisout/GameBar-Overlay",
+  "uuid": "gamebar-overlay@m0.is",
   "version": 16
 }

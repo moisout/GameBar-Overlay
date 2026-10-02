@@ -95,7 +95,7 @@ The screenshots for this work came from a headless shell in an isolated home dir
 ```sh
 export HOME=<scratch>/home XDG_CONFIG_HOME=$HOME/.config XDG_DATA_HOME=$HOME/.local/share XDG_CACHE_HOME=$HOME/.cache
 export GSETTINGS_BACKEND=keyfile
-gsettings set org.gnome.shell enabled-extensions "['gamebar-overlay@dekotale.github.io']"
+gsettings set org.gnome.shell enabled-extensions "['gamebar-overlay@m0.is']"
 gsettings set org.gnome.shell disable-extension-version-validation true
 dbus-run-session -- gnome-shell --headless --virtual-monitor 1920x1080 --wayland --no-x11
 ```
