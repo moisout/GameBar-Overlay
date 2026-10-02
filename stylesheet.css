@@ -347,6 +347,87 @@
     spacing: 10px;
 }
 
+/*Discord styles*/
+.gamebar-discord-card {
+    width: 400px;
+}
+
+/*The server after the channel in the group title*/
+.gamebar-discord-guild {
+    color: #b5b5ba;
+    font-weight: normal;
+}
+
+/*The avatar is a background image so it follows the rounded corners*/
+.gamebar-discord-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    background-color: #4d4d55;
+    color: #d0d0d4;
+    font-size: 13px;
+}
+
+/*Ring in the accent colour where the shell has one (GNOME 47+)*/
+.gamebar-discord-avatar-speaking {
+    box-shadow: 0 0 0 2px #3584e4;
+    box-shadow: 0 0 0 2px -st-accent-color;
+}
+
+.gamebar-discord-more-row:hover,
+.gamebar-discord-more-row:active {
+    border-radius: 0 0 12px 12px;
+}
+
+.gamebar-discord-controls {
+    margin-top: 12px;
+    spacing: 16px;
+}
+
+/*Filled circular buttons below the members*/
+.gamebar-call-button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gamebar-call-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.gamebar-call-button:active {
+    background-color: rgba(255, 255, 255, 0.20);
+}
+
+.gamebar-call-button-destructive {
+    background-color: #c01c28;
+}
+
+.gamebar-call-button-destructive:hover {
+    background-color: #c6343f;
+}
+
+.gamebar-call-button-destructive:active {
+    background-color: #9a1620;
+}
+
+/*Small button at the end of a row*/
+.gamebar-row-action {
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-weight: bold;
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gamebar-row-action:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.gamebar-row-action:active {
+    background-color: rgba(255, 255, 255, 0.20);
+}
+
 /*Audio styles*/
 .gamebar-audio-card {
     width: 400px;

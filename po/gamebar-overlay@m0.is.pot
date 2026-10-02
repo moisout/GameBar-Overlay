@@ -386,3 +386,68 @@ msgstr ""
 #: addons/gallery.js
 msgid "Yesterday"
 msgstr ""
+
+#: addons/discord.js
+msgid "Discord"
+msgstr ""
+
+#: addons/discord.js
+msgid "Connect"
+msgstr ""
+
+#: addons/discord.js
+msgid "Disconnect"
+msgstr ""
+
+#: addons/discord.js
+msgid "Voice call"
+msgstr ""
+
+#: addons/discord.js
+msgid "Discord is not running"
+msgstr ""
+
+#: addons/discord.js
+msgid "Not connected"
+msgstr ""
+
+#: addons/discord.js
+msgid "Not in a voice channel"
+msgstr ""
+
+#: addons/discord.js
+msgid "Unmute"
+msgstr ""
+
+#: addons/discord.js
+msgid "Mute"
+msgstr ""
+
+#: addons/discord.js
+msgid "Undeafen"
+msgstr ""
+
+#: addons/discord.js
+msgid "Deafen"
+msgstr ""
+
+#: addons/discord.js
+msgid "Show more"
+msgstr ""
+
+#: addons/discord.js
+#, c-format
+msgid "+%d more"
+msgstr ""
+
+#: addons/discord.js
+msgid "Deafened"
+msgstr ""
+
+#: addons/discord.js
+msgid "Muted"
+msgstr ""
+
+#: addons/discord.js
+msgid "Speaking"
+msgstr ""

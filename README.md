@@ -17,6 +17,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - A gallery of the latest screenshots and recordings
 - Battery of the computer and of connected devices like mice, headsets and controllers
 - Media controls with the cover, track and seek slider, and tabs to switch between several players
+- The Discord voice channel: who is in it and who is speaking, with mute, deafen and disconnect (needs the official Discord client)
 - A dash to show and hide the cards
 - Cards can be dragged anywhere on the overlay
 - Fly In, Fade and Slide animations
@@ -49,6 +50,7 @@ Open the Overlay by clicking the top-bar button or by pressing `Super + G`. Clos
 - [ ] Weather addon
 - [x] Battery addon
 - [x] Music addon
+- [x] Discord addon
 - [ ] Brightness addon
 
 ## Known issues

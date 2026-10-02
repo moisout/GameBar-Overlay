@@ -5,7 +5,7 @@ The overlay follows the GNOME Adwaita look. The design was made with claude.desi
 - `design/gnome-game-overlay-handoff.md`: design tokens, layout and the description of every card.
 - `design/overlay-mockup.dc.html`: the HTML/CSS mockup at 1920×1080. It needs the design tool's runtime and does not render in a browser, read it as text for exact values.
 
-Implemented are the Audio, Capture, Gallery, Clock, Hardware, Battery and Music cards, together with the dash at the bottom that shows and hides them. The Discord card of the design is not implemented yet.
+Implemented are the Audio, Capture, Gallery, Clock, Hardware, Battery, Music and Discord cards, together with the dash at the bottom that shows and hides them.
 
 This file records where the implementation follows the design, where it departs from it and why.
 
@@ -41,6 +41,14 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - Players do not announce their position. It is read when the overlay opens, when the status or the track changes and on `Seeked`, and counted on between reads while playing.
   - Dragging the slider seeks once it is let go, with `SetPosition`, or with `Seek` for players without a valid track id. Streams have no length, their card has no slider. Buttons the player does not offer are greyed out.
   - Covers are a background image, which follows the rounded corners like the user avatars of the shell. `file://` covers are shown as they are, covers on the web (Spotify) are downloaded with libsoup to `~/.cache/gamebar-overlay@m0.is/covers`, keeping only the last one.
+- **Discord** (400px): the voice channel in bold with its server in secondary grey as group title, and a boxed list of its members: the avatar (32px, round), the name and the state on the right. A speaking member has a 2px ring in the accent colour around the avatar and "Speaking", a muted one a grey name, "Muted" and the crossed out microphone, a deafened one "Deafened" and the muted speaker. Below the list, centred, the 44px buttons mute, deafen and disconnect (destructive), 16px apart.
+  - The data comes from the local RPC server of the Discord client, a WebSocket on `127.0.0.1:6463` (up to 6472 with several clients). Only the official client has it, Vesktop and other clients with arRPC have no voice RPC.
+  - The voice commands need an OAuth token with the `rpc` scope, which Discord only grants to approved applications. The card authorises as Discord's own StreamKit Overlay (client ID `207646673902501888`), like the [Discover](https://github.com/trigg/Discover) overlay: the client accepts that ID from the origin `https://streamkit.discord.com`, and `https://streamkit.discord.com/overlay/token` exchanges the code for a token without a client secret. Discord could close this way at any time, the sanctioned one is an application of one's own, which every user would have to create in the developer portal.
+  - Until the user allowed the access the card says "Not connected" with a Connect button. The prompt is in the window of Discord, so the button closes the overlay and the card stays connected for up to two minutes until it is answered. The token is kept in the GNOME Keyring (libsecret, schema `is.m0.GameBarOverlay.Discord`). It runs out after a week, Discord then gives out a new one without asking.
+  - The card is only connected while the overlay is open and the card is shown. A mute set over RPC stays after disconnecting (tested with Discord 1.0.160, the documentation says voice settings are reset). The last channel and members stay on the card while disconnected, so it does not flicker when the overlay opens.
+  - The list shows 5 members and a "Show more" row, which expands it to 15, followed by "+N more". A single member more is shown instead of the row that would stand for it. Opening the overlay starts with the short list again. The members are in the order Discord sends them.
+  - Without a voice channel the card says "Not in a voice channel" and keeps the mute and deafen buttons, which Discord also offers outside a call. Without a running client it says "Discord is not running".
+  - Avatars are a background image like the covers of the Music card, downloaded from the Discord CDN (64px, the first frame of animated ones) to `~/.cache/gamebar-overlay@m0.is/avatars` and kept there. Until an avatar is there, and for members without one, the first letter of the name is shown. Avatars set for a single server are not part of the RPC.
 - **Hardware** (400px): one boxed list with these rows:
   - **CPU** and **GPU**: the temperature as subtitle, a sparkline of the usage of the last 30 seconds in the accent colour and the usage in bold. On amdgpu the GPU subtitle adds the VRAM in use (sysfs `mem_info_vram_used`). Without libgtop the CPU row only shows the install hint.
   - **Memory**: "used of total" in GiB, a level bar and the percentage. Used is total minus available from `/proc/meminfo`, like GNOME System Monitor.
@@ -60,6 +68,8 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but `nvidia-smi` is spawned synchronously and would block the shell every second.
 - **Device picker** opens inside the card instead of as a popup menu.
 - **Player tabs** on the Music card, the design has no way to switch between players yet.
+- **Discord states**: "Deafened" next to the design's "Speaking" and "Muted". Adwaita has no crossed out headphones, a deafened member and the active deafen button show `audio-volume-muted`. Active mute and deafen buttons switch to the muted glyph in secondary grey, like the mute buttons of the Audio card.
+- **Dash icon of Discord** is the Adwaita headset, Adwaita has no Discord icon and the logo is a trademark.
 - **Gallery tiles** show the type as an icon in the middle and the time and length on the thumbnail, instead of a caption like "Recording · 0:42 · 21:31" below it.
 - **Dash buttons** are square, 52×52 instead of the design's 52×56.
 - **Close cross** is the 16px `window-close-symbolic` icon of the libadwaita window controls instead of the design's 12px icon. Adwaita's cross takes only half the icon, at 12px it was a tiny 6px.
@@ -84,7 +94,7 @@ Cards start in the column layout of the design (`cardPosition.js`):
 |---|---|---|
 | 1 | 400 | Audio, Battery |
 | 2 | 520 | Capture, Gallery |
-| 3 | 400 | Clock, Music |
+| 3 | 400 | Clock, Music, Discord |
 | 4 | 400 | Hardware |
 
 Columns are 40px apart and the grid is centred on the monitor, at y = 84. The cards of a column are stacked 24px apart, closed, dragged away and missing cards leave no gap, and the cards below a card move along when its height changes. On 1920×1080 this gives the design's x positions 40, 480, 1040 and 1480.
@@ -93,9 +103,9 @@ Monitors too narrow for the four columns get fewer:
 
 | Monitor width | Columns |
 |---|---|
-| 1920 and more | Audio, Battery · Capture, Gallery · Clock, Music · Hardware |
-| 1480 to 1919 | Audio, Battery, Music · Clock, Capture, Gallery · Hardware |
-| below 1480 | Audio, Battery, Music · Clock, Capture, Gallery, Hardware |
+| 1920 and more | Audio, Battery · Capture, Gallery · Clock, Music, Discord · Hardware |
+| 1480 to 1919 | Audio, Battery, Music, Discord · Clock, Capture, Gallery · Hardware |
+| below 1480 | Audio, Battery, Music, Discord · Clock, Capture, Gallery, Hardware |
 
 On 1280×800 not every card fits above the dash, the bottom of the Hardware card reaches behind it. The dash is always kept above the cards.
 

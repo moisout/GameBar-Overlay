@@ -387,3 +387,68 @@ msgstr "No screenshots or recordings yet"
 #: addons/gallery.js
 msgid "Yesterday"
 msgstr "Yesterday"
+
+#: addons/discord.js
+msgid "Discord"
+msgstr "Discord"
+
+#: addons/discord.js
+msgid "Connect"
+msgstr "Connect"
+
+#: addons/discord.js
+msgid "Disconnect"
+msgstr "Disconnect"
+
+#: addons/discord.js
+msgid "Voice call"
+msgstr "Voice call"
+
+#: addons/discord.js
+msgid "Discord is not running"
+msgstr "Discord is not running"
+
+#: addons/discord.js
+msgid "Not connected"
+msgstr "Not connected"
+
+#: addons/discord.js
+msgid "Not in a voice channel"
+msgstr "Not in a voice channel"
+
+#: addons/discord.js
+msgid "Unmute"
+msgstr "Unmute"
+
+#: addons/discord.js
+msgid "Mute"
+msgstr "Mute"
+
+#: addons/discord.js
+msgid "Undeafen"
+msgstr "Undeafen"
+
+#: addons/discord.js
+msgid "Deafen"
+msgstr "Deafen"
+
+#: addons/discord.js
+msgid "Show more"
+msgstr "Show more"
+
+#: addons/discord.js
+#, c-format
+msgid "+%d more"
+msgstr "+%d more"
+
+#: addons/discord.js
+msgid "Deafened"
+msgstr "Deafened"
+
+#: addons/discord.js
+msgid "Muted"
+msgstr "Muted"
+
+#: addons/discord.js
+msgid "Speaking"
+msgstr "Speaking"
