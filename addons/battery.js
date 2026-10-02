@@ -195,9 +195,9 @@ class BatteryModel {
 }
 
 export class Battery {
-    constructor(overlay, primaryMonitor) {
+    constructor(overlay, monitor) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         this._addonContainer = null;
         this._body = null;
         this._model = new BatteryModel(() => this._sync());
@@ -289,7 +289,7 @@ export class Battery {
     }
 
     set_addon_position() {
-        positionAddon(this._primaryMonitor, this._addonContainer, 'battery');
+        positionAddon(this._monitor, this._addonContainer, 'battery');
     }
 
     _destroyWidget() {

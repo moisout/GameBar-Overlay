@@ -2,6 +2,7 @@
 # Runs a test scenario against the extension in a headless shell with a home directory of its own:
 #
 #   tests/run.sh tests/overlay.test.js [timeout in seconds]
+#   MONITORS="1920x1080 1280x800" tests/run.sh tests/monitors.test.js
 #
 # The scenario is JavaScript that runs at the end of enable(), with the helpers of tests/prelude.js.
 # Screenshots go to tests/output. The exit status is 1 if a check failed or the scenario did not finish.
@@ -35,7 +36,9 @@ gsettings set org.gnome.shell welcome-dialog-last-shown-version '999'
 # The pointer starts in the hot corner.
 gsettings set org.gnome.desktop.interface enable-hot-corners false
 
-timeout "${2:-60}" dbus-run-session -- gnome-shell --headless --virtual-monitor 1920x1080 --wayland --no-x11 > "$work/log" 2>&1
+monitors=()
+for size in ${MONITORS:-1920x1080}; do monitors+=(--virtual-monitor "$size"); done
+timeout "${2:-60}" dbus-run-session -- gnome-shell --headless "${monitors[@]}" --wayland --no-x11 > "$work/log" 2>&1
 cp "$work/log" "$repo/tests/output/shell.log"
 
 # The lines of the scenario, and the errors of the extension.

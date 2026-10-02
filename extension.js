@@ -8,7 +8,8 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { set_position_settings, isCardHidden } from './cardPosition.js';
+import { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, isCardHidden } from './cardPosition.js';
+import { getMonitorKey } from './utils.js';
 
 //Addon Imports:
 import {Clock} from './addons/clock.js';
@@ -74,13 +75,10 @@ class GameBar extends PanelMenu.Button {
 
     /**
      * Creates the overlay widget and adds instances of addons.
-     * The overlay widget is positioned and sized to cover the primary monitor.
-     * The addons are instantiated with the overlay widget and the primary monitor.
-     * The overlay widget is added to the layout manager to affect the input region.
+     * The overlay covers one monitor, the one of the game when it opens, and starts on the primary monitor.
      */
     _createOverlay() {
-        // Get the primary monitor
-        let primaryMonitor = Main.layoutManager.primaryMonitor;
+        let monitor = Main.layoutManager.primaryMonitor;
 
         // The darkened background is a separate actor so it can fade independently of the addons.
         this._backdrop = new St.Widget({
@@ -99,17 +97,17 @@ class GameBar extends PanelMenu.Button {
         });
 
 
-        this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
+        this._updateOverlayGeometry(monitor);
 
-        // Create instances of addons and pass the overlay widget and the primary monitor
-        this._clock = new Clock(this._overlay, primaryMonitor); // Clock addon
-        this._soundControls = new SoundControls(this._overlay, primaryMonitor); // Sound controls addon
-        this._systemMonitor = new SystemMonitor(this._overlay, primaryMonitor); // System Monitor stats addon
-        this._capture = new Capture(this._overlay, primaryMonitor, callback => this._runWithOverlayClosed(callback)); // Screenshot and screencast buttons
-        this._battery = new Battery(this._overlay, primaryMonitor); // Battery of the computer and connected devices
-        this._music = new Music(this._overlay, primaryMonitor); // Controls of the media player that played last
-        this._gallery = new Gallery(this._overlay, primaryMonitor, callback => this._runWithOverlayClosed(callback)); // The latest screenshots and recordings
-        this._discord = new Discord(this._overlay, primaryMonitor, callback => this._runWithOverlayClosed(callback)); // The voice channel of Discord
+        // Create instances of addons and pass the overlay widget and the monitor
+        this._clock = new Clock(this._overlay, monitor); // Clock addon
+        this._soundControls = new SoundControls(this._overlay, monitor); // Sound controls addon
+        this._systemMonitor = new SystemMonitor(this._overlay, monitor); // System Monitor stats addon
+        this._capture = new Capture(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // Screenshot and screencast buttons
+        this._battery = new Battery(this._overlay, monitor); // Battery of the computer and connected devices
+        this._music = new Music(this._overlay, monitor); // Controls of the media player that played last
+        this._gallery = new Gallery(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The latest screenshots and recordings
+        this._discord = new Discord(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The voice channel of Discord
 
         // The cards the dash shows and hides, in the order of its buttons
         this._cards = [
@@ -124,14 +122,14 @@ class GameBar extends PanelMenu.Button {
         ];
         // Cards fading out after being closed, they are still visible until the animation ends.
         this._hidingCards = new Set();
-        this._dash = new Dash(this._overlay, primaryMonitor, this._cards);
+        this._dash = new Dash(this._overlay, monitor, this._cards);
 
         // Above the windows and the top bar, below the dialogs of the shell: a keyring or polkit prompt stays usable.
         const uiGroup = Main.layoutManager.uiGroup;
         uiGroup.insert_child_below(this._backdrop, Main.layoutManager.modalDialogGroup);
         uiGroup.insert_child_above(this._overlay, this._backdrop);
 
-        // Connect to 'monitors-changed' signal to update overlay position and size
+        // The monitor of the overlay may be gone, it is placed again when it opens.
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             //TODO:: fix bug: when change to a diferent resolution monitor, the size wont update properly
             this._closeOverlay(false);
@@ -162,21 +160,23 @@ class GameBar extends PanelMenu.Button {
         });
     }
 
-    //Update overlay geometry
-    _updateOverlayGeometry(primaryMonitor) {
+    // Moves the overlay to a monitor, with the card positions and closed cards of that monitor.
+    _updateOverlayGeometry(monitor) {
         // The shell can start without a monitor, 'monitors-changed' calls this again once there is one.
-        if (!primaryMonitor) return;
+        if (!monitor) return;
 
-        this._overlay.set_position(primaryMonitor.x, primaryMonitor.y);
-        this._overlay.set_size(primaryMonitor.width, primaryMonitor.height);
+        this._overlay.set_position(monitor.x, monitor.y);
+        this._overlay.set_size(monitor.width, monitor.height);
 
-        this._backdrop.set_position(primaryMonitor.x, primaryMonitor.y);
-        this._backdrop.set_size(primaryMonitor.width, primaryMonitor.height);
+        this._backdrop.set_position(monitor.x, monitor.y);
+        this._backdrop.set_size(monitor.width, monitor.height);
+
+        setCardMonitor(getMonitorKey(monitor.index));
 
         // The addons keep the monitor they were created with, which is null if the shell had no monitor yet.
         [...(this._cards ?? []).map(card => card.addon), this._dash].forEach(addon => {
             if (!addon) return;
-            addon._primaryMonitor = primaryMonitor;
+            addon._monitor = monitor;
             addon.set_addon_position();
         });
 
@@ -202,7 +202,7 @@ class GameBar extends PanelMenu.Button {
         }
 
         this._isOpen = true;
-        this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
+        this._updateOverlayGeometry(this._getGameMonitor());
         this._showOverlayWithAnimation();
         this._clock._updateClock();
         this._soundControls.updateVolumeControls();
@@ -215,6 +215,13 @@ class GameBar extends PanelMenu.Button {
         if (grab.get_seat_state && (grab.get_seat_state() & Clutter.GrabState.KEYBOARD) === 0) {
             this._closeOverlay(false);
         }
+    }
+
+    // The monitor of the focused window, the game, or the one of the pointer without a focused window.
+    _getGameMonitor() {
+        const { monitors, currentMonitor, primaryMonitor } = Main.layoutManager;
+        const index = global.display.get_focus_window()?.get_monitor() ?? -1;
+        return monitors[index] ?? currentMonitor ?? primaryMonitor;
     }
 
     // Also called when the extension is disabled or the monitors change while the overlay is open.
@@ -548,13 +555,13 @@ class GameBar extends PanelMenu.Button {
     // Called when any settings has changed
     _onSettingsChanged(settings, key) {
         // A dragged addon is already in place.
-        if (key === 'addon-positions') {
+        if (key === POSITIONS_KEY) {
             this._positionCards();
             return;
         }
 
         // Closing a card or showing it from the dash only changes which cards are visible.
-        if (key === 'hidden-cards') {
+        if (key === HIDDEN_KEY) {
             this._syncCardVisibility(true);
             return;
         }

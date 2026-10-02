@@ -152,7 +152,7 @@ export default class Preferences extends ExtensionPreferences {
         });
 
         resetPositionsButton.connect('clicked', () => {
-            settings.reset('addon-positions');
+            settings.reset('monitor-card-positions');
         });
 
         const resetPositionsRow = new Adw.ActionRow({

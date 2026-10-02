@@ -12,10 +12,9 @@ const SCREENCAST_MODE = 1;
 
 // Screenshot of the monitor of the overlay, like the Shift+Print key of the shell:
 // saved to the screenshots folder and the clipboard, with the sound and notification of the shell.
-const takeScreenshot = async () => {
+const takeScreenshot = async (monitor) => {
     const shooter = new Shell.Screenshot();
     const [content, scale] = await shooter.screenshot_stage_to_content();
-    const monitor = Main.layoutManager.primaryMonitor;
     await captureScreenshot(content.get_texture(),
         [monitor.x * scale, monitor.y * scale, monitor.width * scale, monitor.height * scale], scale, null);
 };
@@ -23,7 +22,7 @@ const takeScreenshot = async () => {
 // Records the monitor of the overlay right away. It goes through the screenshot UI, so the shell shows its recording
 // indicator with the stop button and the notification. The screenshot UI has no API for this, its screen mode is set by
 // hand and restored afterwards. Should its internals change, the screenshot UI opens in screencast mode instead.
-const startScreencast = () => {
+const startScreencast = (monitor) => {
     const ui = Main.screenshotUI;
     const modeButtons = [ui._selectionButton, ui._screenButton, ui._windowButton];
     if (typeof ui._startScreencast !== 'function' || modeButtons.includes(undefined) || !ui._screenSelectors) {
@@ -38,7 +37,7 @@ const startScreencast = () => {
     ui._windowButton.checked = false;
     ui._screenButton.checked = true;
     ui._screenSelectors.forEach((selector, index) => {
-        selector.checked = index === Main.layoutManager.primaryIndex;
+        selector.checked = index === monitor.index;
     });
 
     // The recording area is read before the first await, so it is called right away.
@@ -61,9 +60,9 @@ const startScreencast = () => {
 // Takes a screenshot or starts a recording of the monitor right away.
 export class Capture {
     // runWithOverlayClosed(callback) closes the overlay first, so it is not in the screenshot or recording.
-    constructor(overlay, primaryMonitor, runWithOverlayClosed) {
+    constructor(overlay, monitor, runWithOverlayClosed) {
         this._overlay = overlay;
-        this._primaryMonitor = primaryMonitor;
+        this._monitor = monitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
         this._createCaptureWidget();
@@ -82,7 +81,7 @@ export class Capture {
 
         const screenshot = createPillButton('camera-photo-symbolic', _('Take Screenshot'));
         screenshot.button.connect('clicked', () => this._runWithOverlayClosed(() => {
-            takeScreenshot().catch(e => logError(e, 'GameBar: Failed to take a screenshot'));
+            takeScreenshot(this._monitor).catch(e => logError(e, 'GameBar: Failed to take a screenshot'));
         }));
         body.add_child(screenshot.button);
 
@@ -91,7 +90,7 @@ export class Capture {
             if (Main.screenshotUI.screencast_in_progress) {
                 Main.screenshotUI.stopScreencast();
             } else {
-                this._runWithOverlayClosed(startScreencast);
+                this._runWithOverlayClosed(() => startScreencast(this._monitor));
             }
         });
         body.add_child(this._record.button);
@@ -121,7 +120,7 @@ export class Capture {
     }
 
     set_addon_position() {
-        positionAddon(this._primaryMonitor, this._addonContainer, 'capture');
+        positionAddon(this._monitor, this._addonContainer, 'capture');
     }
 
     destroy() {

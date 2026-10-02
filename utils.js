@@ -192,4 +192,21 @@ const deleteOldFiles = (path, maxAge, cancellable = null) => {
         });
 };
 
-export { deleteOldFiles, readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit, formatPlaybackTime };
+// A monitor by its connector (DP-1, eDP-1), which stays the same across sessions unlike its index.
+// GNOME 46 to 48 have no list of the monitors, their connectors are read from sysfs.
+const getMonitorKey = (index) => {
+    const manager = global.backend.get_monitor_manager();
+    if (manager.get_logical_monitors) {
+        const logicalMonitor = manager.get_logical_monitors().find(other => other.get_number() === index);
+        const connector = logicalMonitor?.get_monitors()[0]?.get_connector();
+        if (connector) return connector;
+    } else {
+        for (const info of listDir('/sys/class/drm')) {
+            const connector = info.get_name().match(/^card\d+-(.+)$/)?.[1];
+            if (connector && manager.get_monitor_for_connector(connector) === index) return connector;
+        }
+    }
+    return `monitor-${index}`;
+};
+
+export { getMonitorKey, deleteOldFiles, readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit, formatPlaybackTime };
