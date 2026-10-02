@@ -554,7 +554,10 @@ export class Discord {
         this._muteButton.connect('clicked', () => this._client.toggleMute());
         this._deafenButton = createIconButton('audio-headphones-symbolic', 'gamebar-call-button');
         this._deafenButton.connect('clicked', () => this._client.toggleDeaf());
-        this._leaveButton = createIconButton('call-stop-symbolic', 'gamebar-call-button gamebar-call-button-destructive');
+        this._leaveButton = createIconButton('', 'gamebar-call-button gamebar-call-button-destructive');
+        // The receiver of Adwaita. Other icon themes colour call-stop red, which does not show on the red button.
+        this._leaveButton.child.gicon = Gio.FileIcon.new(
+            Gio.File.new_for_uri(import.meta.url).resolve_relative_path('../../icons/gamebar-call-end-symbolic.svg'));
         this._leaveButton.accessible_name = _('Disconnect');
         this._leaveButton.connect('clicked', () => this._client.leaveChannel());
         [this._muteButton, this._deafenButton, this._leaveButton].forEach(button => this._controls.add_child(button));
@@ -699,24 +702,15 @@ export class Discord {
         }
 
         shown.forEach(({ id, speaking, muted, deafened }) => {
-            const { avatar, nameLabel, statusLabel, statusIcon } = this._memberRows.get(id);
-            setStyleClass(avatar, 'gamebar-discord-avatar-speaking', speaking);
+            const { ring, nameLabel, mutedIcon, deafenedIcon } = this._memberRows.get(id);
+            setStyleClass(ring, 'gamebar-discord-avatar-ring-speaking', speaking);
             setStyleClass(nameLabel, 'gamebar-dim', muted);
-
-            if (deafened) {
-                statusLabel.text = _('Deafened');
-            } else if (muted) {
-                statusLabel.text = _('Muted');
-            } else {
-                statusLabel.text = speaking ? _('Speaking') : '';
-            }
-            statusLabel.visible = statusLabel.text !== '';
-            statusIcon.visible = muted;
-            statusIcon.icon_name = deafened ? 'audio-volume-muted-symbolic' : 'microphone-disabled-symbolic';
+            mutedIcon.visible = muted;
+            deafenedIcon.visible = deafened;
         });
     }
 
-    // Avatar, name and the state on the right.
+    // Avatar, name and the icons of the state on the right.
     _createMemberRow({ id, name, avatarUrl, avatarKey }) {
         const row = createRow();
 
@@ -739,16 +733,24 @@ export class Discord {
                 initial.hide();
             });
         }
-        row.add_child(avatar);
+        // The ring of a speaking member is the border of a bin around the avatar, St clips a box-shadow outside of it.
+        const ring = new St.Bin({
+            style_class: 'gamebar-discord-avatar-ring',
+            y_align: Clutter.ActorAlign.CENTER,
+            child: avatar,
+        });
+        row.add_child(ring);
 
         const nameLabel = createLabel(name, '', { x_expand: true });
         row.add_child(nameLabel);
-        const statusLabel = createLabel('', 'gamebar-subtitle');
-        row.add_child(statusLabel);
-        const statusIcon = new St.Icon({ icon_size: 16, style_class: 'gamebar-dim', y_align: Clutter.ActorAlign.CENTER });
-        row.add_child(statusIcon);
+        const status = new St.BoxLayout({ style_class: 'gamebar-discord-status gamebar-dim', y_align: Clutter.ActorAlign.CENTER });
+        const mutedIcon = new St.Icon({ icon_name: 'microphone-disabled-symbolic', icon_size: 16 });
+        const deafenedIcon = new St.Icon({ icon_name: 'audio-volume-muted-symbolic', icon_size: 16 });
+        status.add_child(mutedIcon);
+        status.add_child(deafenedIcon);
+        row.add_child(status);
 
-        this._memberRows.set(id, { avatar, nameLabel, statusLabel, statusIcon });
+        this._memberRows.set(id, { ring, nameLabel, mutedIcon, deafenedIcon });
         return row;
     }
 

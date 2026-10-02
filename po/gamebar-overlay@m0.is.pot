@@ -439,15 +439,3 @@ msgstr ""
 #, c-format
 msgid "+%d more"
 msgstr ""
-
-#: addons/discord.js
-msgid "Deafened"
-msgstr ""
-
-#: addons/discord.js
-msgid "Muted"
-msgstr ""
-
-#: addons/discord.js
-msgid "Speaking"
-msgstr ""

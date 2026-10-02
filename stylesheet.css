@@ -368,10 +368,21 @@
     font-size: 13px;
 }
 
-/*Ring in the accent colour where the shell has one (GNOME 47+)*/
-.gamebar-discord-avatar-speaking {
-    box-shadow: 0 0 0 2px #3584e4;
-    box-shadow: 0 0 0 2px -st-accent-color;
+/*Always there so the row does not move when somebody starts speaking*/
+.gamebar-discord-avatar-ring {
+    border: 2px solid transparent;
+    border-radius: 18px;
+}
+
+/*In the accent colour where the shell has one (GNOME 47+)*/
+.gamebar-discord-avatar-ring-speaking {
+    border-color: #3584e4;
+    border-color: -st-accent-color;
+}
+
+/*The muted and deafened icons of a member*/
+.gamebar-discord-status {
+    spacing: 8px;
 }
 
 .gamebar-discord-more-row:hover,
