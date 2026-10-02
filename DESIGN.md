@@ -83,9 +83,18 @@ Audio and Hardware have the Adwaita window control in their header bar: a 24px c
 
 - Closed cards are saved in the `hidden-cards` setting and stay closed across sessions, like dragged positions.
 - Closing and showing a card while the overlay is open fades and scales it (200ms, from 90%).
-- The enter and exit animations only move the shown cards. The overlay hides once every animated card has faded out, and the transition of a hidden actor might never finish.
+- The enter and exit animations only move the shown cards.
 - The Hardware card does not exist without any row, the dash then has no button for it.
 - Clicks on the dash do not count as clicks on the empty area.
+
+## Opening and closing
+
+- The overlay is modal while it is open, like the overview (`Main.pushModal`): the keys go to the overlay, the shortcuts of the shell and the Super key do nothing, and a game loses its pointer lock until the overlay closes. The grab also keeps fullscreen windows from bypassing the compositor. Only the shortcut of the overlay is allowed in its mode.
+- The overlay and its backdrop are in the UI group of the shell, above the windows and the top bar and below the dialogs of the shell. A keyring or polkit prompt appears above the overlay.
+- It does not open on top of a dialog of the shell. An open overview is closed first.
+- Whether the overlay is open is a flag of its own, the actor stays visible until the exit animation ends. Toggling during the exit animation opens the overlay again.
+- The overlay is hidden when the fade of the backdrop stops, which takes as long as the cards move. The cards cannot tell: a card recreated or shown during the animation never finishes it.
+- Disabling the extension (the shell does that when the screen locks) and a change of the monitors close an open overlay and release the grab.
 
 ## Layout
 

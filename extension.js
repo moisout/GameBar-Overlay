@@ -7,7 +7,6 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
-import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { set_position_settings, isCardHidden } from './cardPosition.js';
 
@@ -23,12 +22,6 @@ import {Gallery} from './addons/gallery.js';
 import {Discord} from './addons/discord.js';
 //TODO:: weather addon
 //TODO:: brightness addon
-
-function isGnome48OrNewer() {
-    let version = Config.PACKAGE_VERSION.split('.').map(Number);
-    return version[0] >= 48;
-}
-const MUTTER_SCHEMA = 'org.gnome.mutter';
 
 // Closing a card or showing it again from the dash.
 const CARD_TOGGLE_DURATION = 200;
@@ -60,6 +53,10 @@ class GameBar extends PanelMenu.Button {
         // Call the _createOverlay method to create the overlay widget and addons
         this._createOverlay();
 
+        // Whether the overlay is open. It is still visible for a moment after it was closed, until the exit animation ends.
+        this._isOpen = false;
+        this._modalGrab = null;
+
         // Toggle the overlay when the GameBar panel button is clicked.
         // On GNOME 50 the panel button has a click gesture that claims the press, so 'button-press-event' is never emitted.
         if (this._clickGesture) {
@@ -68,8 +65,6 @@ class GameBar extends PanelMenu.Button {
             this.connect('button-press-event', this._toggleOverlay.bind(this));
         }
 
-        this._mutterSettings = new Gio.Settings({'schema': MUTTER_SCHEMA});
-        this._ignoreOverlayKeyChangedEvent = false;
     }
 
     /**
@@ -126,13 +121,15 @@ class GameBar extends PanelMenu.Button {
         this._hidingCards = new Set();
         this._dash = new Dash(this._overlay, primaryMonitor, this._cards);
 
-        // Add the overlay widget to the global stage to affect the input region.
-        global.stage.add_child(this._backdrop);
-        global.stage.add_child(this._overlay);
+        // Above the windows and the top bar, below the dialogs of the shell: a keyring or polkit prompt stays usable.
+        const uiGroup = Main.layoutManager.uiGroup;
+        uiGroup.insert_child_below(this._backdrop, Main.layoutManager.modalDialogGroup);
+        uiGroup.insert_child_above(this._overlay, this._backdrop);
 
         // Connect to 'monitors-changed' signal to update overlay position and size
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             //TODO:: fix bug: when change to a diferent resolution monitor, the size wont update properly
+            this._closeOverlay(false);
             this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
         });
 
@@ -145,16 +142,18 @@ class GameBar extends PanelMenu.Button {
 
         // Close the overlay when clicking on an empty area, the cards stop the clicks on them
         this._overlay.connect('button-release-event', () => {
-            if (this._emptyAreaClose && this._overlay.visible) {
-                this._toggleOverlay();
+            if (this._emptyAreaClose) {
+                this._closeOverlay();
             }
         });
 
         // Connect to 'key-press-event' signal to close the overlay when ESC key is clicked
         this._overlay.connect('key-press-event', (actor, event) => {
-            if (this._overlay.visible && event.get_key_symbol() === Clutter.KEY_Escape) {
-                this._toggleOverlay(); 
+            if (event.get_key_symbol() === Clutter.KEY_Escape) {
+                this._closeOverlay();
+                return Clutter.EVENT_STOP;
             }
+            return Clutter.EVENT_PROPAGATE;
         });
     }
 
@@ -165,11 +164,9 @@ class GameBar extends PanelMenu.Button {
 
         this._overlay.set_position(primaryMonitor.x, primaryMonitor.y);
         this._overlay.set_size(primaryMonitor.width, primaryMonitor.height);
-        this._overlay.hide();
 
         this._backdrop.set_position(primaryMonitor.x, primaryMonitor.y);
         this._backdrop.set_size(primaryMonitor.width, primaryMonitor.height);
-        this._backdrop.hide();
 
         // The addons keep the monitor they were created with, which is null if the shell had no monitor yet.
         [...(this._cards ?? []).map(card => card.addon), this._dash].forEach(addon => {
@@ -180,81 +177,57 @@ class GameBar extends PanelMenu.Button {
 
     }
 
-    _overrideOverlayKey() {
-        if (!this._overlay.visible){
-            return;
-        }
-
-        this.defaultOverlayKeyID = GObject.signal_handler_find(global.display, { signalId: 'overlay-key' });
-
-        if (!this.defaultOverlayKeyID) {
-            return;
-        }
-
-        GObject.signal_handler_block(global.display, this.defaultOverlayKeyID);
-
-        Main.wm.allowKeybinding('overlay-key', Shell.ActionMode.ALL);
-    }
-
-    _restoreOverlayKey() {
-        if (this.defaultOverlayKeyID) {
-            GObject.signal_handler_unblock(global.display, this.defaultOverlayKeyID);
-            this.defaultOverlayKeyID = null;
-        }
-
-        Main.wm.allowKeybinding('overlay-key', Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
-    }
-
-
-    /**
-     * Toggles the visibility of the overlay widget.
-     * If the overlay is visible, it is hidden.
-     * If the overlay is hidden, it is shown and the clock and volume controls are updated.
-     */
     _toggleOverlay() {
-        // Check if the overlay is visible
-        if (this._overlay.visible) {
-            // Unset key focus
-            global.stage.set_key_focus(null);
-            // If visible, hide the overlay
-            this._hideOverlayWithAnimation();  // Use animation-based hiding
-
-            // Enable unredirect back when the overlay is closed.
-            if (isGnome48OrNewer()){
-                // Enable unredirect for GNOME 48 and above.
-                global.compositor.enable_unredirect();
-            }else{
-                // Enable unredirect for GNOME 47 and below.
-                Meta.enable_unredirect_for_display(global.display);
-            }
-
-            //When this overlay is not visible, restore the default GNOME overlay toggle key
-            this._restoreOverlayKey();
-
+        if (this._isOpen) {
+            this._closeOverlay();
         } else {
-            // The shell may have had no monitor when the overlay was created, so size it for the current one.
-            if (!Main.layoutManager.primaryMonitor) return;
-            this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
+            this._openOverlay();
+        }
+    }
 
-            // Disable unredirect before showing the overlay to prevent fullscreen windows from obstructing the overlay.
-            if (isGnome48OrNewer()){
-                // Enable unredirect for GNOME 48 and above.
-                global.compositor.disable_unredirect();
-            }else{
-                // Disable unredirect for GNOME 47 and below.
-                Meta.disable_unredirect_for_display(global.display);
-            }
+    _openOverlay() {
+        // The shell may have had no monitor when the overlay was created, so size it for the current one.
+        if (this._isOpen || !Main.layoutManager.primaryMonitor) return;
+        // Not on top of a dialog of the shell or the lock screen.
+        if (![Shell.ActionMode.NORMAL, Shell.ActionMode.OVERVIEW].includes(Main.actionMode)) return;
 
-            // If not visible, show the overlay and update the clock and volume controls
-            this._showOverlayWithAnimation();
-            this._clock._updateClock();
-            this._soundControls.updateVolumeControls();
+        // The overview has a grab of its own.
+        if (Main.overview.visible) {
+            Main.overview.hide();
+        }
 
-            // Grab key focus
-            global.stage.set_key_focus(this._overlay);
+        this._isOpen = true;
+        this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
+        this._showOverlayWithAnimation();
+        this._clock._updateClock();
+        this._soundControls.updateVolumeControls();
 
-            //Override the GNOME-default overlay toggle key when this overlay is visible
-            this._overrideOverlayKey();
+        // Modal like the overview: the keys go to the overlay and the shortcuts of the shell are off, a game loses
+        // its pointer lock. It also keeps fullscreen windows from bypassing the compositor, which would hide the overlay.
+        const grab = Main.pushModal(this._overlay, { actionMode: Shell.ActionMode.SYSTEM_MODAL });
+        this._modalGrab = grab;
+        // Up to GNOME 49 a grab can fail, another client may hold the keyboard on X11.
+        if (grab.get_seat_state && (grab.get_seat_state() & Clutter.GrabState.KEYBOARD) === 0) {
+            this._closeOverlay(false);
+        }
+    }
+
+    // Also called when the extension is disabled or the monitors change while the overlay is open.
+    _closeOverlay(animate = true) {
+        if (!this._isOpen) return;
+        this._isOpen = false;
+
+        if (this._modalGrab) {
+            Main.popModal(this._modalGrab);
+            this._modalGrab = null;
+        }
+
+        if (animate) {
+            this._hideOverlayWithAnimation();
+        } else {
+            this._backdrop.remove_all_transitions();
+            this._backdrop.hide();
+            this._overlay.hide();
         }
     }
 
@@ -375,17 +348,23 @@ class GameBar extends PanelMenu.Button {
 
     _hideOverlayWithAnimation() {
         if (!this._overlay) return;
-        global.stage.set_key_focus(null);
 
         const animationType = this._exitAnimation;
         const animationDuration = this._exitAnimationDuration;
 
+        // The backdrop fades for as long as the cards move, the overlay is hidden with it. The cards cannot tell when
+        // they are done: a card recreated or shown during the animation never finishes it.
         if (animationType !== 'None') {
             this._backdrop.ease({
                 opacity: 0,
                 duration: animationDuration,
                 mode: Clutter.AnimationMode.EASE_IN_QUAD,
-                onComplete: () => this._backdrop?.hide(),
+                onStopped: () => {
+                    // Stopped by opening the overlay again.
+                    if (this._isOpen) return;
+                    this._backdrop?.hide();
+                    this._overlay?.hide();
+                },
             });
         } else {
             this._backdrop.hide();
@@ -399,11 +378,6 @@ class GameBar extends PanelMenu.Button {
                     scale_y: 0.8,
                     duration: animationDuration,
                     mode: Clutter.AnimationMode.EASE_IN_QUAD,
-                    onComplete: () => {
-                        if (this._overlay && this._getShownChildren().every(c => c.opacity === 0)) {
-                            this._overlay.hide();
-                        }
-                    }
                 });
             });
         } else if (animationType === 'Slide') {
@@ -429,11 +403,6 @@ class GameBar extends PanelMenu.Button {
                     translation_y: translationY,
                     duration: animationDuration,
                     mode: Clutter.AnimationMode.EASE_IN_CUBIC,
-                    onComplete: () => {
-                        if (this._overlay && this._getShownChildren().every(c => c.opacity === 0)) {
-                            this._overlay.hide();
-                        }
-                    }
                 });
             });
         } else if (animationType === 'Fly Out') {
@@ -449,11 +418,6 @@ class GameBar extends PanelMenu.Button {
                     delay: (1 - closeness) * FLY_STAGGER * animationDuration,
                     duration: (1 - FLY_STAGGER) * animationDuration,
                     mode: Clutter.AnimationMode.EASE_IN_CUBIC,
-                    onComplete: () => {
-                        if (this._overlay && this._getShownChildren().every(c => c.opacity === 0)) {
-                            this._overlay.hide();
-                        }
-                    }
                 });
             });
         } else { // None
@@ -479,9 +443,7 @@ class GameBar extends PanelMenu.Button {
             });
         };
 
-        if (this._overlay.visible) {
-            this._toggleOverlay();
-        }
+        this._closeOverlay();
         waitForHidden(this._overlay, () => waitForHidden(this._backdrop, callback));
     }
 
@@ -492,7 +454,7 @@ class GameBar extends PanelMenu.Button {
 
     // Show the cards that are not closed and update the dots of the dash.
     _syncCardVisibility(animate) {
-        animate &&= this._overlay.visible;
+        animate &&= this._isOpen;
 
         this._cards.forEach(({ id, addon }) => {
             const container = addon._addonContainer;
@@ -631,6 +593,8 @@ class GameBar extends PanelMenu.Button {
      * It destroys the clock addon and calls the parent class's destroy method.
      */
     destroy() {
+        this._closeOverlay(false);
+
         // Call the addon destroy:
         this._clock?.destroy();
         this._clock = null;
@@ -718,7 +682,8 @@ export default class GameBarExtension extends Extension {
             'toggle-gamebar',
             this._settings,
             Meta.KeyBindingFlags.NONE,
-            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            // SYSTEM_MODAL is the mode of the open overlay, the shortcut closes it too.
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW | Shell.ActionMode.SYSTEM_MODAL,
             () => {
                 this._gamebar._toggleOverlay();
             }

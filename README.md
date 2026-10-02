@@ -56,7 +56,6 @@ Open the Overlay by clicking the top-bar button or by pressing `Super + G`. Clos
 ## Known issues
 
 - When change the primary monitor to a diferent resolution monitor, the overlay size do not update properly until GNOME reboots.
-- Minor visual glitches may occur during the exit animation if the empty area is clicked repeatedly and rapidly while "Exit on Empty Area Click" is enabled. This is due to overlapping animation triggers.
 
 ## Contributing
 
