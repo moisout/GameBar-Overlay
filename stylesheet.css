@@ -182,10 +182,10 @@
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
 }
 
+/*Square instead of the 52x56 of the design, the content is centred*/
 .gamebar-dash-button {
     width: 52px;
-    height: 56px;
-    padding-top: 11px;
+    height: 52px;
     border-radius: 14px;
 }
 

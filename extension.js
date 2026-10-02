@@ -129,6 +129,13 @@ class GameBar extends PanelMenu.Button {
             this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
         });
 
+        // The cards and the gaps between them grow with the scale factor of the shell.
+        this._themeContext = St.ThemeContext.get_for_stage(global.stage);
+        this._scaleFactorChangedId = this._themeContext.connect('notify::scale-factor', () => {
+            this._positionCards();
+            this._dash.set_addon_position();
+        });
+
         // Close the overlay when clicking on an empty area, the cards stop the clicks on them
         this._overlay.connect('button-release-event', () => {
             if (this._emptyAreaClose && this._overlay.visible) {
@@ -646,6 +653,11 @@ class GameBar extends PanelMenu.Button {
             Main.layoutManager.disconnect(this._monitorsChangedId);
             this._monitorsChangedId = null;
         }
+        if (this._scaleFactorChangedId) {
+            this._themeContext.disconnect(this._scaleFactorChangedId);
+            this._scaleFactorChangedId = null;
+        }
+        this._themeContext = null;
 
         // Call the parent class's destroy method
         super.destroy();

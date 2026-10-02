@@ -40,6 +40,7 @@ const createCard = (title, styleClass = '', onClose = null) => {
 };
 
 // A 24px circle with a cross inside a 44px hit area.
+// The icon is 16px like in the Adwaita window controls, the cross of the icon is only half its size.
 const createCloseButton = (onClose) => {
     const button = new St.Button({
         style_class: 'gamebar-window-control',
@@ -49,7 +50,7 @@ const createCloseButton = (onClose) => {
             style_class: 'gamebar-window-control-circle',
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
-            child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 12 }),
+            child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 16 }),
         }),
     });
     button.connect('clicked', onClose);

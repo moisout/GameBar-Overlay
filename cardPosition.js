@@ -1,5 +1,6 @@
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import St from 'gi://St';
 
 const POSITIONS_KEY = 'addon-positions';
 // Cards closed with their close button or the dash stay closed until they are shown from the dash again.
@@ -20,6 +21,9 @@ const DEFAULT_CARD_WIDTH = 400;
 const COLUMN_GAP = 40;
 const CARD_GAP = 24;
 const LAYOUT_TOP = 84;
+
+// The sizes above are in pixels of the stylesheet, which the shell multiplies by its scale factor.
+const getScaleFactor = () => St.ThemeContext.get_for_stage(global.stage).scale_factor;
 
 // The cards placed so far, the cards below a card in its column follow its height.
 const cardElements = new Map();
@@ -51,27 +55,29 @@ const saveCustomPosition = (id, position) => {
     position_settings.set_value(POSITIONS_KEY, new GLib.Variant('a{s(dd)}', positions));
 };
 
-const getColumnWidth = (column) => Math.max(...column.map(id => CARD_WIDTHS[id] ?? DEFAULT_CARD_WIDTH));
+const getColumnWidth = (column) => Math.max(...column.map(id => CARD_WIDTHS[id] ?? DEFAULT_CARD_WIDTH)) * getScaleFactor();
 
 const getLayoutWidth = (layout) => {
-    return layout.reduce((width, column) => width + getColumnWidth(column), 0) + COLUMN_GAP * (layout.length - 1);
+    return layout.reduce((width, column) => width + getColumnWidth(column), 0) + COLUMN_GAP * getScaleFactor() * (layout.length - 1);
 };
 
 const getLayout = (primaryMonitor) => {
-    return LAYOUTS.find(layout => getLayoutWidth(layout) + 2 * COLUMN_GAP <= primaryMonitor.width) ?? LAYOUTS[LAYOUTS.length - 1];
+    const margin = COLUMN_GAP * getScaleFactor();
+    return LAYOUTS.find(layout => getLayoutWidth(layout) + 2 * margin <= primaryMonitor.width) ?? LAYOUTS[LAYOUTS.length - 1];
 };
 
 const getDefaultPosition = (primaryMonitor, id) => {
+    const scaleFactor = getScaleFactor();
     const layout = getLayout(primaryMonitor);
     const columnIndex = layout.findIndex(column => column.includes(id));
-    if (columnIndex === -1) return [COLUMN_GAP, LAYOUT_TOP];
+    if (columnIndex === -1) return [COLUMN_GAP * scaleFactor, LAYOUT_TOP * scaleFactor];
 
     let x = (primaryMonitor.width - getLayoutWidth(layout)) / 2;
     for (const column of layout.slice(0, columnIndex)) {
-        x += getColumnWidth(column) + COLUMN_GAP;
+        x += getColumnWidth(column) + COLUMN_GAP * scaleFactor;
     }
 
-    let y = LAYOUT_TOP;
+    let y = LAYOUT_TOP * scaleFactor;
     const customPositions = getCustomPositions();
     for (const other of layout[columnIndex]) {
         if (other === id) break;
@@ -79,7 +85,7 @@ const getDefaultPosition = (primaryMonitor, id) => {
         // Closed, dragged away and missing cards leave no gap.
         const element = cardElements.get(other);
         if (!element?.visible || customPositions[other]) continue;
-        y += element.get_preferred_size()[3] + CARD_GAP;
+        y += element.get_preferred_size()[3] + CARD_GAP * scaleFactor;
     }
     return [x, y];
 };

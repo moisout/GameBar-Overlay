@@ -53,7 +53,7 @@ class Sparkline {
     _draw() {
         const cr = this.actor.get_context();
         const [width, height] = this.actor.get_surface_size();
-        const lineWidth = 2;
+        const lineWidth = 2 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
 
         if (this._values.length > 1) {
             const color = this.actor.get_theme_node().get_foreground_color();

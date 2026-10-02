@@ -73,9 +73,11 @@ export class Dash {
         if (!this._primaryMonitor || !this._addonContainer) return;
 
         const [, , width, height] = this._addonContainer.get_preferred_size();
+        // The margin is in pixels of the stylesheet, which the shell multiplies by its scale factor.
+        const scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         this._addonContainer.set_position(
             Math.round((this._primaryMonitor.width - width) / 2),
-            this._primaryMonitor.height - height - BOTTOM_MARGIN
+            this._primaryMonitor.height - height - BOTTOM_MARGIN * scaleFactor
         );
     }
 
