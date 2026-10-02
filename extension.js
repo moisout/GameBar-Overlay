@@ -445,8 +445,7 @@ class GameBar extends PanelMenu.Button {
                     translation_y: translationY,
                     delay: (1 - closeness) * FLY_STAGGER * animationDuration,
                     duration: (1 - FLY_STAGGER) * animationDuration,
-                    // Starts right away, an ease-in barely moves the cards in the first third.
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    mode: Clutter.AnimationMode.EASE_IN_CUBIC,
                     onComplete: () => {
                         if (this._overlay && this._getShownChildren().every(c => c.opacity === 0)) {
                             this._overlay.hide();
