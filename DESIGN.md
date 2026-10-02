@@ -66,7 +66,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Card shadow** `0 2px 4px 0 rgba(0,0,0,0.2)` instead of the design's `0 10px 30px rgba(0,0,0,0.5)`. The design's shadow is far heavier than anything in GNOME. The value is the one of the shell popup menus and Quick Settings. For comparison, libadwaita windows use three centred layers (`0 0 14px 5px` 15%, `0 0 5px 2px` 10%, 1px 5%), which St cannot draw since it supports only one shadow.
 - **Row separators** in the card background `#222226` instead of the design's lighter `rgba(255,255,255,0.08)`. GNOME lists show the background between the rows.
 - **Mute and media buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons, instead of the design's 44×44.
-- **No pin button on the cards.** Pinning is not designed yet, the slot opposite the close button stays empty so the title stays centred.
+- **Pin button** is flat until the card is pinned, then filled like a pressed toggle button. The design does not show the pinned state. The Clock has no header bar, its pin button is in its top left corner while the pointer is over the card or it is pinned.
 - **No overlay close button.** The overlay closes with Esc, the shortcut, the top bar indicator and a click on an empty area, which is now on by default.
 - **Network arrows** are the Adwaita `go-down` and `go-up` chevrons. Adwaita has no plain arrows, and its `network-receive` and `network-transmit` icons are horizontal arrow pairs.
 - **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but would run `nvidia-smi` every second for nothing.
@@ -84,7 +84,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 
 The dash (`addons/dash.js`) sits at the bottom centre, 20px from the edge: `#36363a`, radius 24px, padding 8px, a 52×52 button per card with a 22px icon and a 5px dot that shows the card is shown. Clicking a button shows or hides its card. The dash is not draggable.
 
-Audio and Hardware have the Adwaita window control in their header bar: a 24px circle filled `rgba(255,255,255,0.10)` with the 16px `window-close-symbolic` icon in a 44px hit area. The Clock has no header bar and is only hidden from the dash, as in the design.
+Every card with a header bar has the Adwaita window control in it: a 24px circle filled `rgba(255,255,255,0.10)` with the 16px `window-close-symbolic` icon in a 44px hit area. The Clock has no header bar and is only hidden from the dash, as in the design.
 
 - Closed cards are saved for the monitor of the overlay in the `monitor-hidden-cards` setting and stay closed across sessions, like dragged positions. A card closed on one monitor is still shown on the others.
 - Closing and showing a card while the overlay is open fades and scales it (200ms, from 90%).
@@ -100,6 +100,18 @@ Audio and Hardware have the Adwaita window control in their header bar: a 24px c
 - Whether the overlay is open is a flag of its own, the actor stays visible until the exit animation ends. Toggling during the exit animation opens the overlay again.
 - The overlay is hidden when the fade of the backdrop stops, which takes as long as the cards move. The cards cannot tell: a card recreated or shown during the animation never finishes it.
 - Disabling the extension (the shell does that when the screen locks) and a change of the monitors close an open overlay and release the grab.
+
+## Pinned cards
+
+A pinned card stays on its monitor while the overlay is closed, over the desktop and over games, like the pinned widgets of the Xbox Game Bar. The pin button is in the header bar of every card, left of the title.
+
+- Pinned cards are saved per monitor in `monitor-pinned-cards`. A closed card is not shown pinned.
+- Every monitor with a pinned card has a layer above the windows and below the top bar, the overview, notifications and the overlay (`pinnedCards.js`). The layer and its children are never picked, the pointer goes to the window below: a game keeps its clicks and its pointer lock. To use a pinned card, open the overlay.
+- The layer of the monitor of the overlay is hidden while the overlay is shown, its cards are in the overlay. The layers of the other monitors stay.
+- A pinned card is the card built a second time for its monitor, `createPinned` of its entry in `extension.js`. It updates itself while its layer is shown, like the card of the overlay while the overlay is shown: the Hardware card samples, the Discord card is connected. By default it is the card without its header bar, at the place of the card in the overlay on that monitor.
+- The Discord card has its own pinned card, like the overlay of Discord on Windows: the members of the voice channel as avatars with the name on a dark tag, a green ring (`#23a55a`) around who is speaking and the muted and deafened icons in red (`#f23f43`). It shows nothing outside a voice channel. It has a connection of its own to Discord.
+- The pinned cards are hidden for a screenshot of the Capture card and while a recording runs.
+- While a layer is shown, unredirect is off: a fullscreen window that bypasses the compositor would cover the pinned cards. Games are then always composited, which can cost some latency. Not tested with a fullscreen game.
 
 ## Monitors
 
@@ -188,6 +200,7 @@ tests/run.sh tests/overlay.test.js
 ```
 
 - A scenario is JavaScript that runs at the end of `enable()` of a copy of the extension, with the helpers of `tests/prelude.js`: `click(actor)`, `drag(actor, dx, dy)` and `key(keyval)` with a virtual pointer and keyboard, `shot(name, actor)` for a screenshot in `tests/output`, `check(condition, message)`, `openOverlay()` and `sleep(ms)`.
+- `tests/pins.test.js` pins cards and checks that the pointer goes through them.
 - `MONITORS="1920x1080 1280x800"` starts the shell with a virtual monitor of each size, `tests/monitors.test.js` needs two.
 - It prints one line per check and exits with 1 if a check failed. The log of the shell is in `tests/output/shell.log`.
 - At the end the extension is disabled, what it leaves behind shows up in the log.

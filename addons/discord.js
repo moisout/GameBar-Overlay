@@ -5,8 +5,8 @@ import GLib from 'gi://GLib';
 import Secret from 'gi://Secret';
 import Soup from 'gi://Soup?version=3.0';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
+import { vertical, backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
 import { deleteOldFiles } from '../utils.js';
 
 // The voice channel of the Discord client over its local RPC server. The voice commands need an OAuth token with the
@@ -528,6 +528,34 @@ const setIcon = (icon, name, fallbackName) => {
 // Adwaita has no crossed out headphones, Papirus has.
 const DEAFENED_ICON = ['audio-volume-muted-headphones-symbolic', 'gamebar-headphones-disabled-symbolic'];
 
+// Round avatar of a member, inside a ring that shows whether they are speaking.
+// Until the avatar is there, and for members without one, the first letter of the name.
+const createAvatar = (avatars, { name, avatarUrl, avatarKey }) => {
+    const initial = new St.Label({ text: [...name][0]?.toUpperCase() ?? '' });
+    const avatar = new St.Bin({
+        style_class: 'gamebar-discord-avatar',
+        y_align: Clutter.ActorAlign.CENTER,
+        child: initial,
+    });
+    if (avatarUrl) {
+        let destroyed = false;
+        avatar.connect('destroy', () => {
+            destroyed = true;
+        });
+        avatars.load(avatarUrl, avatarKey, path => {
+            if (destroyed) return;
+            avatar.style = backgroundImageStyle(path);
+            initial.hide();
+        });
+    }
+    // The ring of a speaking member is the border of a bin around the avatar, St clips a box-shadow outside of it.
+    return new St.Bin({
+        style_class: 'gamebar-discord-avatar-ring',
+        y_align: Clutter.ActorAlign.CENTER,
+        child: avatar,
+    });
+};
+
 const setStyleClass = (actor, styleClass, enabled) => {
     if (enabled) {
         actor.add_style_class_name(styleClass);
@@ -539,8 +567,10 @@ const setStyleClass = (actor, styleClass, enabled) => {
 // The voice channel of Discord: its members, who is speaking, and mute, deafen and disconnect.
 export class Discord {
     // runWithOverlayClosed(callback) closes the overlay first, the prompt of Discord is in its window behind it.
-    constructor(overlay, monitor, runWithOverlayClosed) {
+    constructor(overlay, monitor, runWithOverlayClosed, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+        this._pinKey = pinKey;
         this._monitor = monitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
@@ -556,7 +586,7 @@ export class Discord {
             layout_manager: new Clutter.BinLayout()
         });
 
-        const { card, body } = createCard(_('Discord'), 'gamebar-discord-card', () => setCardHidden('discord', true));
+        const { card, body } = createCard(this._pinKey ? null : _('Discord'), 'gamebar-discord-card', 'discord');
 
         // The channel in bold and its server in grey.
         this._title = new St.BoxLayout({ style_class: 'gamebar-group-title gamebar-group-title-first' });
@@ -605,7 +635,7 @@ export class Discord {
 
         this._addonContainer.add_child(card);
         this._overlay.add_child(this._addonContainer);
-        makeDraggable(this._addonContainer, 'discord');
+        if (!this._pinKey) makeDraggable(this._addonContainer, 'discord');
 
         followCardSize(this._addonContainer, () => this.set_addon_position());
 
@@ -736,33 +766,11 @@ export class Discord {
     }
 
     // Avatar, name and the icons of the state on the right.
-    _createMemberRow({ id, name, avatarUrl, avatarKey }) {
+    _createMemberRow(member) {
+        const { id, name } = member;
         const row = createRow();
 
-        // Until the avatar is there, and for members without one, the first letter of the name.
-        const initial = new St.Label({ text: [...name][0]?.toUpperCase() ?? '' });
-        const avatar = new St.Bin({
-            style_class: 'gamebar-discord-avatar',
-            y_align: Clutter.ActorAlign.CENTER,
-            child: initial,
-        });
-        if (avatarUrl) {
-            let destroyed = false;
-            avatar.connect('destroy', () => {
-                destroyed = true;
-            });
-            this._avatars.load(avatarUrl, avatarKey, path => {
-                if (destroyed) return;
-                avatar.style = backgroundImageStyle(path);
-                initial.hide();
-            });
-        }
-        // The ring of a speaking member is the border of a bin around the avatar, St clips a box-shadow outside of it.
-        const ring = new St.Bin({
-            style_class: 'gamebar-discord-avatar-ring',
-            y_align: Clutter.ActorAlign.CENTER,
-            child: avatar,
-        });
+        const ring = createAvatar(this._avatars, member);
         row.add_child(ring);
 
         const nameLabel = createLabel(name, '', { x_expand: true });
@@ -780,7 +788,7 @@ export class Discord {
     }
 
     set_addon_position() {
-        positionAddon(this._monitor, this._addonContainer, 'discord');
+        positionAddon(this._monitor, this._addonContainer, 'discord', this._pinKey);
     }
 
     _destroyWidget() {
@@ -797,6 +805,104 @@ export class Discord {
             this._authorizeTimeoutId = 0;
         }
         this._destroyWidget();
+        this._client?.destroy();
+        this._client = null;
+        this._avatars?.destroy();
+        this._avatars = null;
+    }
+}
+
+// The pinned Discord card looks like the overlay of Discord on Windows: the members of the voice channel as avatars with
+// their name on a dark tag, a green ring around who is speaking, and the muted and deafened icons in red.
+// Without a voice channel it shows nothing.
+export class DiscordPinned {
+    constructor(overlay, monitor, { pinKey }) {
+        this._overlay = overlay;
+        this._monitor = monitor;
+        this._pinKey = pinKey;
+        this._memberKey = null;
+        this._memberRows = new Map();
+        this._avatars = new AvatarCache();
+        this._client = new DiscordClient(() => this._sync());
+
+        this._addonContainer = new St.BoxLayout({ ...vertical(), style_class: 'gamebar-discord-pinned' });
+        this._overlay.add_child(this._addonContainer);
+        followCardSize(this._addonContainer, () => this.set_addon_position());
+
+        // Connected while the pinned cards of its monitor are shown.
+        this._overlay.connectObject('notify::visible', () => this._syncConnection(), this._addonContainer);
+        this._syncConnection();
+        this._sync();
+    }
+
+    _syncConnection() {
+        if (this._overlay.visible) {
+            this._client.connect();
+        } else {
+            this._client.disconnect();
+        }
+    }
+
+    _sync() {
+        if (!this._addonContainer) return;
+
+        const channel = this._client.state === 'ready' ? this._client.channel : null;
+        const members = channel ? this._client.members : [];
+        this._addonContainer.visible = members.length > 0;
+
+        // A single member more takes the place of the tag that would stand for it.
+        const shown = members.length === EXPANDED_LIMIT + 1 ? members : members.slice(0, EXPANDED_LIMIT);
+        const hiddenCount = members.length - shown.length;
+
+        const key = JSON.stringify([shown.map(member => [member.id, member.name, member.avatarKey]), hiddenCount]);
+        if (key !== this._memberKey) {
+            this._memberKey = key;
+            this._addonContainer.destroy_all_children();
+            this._memberRows.clear();
+            shown.forEach(member => this._addonContainer.add_child(this._createMemberRow(member)));
+            if (hiddenCount > 0) {
+                const more = new St.Label({ style_class: 'gamebar-discord-pinned-tag', text: _('+%d more').format(hiddenCount) });
+                this._addonContainer.add_child(new St.Bin({ style_class: 'gamebar-discord-pinned-more', child: more, x_align: Clutter.ActorAlign.START }));
+            }
+        }
+
+        shown.forEach(({ id, speaking, muted, deafened }) => {
+            const { ring, mutedIcon, deafenedIcon } = this._memberRows.get(id);
+            setStyleClass(ring, 'gamebar-discord-pinned-speaking', speaking);
+            mutedIcon.visible = muted;
+            deafenedIcon.visible = deafened;
+        });
+    }
+
+    _createMemberRow(member) {
+        const row = new St.BoxLayout({ style_class: 'gamebar-discord-pinned-member' });
+        const ring = createAvatar(this._avatars, member);
+        row.add_child(ring);
+
+        const tag = new St.BoxLayout({ style_class: 'gamebar-discord-pinned-tag', y_align: Clutter.ActorAlign.CENTER });
+        tag.add_child(new St.Label({ text: member.name, y_align: Clutter.ActorAlign.CENTER }));
+        const mutedIcon = new St.Icon({ icon_name: 'microphone-disabled-symbolic', icon_size: 16 });
+        const deafenedIcon = new St.Icon({ icon_size: 16 });
+        setIcon(deafenedIcon, ...DEAFENED_ICON);
+        [mutedIcon, deafenedIcon].forEach(icon => {
+            icon.add_style_class_name('gamebar-discord-pinned-state');
+            tag.add_child(icon);
+        });
+        row.add_child(tag);
+
+        this._memberRows.set(member.id, { ring, mutedIcon, deafenedIcon });
+        return row;
+    }
+
+    set_addon_position() {
+        positionAddon(this._monitor, this._addonContainer, 'discord', this._pinKey);
+    }
+
+    destroy() {
+        const container = this._addonContainer;
+        this._addonContainer = null;
+        container?.destroy();
+        this._memberRows.clear();
         this._client?.destroy();
         this._client = null;
         this._avatars?.destroy();

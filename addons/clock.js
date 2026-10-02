@@ -3,12 +3,14 @@ import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
-import { createCard } from '../card.js';
+import { createCard, createPinButton } from '../card.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 export class Clock {
-  constructor(overlay, monitor) {
+  constructor(overlay, monitor, { pinKey = null } = {}) {
     this._overlay = overlay;
+    // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+    this._pinKey = pinKey;
     this._monitor = monitor;
     this._timeLabel = null;
     this._dateLabel = null;
@@ -51,9 +53,26 @@ export class Clock {
     // Add the card to the box
     this._addonContainer.add_child(card);
 
+    // Without a header bar the pin button is in the corner, while the pointer is over the card or it is pinned.
+    if (!this._pinKey) {
+      const pinButton = createPinButton('clock');
+      pinButton.add_style_class_name('gamebar-clock-pin');
+      // A BinLayout only aligns children that expand, the expansion would stretch the card over the overlay.
+      Object.assign(pinButton, { x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.START });
+      Object.assign(this._addonContainer, { x_expand: false, y_expand: false });
+      this._addonContainer.track_hover = true;
+      const syncPinButton = () => {
+        pinButton.opacity = this._addonContainer.hover || pinButton.checked ? 255 : 0;
+      };
+      this._addonContainer.connect('notify::hover', syncPinButton);
+      pinButton.connect('notify::checked', syncPinButton);
+      syncPinButton();
+      this._addonContainer.add_child(pinButton);
+    }
+
     // Add the box to the overlay
     this._overlay.add_child(this._addonContainer);
-    makeDraggable(this._addonContainer, 'clock');
+    if (!this._pinKey) makeDraggable(this._addonContainer, 'clock');
 
     followCardSize(this._addonContainer, () => this.set_addon_position());
 
@@ -94,7 +113,7 @@ export class Clock {
   }
 
   set_addon_position() {
-    positionAddon(this._monitor, this._addonContainer, 'clock');
+    positionAddon(this._monitor, this._addonContainer, 'clock', this._pinKey);
   }
 
   _updateClock() {

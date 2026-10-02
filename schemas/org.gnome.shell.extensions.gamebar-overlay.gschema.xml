@@ -73,6 +73,12 @@
       <description>Cards closed with their close button or the dash, by the connector of the monitor</description>
     </key>
 
+    <key name="monitor-pinned-cards" type="a{sas}">
+      <default>{}</default>
+      <summary>Pinned cards of every monitor</summary>
+      <description>Cards that stay on the monitor while the overlay is closed, by the connector of the monitor</description>
+    </key>
+
     <key name="monitor-card-positions" type="a{sa{s(dd)}}">
       <default>{}</default>
       <summary>Dragged positions of the cards on every monitor</summary>
