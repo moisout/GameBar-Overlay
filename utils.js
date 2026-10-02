@@ -141,4 +141,15 @@ const celsiusToFahrenheit = (celsius) => {
     return (celsius * 9/5) + 32;
 };
 
-export { readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit };
+// A position or length of a track or video in seconds: "1:24", "1:02:03"
+const formatPlaybackTime = (seconds) => {
+    seconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(seconds / 60);
+    const pad = value => value.toString().padStart(2, '0');
+    if (minutes >= 60) {
+        return `${Math.floor(minutes / 60)}:${pad(minutes % 60)}:${pad(seconds % 60)}`;
+    }
+    return `${minutes}:${pad(seconds % 60)}`;
+};
+
+export { readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit, formatPlaybackTime };

@@ -5,7 +5,7 @@ The overlay follows the GNOME Adwaita look. The design was made with claude.desi
 - `design/gnome-game-overlay-handoff.md`: design tokens, layout and the description of every card.
 - `design/overlay-mockup.dc.html`: the HTML/CSS mockup at 1920×1080. It needs the design tool's runtime and does not render in a browser, read it as text for exact values.
 
-Implemented are the Audio, Capture, Clock, Hardware, Battery and Music cards, together with the dash at the bottom that shows and hides them. The Gallery and Discord cards of the design are not implemented yet.
+Implemented are the Audio, Capture, Gallery, Clock, Hardware, Battery and Music cards, together with the dash at the bottom that shows and hides them. The Discord card of the design is not implemented yet.
 
 This file records where the implementation follows the design, where it departs from it and why.
 
@@ -30,6 +30,10 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - The screenshot works like the Shift+Print key of the shell (`Shell.Screenshot.screenshot_stage_to_content()` and `captureScreenshot()` from `screenshot.js`), cropped to the monitor: saved to the screenshots folder and the clipboard, with the sound and the notification of the shell, without the pointer.
   - The recording goes through the screenshot UI of the shell, so the shell shows its recording indicator with the stop button and the notification. The screenshot UI has no API to record a monitor right away: its screen mode and the monitor are set on its private buttons, `_startScreencast()` reads the area before its first await, and the previous mode is restored right after. Without these internals the screenshot UI opens in screencast mode instead.
   - While a recording runs the record button turns into "Stop Recording", the design has no recording state. Without PipeWire or the GStreamer plugins the record button is disabled.
+- **Gallery** (520px): the tabs All, Screenshots and Recordings below the header, and the six latest captures of the tab in rows of three (8px apart, rows 12px apart). A tile is the 16:9 thumbnail with radius 8px, an icon in the middle (a picture for screenshots, play for recordings), the time at the bottom left and the length of a recording at the bottom right. The time is the time today in the clock format of GNOME, "Yesterday", the day this year and the date before. Clicking a tile opens the capture in its app once the overlay is closed. The button on the left of the header opens the folder of the tab, All opens the folder of the newest capture.
+  - The captures are read from the folders the shell saves to, `Pictures/Screenshots` and `Videos/Screencasts` with the folder names translated by the shell, every time the overlay opens.
+  - Thumbnails come from the freedesktop thumbnail cache (`~/.cache/thumbnails`), so the ones of GNOME Files are used too. Missing ones and the lengths of recordings are made by `helpers/galleryThumbnailer.js`, a gjs process of its own: decoding in the shell would block it, and a broken file or codec could take it down. Screenshots are scaled with GdkPixbuf, recordings are opened with GStreamer for their length and a frame 10% in (at most 3 s), the first frame is often black. Thumbnails are x-large (512px) like the spec, sharp at 200%, with the URI and modification time of the file. Files it cannot read are not tried again until they change.
+  - Thumbnails are a background image, which follows the rounded corners. The time and length are on dark badges and the icon on a dark circle, readable on any thumbnail.
 - **Battery** (400px): "This Device" with the state as subtitle ("3 h 10 min remaining", "Fully charged", ...), a level bar and the percentage, from the UPower display device. Below it the group "Connected Devices": mice, headsets, controllers and other devices with a battery, with an icon for their type. A low battery (the warning level of UPower) shows "Low battery" and the bar in the warning colour `#ff938c`. Without any battery the card says so. UPower is read over D-Bus with proxies, the device lists of UPowerGlib are freed too early in GJS.
 - **Music** (400px): one boxed group with the cover (56px, radius 8px), the title in bold over "artist · player app", and the previous, play/pause and next buttons. Below them the elapsed time, a seek slider and the length. The players are found over MPRIS on the session bus like the media controls of the shell, which has no position and whose API differs between GNOME versions, so the card has its own proxies:
   - The card shows the player that played last, playing players before paused ones. Stopped players have no track and are left out. Without a player the card says "Nothing playing".
@@ -56,6 +60,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but `nvidia-smi` is spawned synchronously and would block the shell every second.
 - **Device picker** opens inside the card instead of as a popup menu.
 - **Player tabs** on the Music card, the design has no way to switch between players yet.
+- **Gallery tiles** show the type as an icon in the middle and the time and length on the thumbnail, instead of a caption like "Recording · 0:42 · 21:31" below it.
 - **Dash buttons** are square, 52×52 instead of the design's 52×56.
 - **Close cross** is the 16px `window-close-symbolic` icon of the libadwaita window controls instead of the design's 12px icon. Adwaita's cross takes only half the icon, at 12px it was a tiny 6px.
 
@@ -78,7 +83,7 @@ Cards start in the column layout of the design (`cardPosition.js`):
 | Column | Width | Cards, top to bottom |
 |---|---|---|
 | 1 | 400 | Audio, Battery |
-| 2 | 520 | Capture |
+| 2 | 520 | Capture, Gallery |
 | 3 | 400 | Clock, Music |
 | 4 | 400 | Hardware |
 
@@ -88,9 +93,9 @@ Monitors too narrow for the four columns get fewer:
 
 | Monitor width | Columns |
 |---|---|
-| 1920 and more | Audio, Battery · Capture · Clock, Music · Hardware |
-| 1480 to 1919 | Audio, Battery · Clock, Music, Capture · Hardware |
-| below 1480 | Audio, Battery, Music · Clock, Capture, Hardware |
+| 1920 and more | Audio, Battery · Capture, Gallery · Clock, Music · Hardware |
+| 1480 to 1919 | Audio, Battery, Music · Clock, Capture, Gallery · Hardware |
+| below 1480 | Audio, Battery, Music · Clock, Capture, Gallery, Hardware |
 
 On 1280×800 not every card fits above the dash, the bottom of the Hardware card reaches behind it. The dash is always kept above the cards.
 

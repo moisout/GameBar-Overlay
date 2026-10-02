@@ -350,3 +350,39 @@ msgstr ""
 #: addons/music.js
 msgid "Playback Position"
 msgstr ""
+
+#: extension.js
+msgid "Gallery"
+msgstr ""
+
+#: addons/gallery.js
+msgid "Open Captures Folder"
+msgstr ""
+
+#: addons/gallery.js
+msgid "All"
+msgstr ""
+
+#: addons/gallery.js
+msgid "Screenshots"
+msgstr ""
+
+#: addons/gallery.js
+msgid "Recordings"
+msgstr ""
+
+#: addons/gallery.js
+msgid "No screenshots yet"
+msgstr ""
+
+#: addons/gallery.js
+msgid "No recordings yet"
+msgstr ""
+
+#: addons/gallery.js
+msgid "No screenshots or recordings yet"
+msgstr ""
+
+#: addons/gallery.js
+msgid "Yesterday"
+msgstr ""

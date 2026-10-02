@@ -7,7 +7,8 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 
 // A card with an optional header bar. Children go into the returned body.
 // With onClose the header bar gets a close button, like the window controls of Adwaita.
-const createCard = (title, styleClass = '', onClose = null) => {
+// leading is an actor for the slot on the left of the header bar, like a button of the card.
+const createCard = (title, styleClass = '', onClose = null, leading = null) => {
     const card = new St.BoxLayout({
         vertical: true,
         style_class: `gamebar-card ${styleClass}`,
@@ -18,8 +19,10 @@ const createCard = (title, styleClass = '', onClose = null) => {
 
     if (title) {
         const header = new St.BoxLayout({ style_class: 'gamebar-card-header' });
-        // Keeps the title centred opposite the close button.
-        header.add_child(new St.Widget({ style_class: 'gamebar-window-control' }));
+        // The empty slot keeps the title centred opposite the close button.
+        header.add_child(leading
+            ? new St.Bin({ style_class: 'gamebar-window-control', child: leading })
+            : new St.Widget({ style_class: 'gamebar-window-control' }));
         header.add_child(new St.Label({
             style_class: 'gamebar-card-title',
             text: title,
@@ -109,6 +112,74 @@ const createLabel = (text, styleClass = '', props = {}) => {
     return label;
 };
 
+// Tab bar below the header bar, like the tab bar of GNOME Files and of the Gallery card of the design.
+// The tabs are equally wide, a separator is only shown between two unselected tabs.
+// The body below gets more padding while the tab bar is shown.
+class TabBar {
+    constructor(card, body, onSelected) {
+        this._body = body;
+        this._onSelected = onSelected;
+        this._tabs = [];
+        this._key = null;
+        this._selected = null;
+
+        this.actor = new St.BoxLayout({ style_class: 'gamebar-tabs', x_expand: true });
+        this.actor.layout_manager.homogeneous = true;
+        card.insert_child_below(this.actor, body);
+        this.visible = true;
+    }
+
+    set visible(visible) {
+        this.actor.visible = visible;
+        if (visible) {
+            this._body.add_style_class_name('gamebar-card-body-tabbed');
+        } else {
+            this._body.remove_style_class_name('gamebar-card-body-tabbed');
+        }
+    }
+
+    // tabs: [{ id, name }]. Only rebuilt when they change, a tab being clicked is not destroyed under the pointer.
+    setTabs(tabs) {
+        const key = JSON.stringify(tabs.map(({ id, name }) => [id, name]));
+        if (key === this._key) return;
+        this._key = key;
+
+        this.actor.destroy_all_children();
+        this._tabs = tabs.map(({ id, name }, index) => {
+            // The separator before the tab is part of its cell, so it does not count as a tab of its own.
+            const cell = new St.BoxLayout({ x_expand: true });
+            const separator = new St.Widget({ style_class: 'gamebar-tab-separator', y_align: Clutter.ActorAlign.CENTER });
+            separator.visible = index > 0;
+            cell.add_child(separator);
+
+            const button = new St.Button({
+                style_class: 'gamebar-tab',
+                x_expand: true,
+                child: createLabel(name, '', { x_align: Clutter.ActorAlign.CENTER }),
+            });
+            button.connect('clicked', () => this._onSelected(id));
+            cell.add_child(button);
+
+            this.actor.add_child(cell);
+            return { id, button, separator };
+        });
+        this.selected = this._selected;
+    }
+
+    set selected(id) {
+        this._selected = id;
+        this._tabs.forEach(({ id: tabId, button, separator }, index) => {
+            const selected = tabId === id;
+            if (selected) {
+                button.add_style_class_name('gamebar-tab-selected');
+            } else {
+                button.remove_style_class_name('gamebar-tab-selected');
+            }
+            separator.opacity = selected || this._tabs[index - 1]?.id === id ? 0 : 255;
+        });
+    }
+}
+
 // Bar showing a fraction in the accent colour, like the level bars of the design.
 class LevelBar {
     constructor() {
@@ -173,4 +244,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, LevelBar, createPillButton, createIconButton };
+export { createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };

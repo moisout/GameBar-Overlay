@@ -19,6 +19,7 @@ import {Dash} from './addons/dash.js';
 import {Capture} from './addons/capture.js';
 import {Battery} from './addons/battery.js';
 import {Music} from './addons/music.js';
+import {Gallery} from './addons/gallery.js';
 //TODO:: weather addon
 //TODO:: brightness addon
 
@@ -106,11 +107,13 @@ class GameBar extends PanelMenu.Button {
         this._capture = new Capture(this._overlay, primaryMonitor, callback => this._runWithOverlayClosed(callback)); // Screenshot and screencast buttons
         this._battery = new Battery(this._overlay, primaryMonitor); // Battery of the computer and connected devices
         this._music = new Music(this._overlay, primaryMonitor); // Controls of the media player that played last
+        this._gallery = new Gallery(this._overlay, primaryMonitor, callback => this._runWithOverlayClosed(callback)); // The latest screenshots and recordings
 
         // The cards the dash shows and hides, in the order of its buttons
         this._cards = [
             { id: 'sound', name: _('Audio'), iconName: 'audio-volume-high-symbolic', addon: this._soundControls },
             { id: 'capture', name: _('Capture'), iconName: 'camera-photo-symbolic', addon: this._capture },
+            { id: 'gallery', name: _('Gallery'), iconName: 'image-x-generic-symbolic', addon: this._gallery },
             { id: 'clock', name: _('Clock'), iconName: 'preferences-system-time-symbolic', addon: this._clock },
             { id: 'system-monitor', name: _('Hardware'), iconName: 'computer-symbolic', addon: this._systemMonitor },
             { id: 'battery', name: _('Battery'), iconName: 'battery-symbolic', addon: this._battery },
@@ -601,6 +604,7 @@ class GameBar extends PanelMenu.Button {
         this._capture._updateSettings(settings);
         this._battery._updateSettings(settings);
         this._music._updateSettings(settings);
+        this._gallery._updateSettings(settings);
         // The addons recreate their cards, which start visible and on top of the dash.
         this._syncCardVisibility(false);
         this._overlay.set_child_above_sibling(this._dash._addonContainer, null);
@@ -637,6 +641,8 @@ class GameBar extends PanelMenu.Button {
         this._battery = null;
         this._music?.destroy();
         this._music = null;
+        this._gallery?.destroy();
+        this._gallery = null;
         this._dash?.destroy();
         this._dash = null;
         this._cards = null;

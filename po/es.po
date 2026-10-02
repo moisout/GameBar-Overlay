@@ -351,3 +351,39 @@ msgstr "Reproducir"
 #: addons/music.js
 msgid "Playback Position"
 msgstr "Posición de reproducción"
+
+#: extension.js
+msgid "Gallery"
+msgstr "Galería"
+
+#: addons/gallery.js
+msgid "Open Captures Folder"
+msgstr "Abrir la carpeta de capturas"
+
+#: addons/gallery.js
+msgid "All"
+msgstr "Todo"
+
+#: addons/gallery.js
+msgid "Screenshots"
+msgstr "Capturas de pantalla"
+
+#: addons/gallery.js
+msgid "Recordings"
+msgstr "Grabaciones"
+
+#: addons/gallery.js
+msgid "No screenshots yet"
+msgstr "Todavía no hay capturas de pantalla"
+
+#: addons/gallery.js
+msgid "No recordings yet"
+msgstr "Todavía no hay grabaciones"
+
+#: addons/gallery.js
+msgid "No screenshots or recordings yet"
+msgstr "Todavía no hay capturas de pantalla ni grabaciones"
+
+#: addons/gallery.js
+msgid "Yesterday"
+msgstr "Ayer"

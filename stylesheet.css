@@ -224,6 +224,48 @@
     spacing: 12px;
 }
 
+/*Gallery styles*/
+.gamebar-gallery-card {
+    width: 520px;
+}
+
+.gamebar-gallery-grid {
+    spacing: 12px;
+}
+
+.gamebar-gallery-row {
+    spacing: 8px;
+}
+
+/*16:9 at the width of a tile in the 520px card, the thumbnail is the background image*/
+.gamebar-thumb {
+    height: 90px;
+    border-radius: 8px;
+    background-color: #3a3a40;
+    color: #ffffff;
+}
+
+/*Icon in the middle, readable on any thumbnail*/
+.gamebar-thumb-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.gamebar-thumb:hover .gamebar-thumb-icon {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+/*Time and length on the thumbnail*/
+.gamebar-thumb-badge {
+    font-size: 12px;
+    margin: 5px;
+    padding: 1px 5px;
+    border-radius: 5px;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
 /*Battery styles*/
 .gamebar-battery-card {
     width: 400px;

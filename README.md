@@ -14,6 +14,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - Audio controls: output and input device switching, volume and mute for the devices and every app
 - CPU/GPU usage and temperature monitor, memory, disk and network
 - Instant screenshot and screen recording of the monitor, saved and shown like GNOME's own
+- A gallery of the latest screenshots and recordings
 - Battery of the computer and of connected devices like mice, headsets and controllers
 - Media controls with the cover, track and seek slider, and tabs to switch between several players
 - A dash to show and hide the cards

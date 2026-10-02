@@ -7,7 +7,8 @@ import Soup from 'gi://Soup?version=3.0';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
+import { createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
+import { formatPlaybackTime } from '../utils.js';
 
 // Media players over MPRIS, like the media controls of the shell (js/ui/mpris.js).
 // The shell's players have no position and their API differs between GNOME versions, so the card has its own proxies.
@@ -65,16 +66,8 @@ const logError = (error) => {
     if (!error.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) console.warn(`GameBar: ${error.message}`);
 };
 
-// "1:24", "1:02:03"
-const formatTime = (microseconds) => {
-    const seconds = Math.max(0, Math.floor(microseconds / 1000000));
-    const minutes = Math.floor(seconds / 60);
-    const pad = value => value.toString().padStart(2, '0');
-    if (minutes >= 60) {
-        return `${Math.floor(minutes / 60)}:${pad(minutes % 60)}:${pad(seconds % 60)}`;
-    }
-    return `${minutes}:${pad(seconds % 60)}`;
-};
+// MPRIS times are in microseconds.
+const formatTime = (microseconds) => formatPlaybackTime(microseconds / 1000000);
 
 // One media player. onChanged() is called after every change of its state.
 class Player {
@@ -437,14 +430,12 @@ export class Music {
         });
 
         const { card, body } = createCard(_('Music'), 'gamebar-music-card', () => setCardHidden('music', true));
-        this._body = body;
 
-        // With several players a tab bar below the header switches between them, like the tabs of the Gallery card.
-        this._tabs = new St.BoxLayout({ style_class: 'gamebar-tabs', x_expand: true });
-        // The tabs are equally wide.
-        this._tabs.layout_manager.homogeneous = true;
-        this._tabsKey = null;
-        card.insert_child_below(this._tabs, body);
+        // With several players a tab bar below the header switches between them.
+        this._tabBar = new TabBar(card, body, busName => {
+            const player = this._model.players.find(other => other.busName === busName);
+            if (player) this._selectPlayer(player);
+        });
 
         // Without a player the card says so, like the Battery card without a battery.
         this._emptyList = new BoxedList();
@@ -589,45 +580,9 @@ export class Music {
         const names = players.map((player, index) =>
             appNames[index] && appNames.indexOf(appNames[index]) === appNames.lastIndexOf(appNames[index]) ? appNames[index] : player.title);
 
-        this._tabs.visible = players.length > 1;
-        if (this._tabs.visible) {
-            this._body.add_style_class_name('gamebar-card-body-tabbed');
-        } else {
-            this._body.remove_style_class_name('gamebar-card-body-tabbed');
-        }
-
-        // Rebuilt only when the players change, a tab being clicked is not destroyed under the pointer.
-        const key = JSON.stringify(players.map((player, index) => [player.busName, names[index]]));
-        if (key !== this._tabsKey) {
-            this._tabsKey = key;
-            this._tabs.destroy_all_children();
-            this._tabButtons = players.map((player, index) => {
-                // The separator before the tab is part of its cell, so it does not count as a tab of its own.
-                const cell = new St.BoxLayout({ x_expand: true });
-                const separator = new St.Widget({ style_class: 'gamebar-tab-separator', y_align: Clutter.ActorAlign.CENTER });
-                separator.visible = index > 0;
-                cell.add_child(separator);
-
-                const label = createLabel(names[index], '', { x_align: Clutter.ActorAlign.CENTER });
-                const button = new St.Button({ style_class: 'gamebar-tab', x_expand: true, child: label });
-                button.connect('clicked', () => this._selectPlayer(player));
-                cell.add_child(button);
-
-                this._tabs.add_child(cell);
-                return { player, button, separator };
-            });
-        }
-
-        // A separator is only shown between two unselected tabs.
-        this._tabButtons.forEach(({ player, button, separator }, index) => {
-            const selected = player === shownPlayer;
-            if (selected) {
-                button.add_style_class_name('gamebar-tab-selected');
-            } else {
-                button.remove_style_class_name('gamebar-tab-selected');
-            }
-            separator.opacity = selected || this._tabButtons[index - 1]?.player === shownPlayer ? 0 : 255;
-        });
+        this._tabBar.visible = players.length > 1;
+        this._tabBar.setTabs(players.map((player, index) => ({ id: player.busName, name: names[index] })));
+        this._tabBar.selected = shownPlayer?.busName ?? null;
     }
 
     _seekToSlider() {
@@ -737,9 +692,7 @@ export class Music {
 
         this._addonContainer?.destroy();
         this._addonContainer = null;
-        this._tabs = null;
-        this._tabButtons = [];
-        this._body = null;
+        this._tabBar = null;
         this._cover = null;
         this._coverIcon = null;
     }
