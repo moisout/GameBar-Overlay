@@ -15,11 +15,13 @@ const LAYOUTS = [
 ];
 // Width of the cards in the design, a column is as wide as its widest card.
 const CARD_WIDTHS = {
+    'sound': 440,
+    'battery': 440,
     'capture': 520,
     'gallery': 520,
 };
 const DEFAULT_CARD_WIDTH = 400;
-const COLUMN_GAP = 40;
+const COLUMN_GAP = 32;
 const CARD_GAP = 24;
 const LAYOUT_TOP = 84;
 
