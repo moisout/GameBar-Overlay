@@ -149,6 +149,7 @@ The sliders are the shell's own `Slider` and follow the accent colour. The spark
 - **`St.BoxLayout.vertical` is deprecated** since GNOME 48, which has `orientation` instead. `vertical()` in `card.js` gives the property the shell has.
 - **No grid, flex gap or multiple shadows** in St CSS. Layouts are `St.BoxLayout`s with `spacing`.
 - **A `box-shadow` with spread is clipped** at the edges of its actor. The ring of a speaking member is the border of a bin around the avatar.
+- **Sizing an actor when another one gets its size** (in `notify::width`) asks for a new layout in the middle of the layout, and Clutter warns that the actors need an allocation. The fill of a level bar is sized by a layout manager instead.
 - **Stopping `button-press-event` on a parent cancels the click of the buttons inside.** On GNOME 50 `St.Button` recognises clicks with a gesture, and a press stopped further up never completes it. Cards and the dash only stop the release, which keeps a click on them from counting as a click on the empty area.
 - **`:first-child`** cannot reach the first group title of a card since every title is the first child of its group, the first title gets its own class.
 

@@ -1,3 +1,4 @@
+import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
@@ -188,24 +189,56 @@ class TabBar {
     }
 }
 
+// Gives the fill of a level bar its fraction of the bar. Sizing the fill once the bar has its width would
+// ask for a new layout in the middle of the layout, which Clutter warns about.
+const LevelLayout = GObject.registerClass(
+class LevelLayout extends Clutter.LayoutManager {
+    _init() {
+        super._init();
+        this._value = 0;
+    }
+
+    set value(value) {
+        this._value = value;
+        this.layout_changed();
+    }
+
+    // The size of the bar comes from the stylesheet and the row.
+    vfunc_get_preferred_width() {
+        return [0, 0];
+    }
+
+    vfunc_get_preferred_height() {
+        return [0, 0];
+    }
+
+    vfunc_allocate(container, box) {
+        const fill = container.get_first_child();
+        if (!fill) return;
+
+        const fillBox = new Clutter.ActorBox();
+        fillBox.set_origin(box.x1, box.y1);
+        fillBox.set_size(Math.round(box.get_width() * this._value), box.get_height());
+        fill.allocate(fillBox);
+    }
+});
+
 // Bar showing a fraction in the accent colour, like the level bars of the design.
 class LevelBar {
     constructor() {
-        this._value = 0;
+        this._layout = new LevelLayout();
         this._fill = new St.Widget({ style_class: 'gamebar-level-bar-fill' });
         this.actor = new St.Widget({
             style_class: 'gamebar-level-bar',
+            layout_manager: this._layout,
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
         this.actor.add_child(this._fill);
-        this.actor.connect('notify::width', () => this._sync());
-        this.actor.connect('notify::height', () => this._sync());
     }
 
     set value(value) {
-        this._value = Math.max(0, Math.min(value, 1));
-        this._sync();
+        this._layout.value = Math.max(0, Math.min(value, 1));
     }
 
     // A low battery, for example.
@@ -215,12 +248,6 @@ class LevelBar {
         } else {
             this._fill.remove_style_class_name('gamebar-level-bar-fill-warning');
         }
-    }
-
-    _sync() {
-        // Before the bar is laid out its size would have to be computed from the theme, which needs the stage.
-        if (!this.actor.has_allocation()) return;
-        this._fill.set_size(Math.round(this.actor.width * this._value), this.actor.height);
     }
 }
 
