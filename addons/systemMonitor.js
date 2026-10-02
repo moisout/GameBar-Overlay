@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import Cairo from 'cairo';
 import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, makeDraggable } from '../cardPosition.js';
+import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { createCard, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
 
@@ -115,6 +115,11 @@ export class SystemMonitor {
         this._gpuMonitoring = null;
         this._gpuDevice = null;
 
+        this._cpuMonitoring = true;
+        this._memoryMonitoring = true;
+        this._diskMonitoring = true;
+        this._networkMonitoring = true;
+
         this._memoryRow = null;
         this._diskRow = null;
         this._networkRow = null;
@@ -135,17 +140,24 @@ export class SystemMonitor {
         }
         this._cpuHwmonPath = findCpuHwmon();
 
+        // Without any row there is no card. A hidden card would not finish the exit animation the overlay waits for.
+        if (!this._cpuMonitoring && !this._gpuMonitoring && !this._memoryMonitoring && !this._diskMonitoring && !this._networkMonitoring) {
+            return;
+        }
+
         this._addonContainer = new St.Widget({
             layout_manager: new Clutter.BinLayout()
         });
 
-        const { card, body } = createCard(_('Hardware'), 'gamebar-hardware-card');
+        const { card, body } = createCard(_('Hardware'), 'gamebar-hardware-card', () => setCardHidden('system-monitor', true));
         const list = new BoxedList();
         body.add_child(list.actor);
 
         // Without GTop there is no usage to chart, the row only explains what is missing.
-        this._cpuRow = this._createStatRow(_('CPU'), this._gtopAvailable ? 'sparkline' : null);
-        list.addRow(this._cpuRow.actor);
+        if (this._cpuMonitoring) {
+            this._cpuRow = this._createStatRow(_('CPU'), this._gtopAvailable ? 'sparkline' : null);
+            list.addRow(this._cpuRow.actor);
+        }
 
         // Add the GPU row if GPU monitoring is enabled.
         if (this._gpuMonitoring) {
@@ -153,14 +165,20 @@ export class SystemMonitor {
             list.addRow(this._gpuRow.actor);
         }
 
-        this._memoryRow = this._createStatRow(_('Memory'), 'level');
-        list.addRow(this._memoryRow.actor);
+        if (this._memoryMonitoring) {
+            this._memoryRow = this._createStatRow(_('Memory'), 'level');
+            list.addRow(this._memoryRow.actor);
+        }
 
-        this._diskRow = this._createStatRow(_('Disk'), 'level');
-        list.addRow(this._diskRow.actor);
+        if (this._diskMonitoring) {
+            this._diskRow = this._createStatRow(_('Disk'), 'level');
+            list.addRow(this._diskRow.actor);
+        }
 
-        this._networkRow = this._createNetworkRow();
-        list.addRow(this._networkRow.actor);
+        if (this._networkMonitoring) {
+            this._networkRow = this._createNetworkRow();
+            list.addRow(this._networkRow.actor);
+        }
 
         // Add the card to the addon container
         this._addonContainer.add_child(card);
@@ -470,9 +488,9 @@ export class SystemMonitor {
 
     const formatTemperature = (temp) => `${temp.temp} ${temp.unit}`.trim();
 
-    if (!this._gtopAvailable) {
+    if (this._cpuRow && !this._gtopAvailable) {
       this._cpuRow.subtitle.set_text(_("GTop missing, install 'libgtop' for temperature"));
-    } else {
+    } else if (this._cpuRow) {
       const cpuUsage = this._getCpuUsage();
       this._cpuRow.usage.set_text(cpuUsage + "%");
       this._cpuRow.sparkline.push(cpuUsage);
@@ -496,7 +514,8 @@ export class SystemMonitor {
         this._gpuRow.subtitle.set_text(gpuDetails);
     }
 
-    for (const [row, usage, binary] of [[this._memoryRow, this._getMemory(), true], [this._diskRow, this._getDisk(), false]]) {
+    for (const [row, getUsage, binary] of [[this._memoryRow, () => this._getMemory(), true], [this._diskRow, () => this._getDisk(), false]]) {
+      const usage = row ? getUsage() : null;
       if (usage) {
         row.subtitle.set_text(formatUsage(usage.used, usage.total, binary));
         row.level.value = usage.used / usage.total;
@@ -504,7 +523,7 @@ export class SystemMonitor {
       }
     }
 
-    const rates = this._getNetworkRates();
+    const rates = this._networkRow ? this._getNetworkRates() : null;
     if (rates) {
       this._networkRow.download.set_text(formatRate(rates.download));
       this._networkRow.upload.set_text(formatRate(rates.upload));
@@ -517,6 +536,10 @@ export class SystemMonitor {
     this._tempUnit = settings.get_string('cpu-temperature-unit'); // Get unit from settings
     this._gpuDevice = settings.get_string('gpu-device');
     this._gpuMonitoring = settings.get_boolean('gpu-monitoring');
+    this._cpuMonitoring = settings.get_boolean('cpu-monitoring');
+    this._memoryMonitoring = settings.get_boolean('memory-monitoring');
+    this._diskMonitoring = settings.get_boolean('disk-monitoring');
+    this._networkMonitoring = settings.get_boolean('network-monitoring');
 
     // Recreate the widget with new settings
     this._stopMonitor();

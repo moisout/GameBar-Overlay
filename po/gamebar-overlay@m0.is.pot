@@ -214,3 +214,35 @@ msgstr ""
 #, c-format
 msgid "%s of %s"
 msgstr ""
+
+#: prefs.js
+msgid "Rows"
+msgstr ""
+
+#: prefs.js
+msgid "Choose what the Hardware card shows"
+msgstr ""
+
+#: prefs.js
+msgid "Usage and temperature"
+msgstr ""
+
+#: prefs.js
+msgid "Used and total memory"
+msgstr ""
+
+#: prefs.js
+msgid "Used and total space of the root filesystem"
+msgstr ""
+
+#: prefs.js
+msgid "Download and upload rate"
+msgstr ""
+
+#: card.js
+msgid "Close"
+msgstr ""
+
+#: extension.js
+msgid "Clock"
+msgstr ""

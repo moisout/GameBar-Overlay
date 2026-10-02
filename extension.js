@@ -9,12 +9,13 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { set_position_settings } from './cardPosition.js';
+import { set_position_settings, isCardHidden } from './cardPosition.js';
 
 //Addon Imports:
 import {Clock} from './addons/clock.js';
 import {SoundControls} from './addons/soundControls.js';
 import {SystemMonitor} from './addons/systemMonitor.js';
+import {Dash} from './addons/dash.js';
 //TODO:: screenshot addon
 //TODO:: weather addon
 //TODO:: battery addon
@@ -25,6 +26,10 @@ function isGnome48OrNewer() {
     return version[0] >= 48;
 }
 const MUTTER_SCHEMA = 'org.gnome.mutter';
+
+// Closing a card or showing it again from the dash.
+const CARD_TOGGLE_DURATION = 200;
+const CARD_TOGGLE_SCALE = 0.9;
 
 // Fly In and Fly Out: the cards start this much bigger, as if they were in front of the screen.
 const FLY_SCALE = 1.3;
@@ -98,6 +103,16 @@ class GameBar extends PanelMenu.Button {
         this._soundControls = new SoundControls(this._overlay, primaryMonitor); // Sound controls addon
         this._systemMonitor = new SystemMonitor(this._overlay, primaryMonitor); // System Monitor stats addon
 
+        // The cards the dash shows and hides, in the order of its buttons
+        this._cards = [
+            { id: 'sound', name: _('Audio'), iconName: 'audio-volume-high-symbolic', addon: this._soundControls },
+            { id: 'clock', name: _('Clock'), iconName: 'preferences-system-time-symbolic', addon: this._clock },
+            { id: 'system-monitor', name: _('Hardware'), iconName: 'computer-symbolic', addon: this._systemMonitor },
+        ];
+        // Cards fading out after being closed, they are still visible until the animation ends.
+        this._hidingCards = new Set();
+        this._dash = new Dash(this._overlay, primaryMonitor, this._cards);
+
         // Add the overlay widget to the global stage to affect the input region.
         global.stage.add_child(this._backdrop);
         global.stage.add_child(this._overlay);
@@ -137,7 +152,7 @@ class GameBar extends PanelMenu.Button {
         this._backdrop.hide();
 
         // The addons keep the monitor they were created with, which is null if the shell had no monitor yet.
-        [this._clock, this._soundControls, this._systemMonitor].forEach(addon => {
+        [this._clock, this._soundControls, this._systemMonitor, this._dash].forEach(addon => {
             if (!addon) return;
             addon._primaryMonitor = primaryMonitor;
             addon.set_addon_position();
@@ -229,6 +244,8 @@ class GameBar extends PanelMenu.Button {
 
         // Reset all children to default state before showing
         this._resetOverlayChildren();
+        // A card closed during an exit animation may still be visible.
+        this._syncCardVisibility(false);
 
         this._overlay.show();
 
@@ -249,7 +266,7 @@ class GameBar extends PanelMenu.Button {
         }
 
         if (animationType === 'Fade') {
-            this._overlay.get_children().forEach(child => {
+            this._getShownChildren().forEach(child => {
                 child.set_opacity(0);
                 child.set_scale(0.8, 0.8);
 
@@ -262,7 +279,7 @@ class GameBar extends PanelMenu.Button {
                 });
             });
         } else if (animationType === 'Slide') {
-            this._overlay.get_children().forEach(child => {
+            this._getShownChildren().forEach(child => {
 
                 // Determine slide direction and initial position
                 if (child.y < this._overlay.height / 3) {
@@ -316,7 +333,7 @@ class GameBar extends PanelMenu.Button {
         const centerX = this._overlay.width / 2;
         const centerY = this._overlay.height / 2;
 
-        const cards = this._overlay.get_children().map(child => {
+        const cards = this._getShownChildren().map(child => {
             const offsetX = child.x + child.width / 2 - centerX;
             const offsetY = child.y + child.height / 2 - centerY;
             return {
@@ -355,7 +372,7 @@ class GameBar extends PanelMenu.Button {
         }
 
         if (animationType === 'Fade') {
-            this._overlay.get_children().forEach(child => {
+            this._getShownChildren().forEach(child => {
                 child.ease({
                     opacity: 0,
                     scale_x: 0.8,
@@ -363,14 +380,14 @@ class GameBar extends PanelMenu.Button {
                     duration: animationDuration,
                     mode: Clutter.AnimationMode.EASE_IN_QUAD,
                     onComplete: () => {
-                        if (this._overlay && this._overlay.get_children().every(c => c.opacity === 0)) {
+                        if (this._overlay && this._getShownChildren().every(c => c.opacity === 0)) {
                             this._overlay.hide();
                         }
                     }
                 });
             });
         } else if (animationType === 'Slide') {
-            this._overlay.get_children().forEach(child => {
+            this._getShownChildren().forEach(child => {
                 let translationX = 0;
                 let translationY = 0;
 
@@ -393,7 +410,7 @@ class GameBar extends PanelMenu.Button {
                     duration: animationDuration,
                     mode: Clutter.AnimationMode.EASE_IN_CUBIC,
                     onComplete: () => {
-                        if (this._overlay && this._overlay.get_children().every(c => c.opacity === 0)) {
+                        if (this._overlay && this._getShownChildren().every(c => c.opacity === 0)) {
                             this._overlay.hide();
                         }
                     }
@@ -413,7 +430,7 @@ class GameBar extends PanelMenu.Button {
                     duration: (1 - FLY_STAGGER) * animationDuration,
                     mode: Clutter.AnimationMode.EASE_IN_CUBIC,
                     onComplete: () => {
-                        if (this._overlay && this._overlay.get_children().every(c => c.opacity === 0)) {
+                        if (this._overlay && this._getShownChildren().every(c => c.opacity === 0)) {
                             this._overlay.hide();
                         }
                     }
@@ -422,6 +439,69 @@ class GameBar extends PanelMenu.Button {
         } else { // None
             this._overlay.hide();
         }
+    }
+
+    // The children the animations move, closed cards are hidden and left alone.
+    _getShownChildren() {
+        return this._overlay.get_children().filter(child => child.visible);
+    }
+
+    // Show the cards that are not closed and update the dots of the dash.
+    _syncCardVisibility(animate) {
+        animate &&= this._overlay.visible;
+
+        this._cards.forEach(({ id, addon }) => {
+            const container = addon._addonContainer;
+            const shown = !isCardHidden(id);
+            this._dash.sync(id, container !== null, shown);
+            if (!container) return;
+
+            const isShown = container.visible && !this._hidingCards.has(id);
+            if (isShown === shown && animate) return;
+
+            container.remove_all_transitions();
+            this._hidingCards.delete(id);
+
+            if (!animate) {
+                container.visible = shown;
+                return;
+            }
+
+            // Continue from where a running animation of the card is.
+            container.set_pivot_point(0.5, 0.5);
+            if (shown) {
+                if (!container.visible) {
+                    container.set_opacity(0);
+                    container.set_scale(CARD_TOGGLE_SCALE, CARD_TOGGLE_SCALE);
+                    container.show();
+                }
+                container.ease({
+                    opacity: 255,
+                    scale_x: 1,
+                    scale_y: 1,
+                    translation_x: 0,
+                    translation_y: 0,
+                    duration: CARD_TOGGLE_DURATION,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+            } else {
+                this._hidingCards.add(id);
+                container.ease({
+                    opacity: 0,
+                    scale_x: CARD_TOGGLE_SCALE,
+                    scale_y: CARD_TOGGLE_SCALE,
+                    duration: CARD_TOGGLE_DURATION,
+                    mode: Clutter.AnimationMode.EASE_IN_QUAD,
+                    onComplete: () => {
+                        this._hidingCards.delete(id);
+                        container.hide();
+                        container.set_opacity(255);
+                        container.set_scale(1, 1);
+                        container.set_translation(0, 0, 0);
+                    },
+                });
+            }
+        });
     }
 
     _resetOverlayChildren() {
@@ -459,6 +539,12 @@ class GameBar extends PanelMenu.Button {
             return;
         }
 
+        // Closing a card or showing it from the dash only changes which cards are visible.
+        if (key === 'hidden-cards') {
+            this._syncCardVisibility(true);
+            return;
+        }
+
         //load the new settings:
         this._loadSettings(settings);
     }
@@ -470,6 +556,8 @@ class GameBar extends PanelMenu.Button {
         this._clock._updateSettings(settings);
         this._soundControls._updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
+        // The addons recreate their cards, which start visible.
+        this._syncCardVisibility(false);
         this._emptyAreaClose = settings.get_boolean('overlay-empty-area-close');
         this._enterAnimation = settings.get_string('enter-animation');
         this._enterAnimationDuration = settings.get_int('enter-animation-duration');
@@ -497,6 +585,9 @@ class GameBar extends PanelMenu.Button {
         this._soundControls = null;
         this._systemMonitor?.destroy();
         this._systemMonitor = null;
+        this._dash?.destroy();
+        this._dash = null;
+        this._cards = null;
 
         //Destroy overlay:
         this._overlay?.destroy();

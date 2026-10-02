@@ -301,6 +301,24 @@ export default class Preferences extends ExtensionPreferences {
             settings.set_string('cpu-temperature-unit', selectedValue);
         });
     
+        // Rows of the Hardware card, the GPU row is toggled in the GPU settings
+        const rowsGroup = new Adw.PreferencesGroup({
+            title: _('Rows'),
+            description: _('Choose what the Hardware card shows'),
+        });
+        monitorPage.add(rowsGroup);
+
+        [
+            ['cpu-monitoring', _('CPU'), _('Usage and temperature')],
+            ['memory-monitoring', _('Memory'), _('Used and total memory')],
+            ['disk-monitoring', _('Disk'), _('Used and total space of the root filesystem')],
+            ['network-monitoring', _('Network'), _('Download and upload rate')],
+        ].forEach(([key, title, subtitle]) => {
+            const row = new Adw.SwitchRow({ title, subtitle });
+            rowsGroup.add(row);
+            settings.bind(key, row, 'active', Gio.SettingsBindFlags.DEFAULT);
+        });
+
         // GPU settings
         const gpuGroup = new Adw.PreferencesGroup({
             title: _('GPU Settings'),

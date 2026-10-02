@@ -1,11 +1,13 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 // Building blocks for the Adwaita style cards, see design/gnome-game-overlay-handoff.md.
 
 // A card with an optional header bar. Children go into the returned body.
-const createCard = (title, styleClass = '') => {
+// With onClose the header bar gets a close button, like the window controls of Adwaita.
+const createCard = (title, styleClass = '', onClose = null) => {
     const card = new St.BoxLayout({
         vertical: true,
         style_class: `gamebar-card ${styleClass}`,
@@ -16,12 +18,15 @@ const createCard = (title, styleClass = '') => {
 
     if (title) {
         const header = new St.BoxLayout({ style_class: 'gamebar-card-header' });
+        // Keeps the title centred opposite the close button.
+        header.add_child(new St.Widget({ style_class: 'gamebar-window-control' }));
         header.add_child(new St.Label({
             style_class: 'gamebar-card-title',
             text: title,
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         }));
+        header.add_child(onClose ? createCloseButton(onClose) : new St.Widget({ style_class: 'gamebar-window-control' }));
         card.add_child(header);
     }
 
@@ -32,6 +37,23 @@ const createCard = (title, styleClass = '') => {
     card.add_child(body);
 
     return { card, body };
+};
+
+// A 24px circle with a cross inside a 44px hit area.
+const createCloseButton = (onClose) => {
+    const button = new St.Button({
+        style_class: 'gamebar-window-control',
+        y_align: Clutter.ActorAlign.CENTER,
+        accessible_name: _('Close'),
+        child: new St.Bin({
+            style_class: 'gamebar-window-control-circle',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: new St.Icon({ icon_name: 'window-close-symbolic', icon_size: 12 }),
+        }),
+    });
+    button.connect('clicked', onClose);
+    return button;
 };
 
 const createGroupTitle = (text) => new St.Label({

@@ -2,6 +2,8 @@ import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 
 const POSITIONS_KEY = 'addon-positions';
+// Cards closed with their close button or the dash stay closed until they are shown from the dash again.
+const HIDDEN_KEY = 'hidden-cards';
 
 // Default layout from the design (design/gnome-game-overlay-handoff.md): columns of cards, centred on the monitor.
 // The second column is kept free for the capture and gallery cards of the design.
@@ -59,6 +61,20 @@ const getDefaultPosition = (primaryMonitor, id) => {
         x += getLayoutWidth(columnsBefore) + COLUMN_GAP;
     }
     return [x, LAYOUT_TOP];
+};
+
+const isCardHidden = (id) => {
+    return position_settings?.get_strv(HIDDEN_KEY).includes(id) ?? false;
+};
+
+const setCardHidden = (id, hidden) => {
+    if (!position_settings || isCardHidden(id) === hidden) return;
+
+    const hiddenCards = position_settings.get_strv(HIDDEN_KEY).filter(other => other !== id);
+    if (hidden) {
+        hiddenCards.push(id);
+    }
+    position_settings.set_strv(HIDDEN_KEY, hiddenCards);
 };
 
 // Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
@@ -147,4 +163,4 @@ const makeDraggable = (element, id) => {
     element.connect('destroy', endDrag);
 };
 
-export { set_position_settings, saveCustomPosition, positionAddon, makeDraggable };
+export { set_position_settings, saveCustomPosition, isCardHidden, setCardHidden, positionAddon, makeDraggable };

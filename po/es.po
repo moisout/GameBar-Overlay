@@ -215,3 +215,35 @@ msgstr "Red"
 #, c-format
 msgid "%s of %s"
 msgstr "%s de %s"
+
+#: prefs.js
+msgid "Rows"
+msgstr "Filas"
+
+#: prefs.js
+msgid "Choose what the Hardware card shows"
+msgstr "Elige lo que muestra la tarjeta de hardware"
+
+#: prefs.js
+msgid "Usage and temperature"
+msgstr "Uso y temperatura"
+
+#: prefs.js
+msgid "Used and total memory"
+msgstr "Memoria usada y total"
+
+#: prefs.js
+msgid "Used and total space of the root filesystem"
+msgstr "Espacio usado y total del sistema de archivos raíz"
+
+#: prefs.js
+msgid "Download and upload rate"
+msgstr "Velocidad de descarga y subida"
+
+#: card.js
+msgid "Close"
+msgstr "Cerrar"
+
+#: extension.js
+msgid "Clock"
+msgstr "Reloj"

@@ -3,7 +3,7 @@ import Clutter from 'gi://Clutter';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import Gio from 'gi://Gio';
-import { positionAddon, makeDraggable } from '../cardPosition.js';
+import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { DeviceSection } from './deviceSection.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
 import { createCard, createGroupTitle, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
@@ -31,7 +31,7 @@ export class SoundControls {
             layout_manager: new Clutter.BinLayout()
         });
 
-        const { card, body } = createCard(_('Audio'), 'gamebar-audio-card');
+        const { card, body } = createCard(_('Audio'), 'gamebar-audio-card', () => setCardHidden('sound', true));
 
         // Create the output and input device controls
         this._outputSection = new DeviceSection(this._volumeControl, 'output', _('Output'));

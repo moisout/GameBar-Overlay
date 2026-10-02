@@ -27,6 +27,30 @@
         <description>Select the temperature unit for the System Monitor addon (C for Celsius, F for Fahrenheit)</description>
     </key>
 
+    <key name="cpu-monitoring" type="b">
+      <default>true</default>
+      <summary>Show the CPU row</summary>
+      <description>Show the CPU row on the Hardware card</description>
+    </key>
+
+    <key name="memory-monitoring" type="b">
+      <default>true</default>
+      <summary>Show the memory row</summary>
+      <description>Show the memory row on the Hardware card</description>
+    </key>
+
+    <key name="disk-monitoring" type="b">
+      <default>true</default>
+      <summary>Show the disk row</summary>
+      <description>Show the disk row on the Hardware card</description>
+    </key>
+
+    <key name="network-monitoring" type="b">
+      <default>true</default>
+      <summary>Show the network row</summary>
+      <description>Show the network row on the Hardware card</description>
+    </key>
+
     <key name="gpu-monitoring" type="b">
       <default>true</default>
       <summary>Toggle GPU monitoring</summary>
@@ -42,6 +66,12 @@
 
 
 
+
+    <key name="hidden-cards" type="as">
+      <default>[]</default>
+      <summary>Hidden cards</summary>
+      <description>Cards closed with their close button or the dash</description>
+    </key>
 
     <key name="addon-positions" type="a{s(dd)}">
       <default>{}</default>

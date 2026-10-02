@@ -215,3 +215,35 @@ msgstr "Network"
 #, c-format
 msgid "%s of %s"
 msgstr "%s of %s"
+
+#: prefs.js
+msgid "Rows"
+msgstr "Rows"
+
+#: prefs.js
+msgid "Choose what the Hardware card shows"
+msgstr "Choose what the Hardware card shows"
+
+#: prefs.js
+msgid "Usage and temperature"
+msgstr "Usage and temperature"
+
+#: prefs.js
+msgid "Used and total memory"
+msgstr "Used and total memory"
+
+#: prefs.js
+msgid "Used and total space of the root filesystem"
+msgstr "Used and total space of the root filesystem"
+
+#: prefs.js
+msgid "Download and upload rate"
+msgstr "Download and upload rate"
+
+#: card.js
+msgid "Close"
+msgstr "Close"
+
+#: extension.js
+msgid "Clock"
+msgstr "Clock"

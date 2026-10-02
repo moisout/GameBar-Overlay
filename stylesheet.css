@@ -15,6 +15,27 @@
     padding: 0 2px;
 }
 
+/*Close button of a card, also the empty slot opposite it*/
+.gamebar-window-control {
+    width: 44px;
+    height: 44px;
+}
+
+.gamebar-window-control-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gamebar-window-control:hover .gamebar-window-control-circle {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.gamebar-window-control:active .gamebar-window-control-circle {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
 .gamebar-card-title {
     font-weight: bold;
     text-align: center;
@@ -110,6 +131,44 @@
 
 .gamebar-date {
     color: #b5b5ba;
+}
+
+/*Dash styles*/
+.gamebar-dash {
+    color: #ffffff;
+    padding: 8px;
+    spacing: 4px;
+    border-radius: 24px;
+    background-color: #36363a;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+.gamebar-dash-button {
+    width: 52px;
+    height: 56px;
+    padding-top: 11px;
+    border-radius: 14px;
+}
+
+.gamebar-dash-button:hover {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gamebar-dash-button:active {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.gamebar-dash-button-content {
+    spacing: 7px;
+}
+
+/*Shows that the card of the button is shown*/
+.gamebar-dash-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 3px;
+    background-color: #ffffff;
 }
 
 /*Audio styles*/

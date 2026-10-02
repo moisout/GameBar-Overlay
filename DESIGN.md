@@ -5,7 +5,7 @@ The overlay follows the GNOME Adwaita look. The design was made with claude.desi
 - `design/gnome-game-overlay-handoff.md`: design tokens, layout and the description of every card.
 - `design/overlay-mockup.dc.html`: the HTML/CSS mockup at 1920×1080. It needs the design tool's runtime and does not render in a browser, read it as text for exact values.
 
-The design has more cards (Battery, Capture, Gallery, Music, Discord) and a dash at the bottom to show and hide cards. Only the cards the extension already had are implemented: Audio, Clock and Hardware.
+The design has more cards (Battery, Capture, Gallery, Music, Discord). Only the cards the extension already had are implemented: Audio, Clock and Hardware, together with the dash at the bottom that shows and hides them.
 
 This file records where the implementation follows the design, where it departs from it and why.
 
@@ -38,12 +38,24 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Card shadow** `0 2px 4px 0 rgba(0,0,0,0.2)` instead of the design's `0 10px 30px rgba(0,0,0,0.5)`. The design's shadow is far heavier than anything in GNOME. The value is the one of the shell popup menus and Quick Settings. For comparison, libadwaita windows use three centred layers (`0 0 14px 5px` 15%, `0 0 5px 2px` 10%, 1px 5%), which St cannot draw since it supports only one shadow.
 - **Row separators** in the card background `#222226` instead of the design's lighter `rgba(255,255,255,0.08)`. GNOME lists show the background between the rows.
 - **Mute buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons, instead of the design's 44×44.
-- **No pin and no close button on the cards.** Without the dash there is no way to show a closed card again, and pinning is not designed yet.
+- **No pin button on the cards.** Pinning is not designed yet, the slot opposite the close button stays empty so the title stays centred.
 - **No overlay close button.** The overlay closes with Esc, the shortcut, the top bar indicator and a click on an empty area, which is now on by default.
 - **No VRAM on Nvidia GPUs.** It would need `nvidia-smi`, which is spawned synchronously (see the sparklines below). Intel GPUs have no VRAM of their own.
 - **Network arrows** are the Adwaita `go-down` and `go-up` chevrons. Adwaita has no plain arrows, and its `network-receive` and `network-transmit` icons are horizontal arrow pairs.
 - **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but `nvidia-smi` is spawned synchronously and would block the shell every second.
 - **Device picker** opens inside the card instead of as a popup menu.
+
+## Dash and closing cards
+
+The dash (`addons/dash.js`) sits at the bottom centre, 20px from the edge: `#36363a`, radius 24px, padding 8px, a 52×56 button per card with a 22px icon and a 5px dot that shows the card is shown. Clicking a button shows or hides its card. The dash is not draggable.
+
+Audio and Hardware have the Adwaita window control in their header bar: a 24px circle filled `rgba(255,255,255,0.10)` with a 12px cross in a 44px hit area. The Clock has no header bar and is only hidden from the dash, as in the design.
+
+- Closed cards are saved in the `hidden-cards` setting and stay closed across sessions, like dragged positions.
+- Closing and showing a card while the overlay is open fades and scales it (200ms, from 90%).
+- The enter and exit animations only move the shown cards. The overlay hides once every animated card has faded out, and the transition of a hidden actor might never finish.
+- The Hardware card does not exist without any row, the dash then has no button for it.
+- Clicks on the dash do not count as clicks on the empty area.
 
 ## Layout
 
@@ -81,6 +93,7 @@ The sliders are the shell's own `Slider` and follow the accent colour. The spark
 - **`y_align: CENTER` on a `Slider`** gives it no height, the sliders fill the row.
 - **`Clutter.cairo_set_source_color` is gone** on GNOME 50, set the colour with `cr.setSourceRGBA()` from the theme node colour.
 - **No grid, flex gap or multiple shadows** in St CSS. Layouts are `St.BoxLayout`s with `spacing`.
+- **Stopping `button-press-event` on a parent cancels the click of the buttons inside.** On GNOME 50 `St.Button` recognises clicks with a gesture, and a press stopped further up never completes it. Cards and the dash only stop the release, which keeps a click on them from counting as a click on the empty area.
 - **`:first-child`** cannot reach the first group title of a card since every title is the first child of its group, the first title gets its own class.
 
 ## Settings removed
@@ -105,4 +118,4 @@ gsettings set org.gnome.shell disable-extension-version-validation true
 dbus-run-session -- gnome-shell --headless --virtual-monitor 1920x1080 --wayland --no-x11
 ```
 
-Copy the extension to `$HOME/.local/share/gnome-shell/extensions/` first. A `pacat --raw /dev/zero` stream gives the Applications group a silent app to show.
+Copy the extension to `$HOME/.local/share/gnome-shell/extensions/` first. Real clicks can be tested with a virtual pointer from `Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE)`. Its absolute motion loses the y coordinate in the headless shell, so steer it with relative motion and check `global.get_pointer()`. Hide the overview first, it grabs the input. A `pacat --raw /dev/zero` stream gives the Applications group a silent app to show.
