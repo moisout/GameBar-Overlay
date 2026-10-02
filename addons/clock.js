@@ -1,5 +1,6 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import { positionAddon, makeDraggable } from '../cardPosition.js';
 import { createCard } from '../card.js';
@@ -16,6 +17,8 @@ export class Clock {
     this._timeoutId = null;
     this._addonContainer = null;
     this._visibilityChangedId = null;
+    // The clock format of GNOME, 12 or 24 hours.
+    this._interfaceSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
   }
 
   _createClockWidget() {
@@ -117,8 +120,10 @@ export class Clock {
     // Get the current local time
     let now = GLib.DateTime.new_now_local();
 
-    // Format the time based on settings
-    let time = this._showSeconds ? now.format('%H:%M:%S') : now.format('%H:%M');
+    // Format the time based on settings, "9:41 PM" or "21:41"
+    const seconds = this._showSeconds ? ':%S' : '';
+    const twelveHours = this._interfaceSettings.get_string('clock-format') === '12h';
+    let time = now.format(twelveHours ? `%l:%M${seconds} %p` : `%H:%M${seconds}`).trim();
 
     // Update the clock widget with the new time
     this._timeLabel.set_text(time);
