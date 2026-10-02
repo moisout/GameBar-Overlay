@@ -26,6 +26,11 @@ function isGnome48OrNewer() {
 }
 const MUTTER_SCHEMA = 'org.gnome.mutter';
 
+// Fly In and Fly Out: the cards start this much bigger, as if they were in front of the screen.
+const FLY_SCALE = 1.3;
+// Part of the animation duration the innermost card waits for the outer ones.
+const FLY_STAGGER = 0.2;
+
 const GameBar = GObject.registerClass(
 class GameBar extends PanelMenu.Button {
     /**
@@ -232,7 +237,7 @@ class GameBar extends PanelMenu.Button {
 
         this._backdrop.remove_all_transitions();
         this._backdrop.show();
-        if (animationType === 'Fade' || animationType === 'Slide') {
+        if (animationType !== 'None') {
             this._backdrop.set_opacity(0);
             this._backdrop.ease({
                 opacity: 255,
@@ -280,7 +285,54 @@ class GameBar extends PanelMenu.Button {
                     mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
                 });
             });
+        } else if (animationType === 'Fly In') {
+            // The outer cards land first.
+            this._getFlyAnimations().forEach(({child, translationX, translationY, closeness}) => {
+                child.set_opacity(0);
+                child.set_scale(FLY_SCALE, FLY_SCALE);
+                child.set_translation(translationX, translationY, 0);
+
+                child.ease({
+                    opacity: 255,
+                    scale_x: 1,
+                    scale_y: 1,
+                    translation_x: 0,
+                    translation_y: 0,
+                    delay: closeness * FLY_STAGGER * animationDuration,
+                    duration: (1 - FLY_STAGGER) * animationDuration,
+                    mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+                });
+            });
         }
+    }
+
+    /**
+     * Where every card starts for Fly In, and ends for Fly Out.
+     * A card is scaled around the centre of the screen, so cards further out start further out,
+     * like the app icons when unlocking an iPhone.
+     * closeness is 0 for the outermost card and 1 for the innermost one.
+     */
+    _getFlyAnimations() {
+        const centerX = this._overlay.width / 2;
+        const centerY = this._overlay.height / 2;
+
+        const cards = this._overlay.get_children().map(child => {
+            const offsetX = child.x + child.width / 2 - centerX;
+            const offsetY = child.y + child.height / 2 - centerY;
+            return {
+                child,
+                translationX: offsetX * (FLY_SCALE - 1),
+                translationY: offsetY * (FLY_SCALE - 1),
+                distance: Math.hypot(offsetX, offsetY),
+            };
+        });
+
+        const maxDistance = Math.max(...cards.map(card => card.distance));
+        const minDistance = Math.min(...cards.map(card => card.distance));
+        cards.forEach(card => {
+            card.closeness = maxDistance > minDistance ? (maxDistance - card.distance) / (maxDistance - minDistance) : 0;
+        });
+        return cards;
     }
 
 
@@ -291,7 +343,7 @@ class GameBar extends PanelMenu.Button {
         const animationType = this._exitAnimation;
         const animationDuration = this._exitAnimationDuration;
 
-        if (animationType === 'Fade' || animationType === 'Slide') {
+        if (animationType !== 'None') {
             this._backdrop.ease({
                 opacity: 0,
                 duration: animationDuration,
@@ -347,6 +399,26 @@ class GameBar extends PanelMenu.Button {
                     }
                 });
             });
+        } else if (animationType === 'Fly Out') {
+            // The reverse of Fly In, the inner cards leave first.
+            this._getFlyAnimations().forEach(({child, translationX, translationY, closeness}) => {
+                child.set_pivot_point(0.5, 0.5);
+                child.ease({
+                    opacity: 0,
+                    scale_x: FLY_SCALE,
+                    scale_y: FLY_SCALE,
+                    translation_x: translationX,
+                    translation_y: translationY,
+                    delay: (1 - closeness) * FLY_STAGGER * animationDuration,
+                    duration: (1 - FLY_STAGGER) * animationDuration,
+                    mode: Clutter.AnimationMode.EASE_IN_CUBIC,
+                    onComplete: () => {
+                        if (this._overlay && this._overlay.get_children().every(c => c.opacity === 0)) {
+                            this._overlay.hide();
+                        }
+                    }
+                });
+            });
         } else { // None
             this._overlay.hide();
         }
@@ -356,6 +428,8 @@ class GameBar extends PanelMenu.Button {
         if (!this._overlay) return;
 
         this._overlay.get_children().forEach(child => {
+            // A delayed card of a running exit animation would hide the overlay again.
+            child.remove_all_transitions();
             child.set_opacity(255);
             child.set_scale(1, 1);
             child.set_pivot_point(0.5, 0.5);

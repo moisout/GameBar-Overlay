@@ -58,20 +58,21 @@ export default class Preferences extends ExtensionPreferences {
         appearanceGroup.add(overlayBackgroundColorRow);
 
         // Animations
-        const animationValues = ['None', 'Fade', 'Slide'];
+        const enterAnimationValues = ['None', 'Fade', 'Slide', 'Fly In'];
+        const exitAnimationValues = ['None', 'Fade', 'Slide', 'Fly Out'];
 
         // Enter Animation
         const enterAnimationRow = new Adw.ComboRow({
             title: _('Enter Animation'),
             subtitle: _('Select the animation type to show when opening the overlay'),
-            model: new Gtk.StringList({strings: animationValues}),
+            model: new Gtk.StringList({strings: enterAnimationValues}),
         });
 
-        if (animationValues.indexOf(settings.get_string("enter-animation")) === -1) {
+        if (enterAnimationValues.indexOf(settings.get_string("enter-animation")) === -1) {
             settings.set_string("enter-animation", "None");
         }
 
-        enterAnimationRow.set_selected(animationValues.indexOf(settings.get_string("enter-animation")));
+        enterAnimationRow.set_selected(enterAnimationValues.indexOf(settings.get_string("enter-animation")));
         appearanceGroup.add(enterAnimationRow);
         settings.bind('enter-animation', enterAnimationRow, 'selected', Gio.SettingsBindFlags.DEFAULT);
 
@@ -99,14 +100,14 @@ export default class Preferences extends ExtensionPreferences {
         const exitAnimationRow = new Adw.ComboRow({
             title: _('Exit Animation'),
             subtitle: _('Select the animation type to show when closing the overlay'),
-            model: new Gtk.StringList({strings: animationValues}),
+            model: new Gtk.StringList({strings: exitAnimationValues}),
         });
 
-        if (animationValues.indexOf(settings.get_string("exit-animation")) === -1) {
+        if (exitAnimationValues.indexOf(settings.get_string("exit-animation")) === -1) {
             settings.set_string("exit-animation", "None");
         }
 
-        exitAnimationRow.set_selected(animationValues.indexOf(settings.get_string("exit-animation")));
+        exitAnimationRow.set_selected(exitAnimationValues.indexOf(settings.get_string("exit-animation")));
         appearanceGroup.add(exitAnimationRow);
         settings.bind('exit-animation', exitAnimationRow, 'selected', Gio.SettingsBindFlags.DEFAULT);
 

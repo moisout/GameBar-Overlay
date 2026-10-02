@@ -64,25 +64,25 @@
     </key>
 
     <key name="enter-animation" type="s">
-      <default>'Fade'</default>
+      <default>'Fly In'</default>
       <summary>Enter animation type</summary>
       <description>Select the animation type to show when open the overlay</description>
     </key>
 
     <key name="enter-animation-duration" type="i">
-      <default>250</default>
+      <default>350</default>
       <summary>Enter animation duration in ms</summary>
       <description>Determine the enter animation duration in ms</description>
     </key>
 
     <key name="exit-animation" type="s">
-      <default>'Fade'</default>
+      <default>'Fly Out'</default>
       <summary>Exit animation type</summary>
       <description>Select the animation type to show when hide the overlay</description>
     </key>
 
     <key name="exit-animation-duration" type="i">
-      <default>250</default>
+      <default>350</default>
       <summary>Exit animation duration in ms</summary>
       <description>Determine the exit animation duration in ms</description>
     </key>
