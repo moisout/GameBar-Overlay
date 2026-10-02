@@ -6,6 +6,8 @@ import St from 'gi://St';
 const POSITIONS_KEY = 'monitor-card-positions';
 // Cards closed with their close button or the dash stay closed until they are shown from the dash again.
 const HIDDEN_KEY = 'monitor-hidden-cards';
+// Cards that stay on the monitor while the overlay is closed.
+const PINNED_KEY = 'monitor-pinned-cards';
 
 // Default layout from the design (design/gnome-game-overlay-handoff.md): columns of stacked cards, centred on the monitor.
 // A monitor too narrow for a layout gets the next one, the first one fits 1920px.
@@ -29,8 +31,10 @@ const LAYOUT_TOP = 84;
 // The sizes above are in pixels of the stylesheet, which the shell multiplies by its scale factor.
 const getScaleFactor = () => St.ThemeContext.get_for_stage(global.stage).scale_factor;
 
-// The cards placed so far, the cards below a card in its column follow its height.
+// The cards of the overlay placed so far, the cards below a card in its column follow its height.
 const cardElements = new Map();
+// The pin buttons of the cards of the overlay and their card.
+const pinButtons = new Map();
 
 let position_settings = null;
 // The monitor the overlay is on, the positions and closed cards are the ones of this monitor.
@@ -42,12 +46,13 @@ const set_position_settings = (settings) => {
 
 const setCardMonitor = (key) => {
     monitorKey = key;
+    syncPinButtons();
 };
 
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
-const getCustomPositions = () => {
-    return position_settings?.get_value(POSITIONS_KEY).deepUnpack()[monitorKey] ?? {};
+const getCustomPositions = (key = monitorKey) => {
+    return position_settings?.get_value(POSITIONS_KEY).deepUnpack()[key] ?? {};
 };
 
 // Pass a null position to go back to the preset position of the addon.
@@ -78,7 +83,7 @@ const getLayout = (monitor) => {
     return LAYOUTS.find(layout => getLayoutWidth(layout) + 2 * margin <= monitor.width) ?? LAYOUTS[LAYOUTS.length - 1];
 };
 
-const getDefaultPosition = (monitor, id) => {
+const getDefaultPosition = (monitor, id, key) => {
     const scaleFactor = getScaleFactor();
     const layout = getLayout(monitor);
     const columnIndex = layout.findIndex(column => column.includes(id));
@@ -90,13 +95,15 @@ const getDefaultPosition = (monitor, id) => {
     }
 
     let y = LAYOUT_TOP * scaleFactor;
-    const customPositions = getCustomPositions();
+    const customPositions = getCustomPositions(key);
     for (const other of layout[columnIndex]) {
         if (other === id) break;
 
-        // Closed, dragged away and missing cards leave no gap.
+        // Closed, dragged away and missing cards leave no gap. A pinned card is where its card is in the overlay, the
+        // closed cards of another monitor than the one of the overlay are only in the setting.
         const element = cardElements.get(other);
-        if (!element?.visible || customPositions[other]) continue;
+        const shown = key === monitorKey ? element?.visible : element && !isCardHidden(other, key);
+        if (!shown || customPositions[other]) continue;
         y += element.get_preferred_size()[3] + CARD_GAP * scaleFactor;
     }
     return [x, y];
@@ -106,8 +113,8 @@ const getHiddenCards = () => {
     return position_settings?.get_value(HIDDEN_KEY).deepUnpack() ?? {};
 };
 
-const isCardHidden = (id) => {
-    return getHiddenCards()[monitorKey]?.includes(id) ?? false;
+const isCardHidden = (id, key = monitorKey) => {
+    return getHiddenCards()[key]?.includes(id) ?? false;
 };
 
 const setCardHidden = (id, hidden) => {
@@ -122,18 +129,52 @@ const setCardHidden = (id, hidden) => {
     position_settings.set_value(HIDDEN_KEY, new GLib.Variant('a{sas}', monitors));
 };
 
-const placeCard = (monitor, element, id) => {
+// The pinned cards by monitor.
+const getPinnedCards = () => {
+    return position_settings?.get_value(PINNED_KEY).deepUnpack() ?? {};
+};
+
+const isCardPinned = (id, key = monitorKey) => {
+    return getPinnedCards()[key]?.includes(id) ?? false;
+};
+
+const setCardPinned = (id, pinned) => {
+    if (!position_settings || isCardPinned(id) === pinned) return;
+
+    const monitors = getPinnedCards();
+    const pinnedCards = (monitors[monitorKey] ?? []).filter(other => other !== id);
+    if (pinned) {
+        pinnedCards.push(id);
+    }
+    monitors[monitorKey] = pinnedCards;
+    position_settings.set_value(PINNED_KEY, new GLib.Variant('a{sas}', monitors));
+};
+
+// The pin buttons show whether their card is pinned on the monitor of the overlay.
+const trackPinButton = (id, button) => {
+    pinButtons.set(button, id);
+    button.connect('destroy', () => pinButtons.delete(button));
+    button.checked = isCardPinned(id);
+};
+
+const syncPinButtons = () => {
+    pinButtons.forEach((id, button) => {
+        button.checked = isCardPinned(id);
+    });
+};
+
+const placeCard = (monitor, element, id, key = monitorKey) => {
     if (element._dragging) return;
 
     const [, , width, height] = element.get_preferred_size();
-    const custom = getCustomPositions()[id];
+    const custom = getCustomPositions(key)[id];
     let x, y;
     if (custom) {
         // Positions are saved as fractions of the monitor size, so they survive a resolution change.
         x = custom[0] * monitor.width;
         y = custom[1] * monitor.height;
     } else {
-        [x, y] = getDefaultPosition(monitor, id);
+        [x, y] = getDefaultPosition(monitor, id, key);
     }
 
     element.set_position(
@@ -142,18 +183,27 @@ const placeCard = (monitor, element, id) => {
     );
 };
 
+const trackElement = (elements, id, element) => {
+    if (elements.get(id) === element) return;
+
+    elements.set(id, element);
+    element.connect('destroy', () => {
+        if (elements.get(id) === element) elements.delete(id);
+    });
+};
+
 // Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
 // The cards below it in its column move along, they depend on its height.
-const positionAddon = (monitor, element, id) => {
+// pinKey is the monitor of a pinned card, which is placed where its card is in the overlay on that monitor.
+const positionAddon = (monitor, element, id, pinKey = null) => {
     if (!monitor || !element) return;
 
-    if (cardElements.get(id) !== element) {
-        cardElements.set(id, element);
-        element.connect('destroy', () => {
-            if (cardElements.get(id) === element) cardElements.delete(id);
-        });
+    if (pinKey !== null) {
+        placeCard(monitor, element, id, pinKey);
+        return;
     }
 
+    trackElement(cardElements, id, element);
     placeCard(monitor, element, id);
 
     const column = getLayout(monitor).find(other => other.includes(id)) ?? [];
@@ -250,4 +300,5 @@ const makeDraggable = (element, id) => {
     element.connect('destroy', endDrag);
 };
 
-export { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, saveCustomPosition, isCardHidden, setCardHidden, positionAddon, followCardSize, makeDraggable };
+export { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, saveCustomPosition, isCardHidden, setCardHidden,
+    isCardPinned, setCardPinned, trackPinButton, syncPinButtons, positionAddon, followCardSize, makeDraggable };

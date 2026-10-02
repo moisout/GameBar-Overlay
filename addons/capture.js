@@ -4,7 +4,7 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {captureScreenshot} from 'resource:///org/gnome/shell/ui/screenshot.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, createCard, createPillButton } from '../card.js';
 
 // Screencast mode of the screenshot UI of the shell (UIMode in js/ui/screenshot.js, not exported).
@@ -60,8 +60,11 @@ const startScreencast = (monitor) => {
 // Takes a screenshot or starts a recording of the monitor right away.
 export class Capture {
     // runWithOverlayClosed(callback) closes the overlay first, so it is not in the screenshot or recording.
-    constructor(overlay, monitor, runWithOverlayClosed) {
+    // The screenshot callback returns its promise, the pinned cards stay hidden until it settles.
+    constructor(overlay, monitor, runWithOverlayClosed, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+        this._pinKey = pinKey;
         this._monitor = monitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
@@ -73,16 +76,15 @@ export class Capture {
             layout_manager: new Clutter.BinLayout()
         });
 
-        const { card, body } = createCard(_('Capture'), 'gamebar-capture-card', () => setCardHidden('capture', true));
+        const { card, body } = createCard(this._pinKey ? null : _('Capture'), 'gamebar-capture-card', 'capture');
         body.add_style_class_name('gamebar-capture-body');
         // Both buttons as wide as the wider one.
         Object.assign(body, vertical(false));
         body.layout_manager.homogeneous = true;
 
         const screenshot = createPillButton('camera-photo-symbolic', _('Take Screenshot'));
-        screenshot.button.connect('clicked', () => this._runWithOverlayClosed(() => {
-            takeScreenshot(this._monitor).catch(e => logError(e, 'GameBar: Failed to take a screenshot'));
-        }));
+        screenshot.button.connect('clicked', () => this._runWithOverlayClosed(
+            () => takeScreenshot(this._monitor).catch(e => logError(e, 'GameBar: Failed to take a screenshot'))));
         body.add_child(screenshot.button);
 
         this._record = createPillButton('media-record-symbolic', _('Record Screen'), 'gamebar-pill-button-destructive');
@@ -103,7 +105,7 @@ export class Capture {
 
         this._addonContainer.add_child(card);
         this._overlay.add_child(this._addonContainer);
-        makeDraggable(this._addonContainer, 'capture');
+        if (!this._pinKey) makeDraggable(this._addonContainer, 'capture');
 
         followCardSize(this._addonContainer, () => this.set_addon_position());
     }
@@ -120,7 +122,7 @@ export class Capture {
     }
 
     set_addon_position() {
-        positionAddon(this._monitor, this._addonContainer, 'capture');
+        positionAddon(this._monitor, this._addonContainer, 'capture', this._pinKey);
     }
 
     destroy() {

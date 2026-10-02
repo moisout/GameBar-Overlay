@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import UPower from 'gi://UPowerGlib';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, createCard, createGroupTitle, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 
 // UPower over D-Bus like the shell, the device lists of UPowerGlib are freed too early in GJS.
@@ -195,8 +195,10 @@ class BatteryModel {
 }
 
 export class Battery {
-    constructor(overlay, monitor) {
+    constructor(overlay, monitor, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+        this._pinKey = pinKey;
         this._monitor = monitor;
         this._addonContainer = null;
         this._body = null;
@@ -209,13 +211,13 @@ export class Battery {
             layout_manager: new Clutter.BinLayout()
         });
 
-        const { card, body } = createCard(_('Battery'), 'gamebar-battery-card', () => setCardHidden('battery', true));
+        const { card, body } = createCard(this._pinKey ? null : _('Battery'), 'gamebar-battery-card', 'battery');
         this._body = body;
         this._sync();
 
         this._addonContainer.add_child(card);
         this._overlay.add_child(this._addonContainer);
-        makeDraggable(this._addonContainer, 'battery');
+        if (!this._pinKey) makeDraggable(this._addonContainer, 'battery');
 
         followCardSize(this._addonContainer, () => this.set_addon_position());
     }
@@ -289,7 +291,7 @@ export class Battery {
     }
 
     set_addon_position() {
-        positionAddon(this._monitor, this._addonContainer, 'battery');
+        positionAddon(this._monitor, this._addonContainer, 'battery', this._pinKey);
     }
 
     _destroyWidget() {

@@ -36,6 +36,37 @@
     background-color: rgba(255, 255, 255, 0.25);
 }
 
+.gamebar-pin-button .gamebar-window-control-circle {
+    background-color: transparent;
+}
+
+.gamebar-pin-button:hover .gamebar-window-control-circle {
+    background-color: rgba(255, 255, 255, 0.10);
+}
+
+.gamebar-pin-button:checked .gamebar-window-control-circle {
+    background-color: rgba(255, 255, 255, 0.18);
+}
+
+.gamebar-pin-button:checked:hover .gamebar-window-control-circle,
+.gamebar-pin-button:active .gamebar-window-control-circle {
+    background-color: rgba(255, 255, 255, 0.25);
+}
+
+/*The pin button of the Clock card, which has no header bar, is in its corner while the pointer is over it*/
+.gamebar-clock-pin {
+    margin: 2px;
+}
+
+/*Pinned cards over the windows have no header bar*/
+.gamebar-pin-layer .gamebar-card-body-headerless {
+    padding: 12px;
+}
+
+.gamebar-pin-layer .gamebar-clock-card .gamebar-card-body-headerless {
+    padding: 20px 12px;
+}
+
 .gamebar-card-title {
     font-weight: bold;
     text-align: center;
@@ -388,6 +419,37 @@
 .gamebar-discord-more-row:hover,
 .gamebar-discord-more-row:active {
     border-radius: 0 0 12px 12px;
+}
+
+/*Pinned Discord card, like the overlay of Discord on Windows*/
+.gamebar-discord-pinned {
+    spacing: 6px;
+}
+
+.gamebar-discord-pinned-member {
+    spacing: 8px;
+}
+
+.gamebar-discord-pinned-speaking {
+    border-color: #23a55a;
+}
+
+.gamebar-discord-pinned-tag {
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.6);
+    spacing: 4px;
+}
+
+.gamebar-discord-pinned-state {
+    color: #f23f43;
+}
+
+.gamebar-discord-pinned-more {
+    padding-left: 44px;
 }
 
 .gamebar-discord-controls {

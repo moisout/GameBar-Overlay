@@ -20,6 +20,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - The Discord voice channel: who is in it and who is speaking, with mute, deafen and disconnect (needs the official Discord client)
 - A dash to show and hide the cards
 - Cards can be dragged anywhere on the overlay
+- Pin cards to keep them over the game while the overlay is closed, clicks go through them
 - Opens on the monitor of the game, every monitor keeps its own card positions and closed cards
 - Fly In, Fade and Slide animations
 

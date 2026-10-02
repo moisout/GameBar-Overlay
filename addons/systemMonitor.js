@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import Cairo from 'cairo';
 import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, createCard, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
 
@@ -110,8 +110,10 @@ const formatRate = (bytesPerSecond) => {
 };
 
 export class SystemMonitor {
-    constructor(overlay, monitor) {
+    constructor(overlay, monitor, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+        this._pinKey = pinKey;
         this._monitor = monitor;
         
         this._cpuRow = null;
@@ -158,7 +160,7 @@ export class SystemMonitor {
             layout_manager: new Clutter.BinLayout()
         });
 
-        const { card, body } = createCard(_('Hardware'), 'gamebar-hardware-card', () => setCardHidden('system-monitor', true));
+        const { card, body } = createCard(this._pinKey ? null : _('Hardware'), 'gamebar-hardware-card', 'system-monitor');
         const list = new BoxedList();
         body.add_child(list.actor);
 
@@ -194,7 +196,7 @@ export class SystemMonitor {
 
         // Add the addon container to the overlay
         this._overlay.add_child(this._addonContainer);
-        makeDraggable(this._addonContainer, 'system-monitor');
+        if (!this._pinKey) makeDraggable(this._addonContainer, 'system-monitor');
 
 followCardSize(this._addonContainer, () => this.set_addon_position());
 
@@ -304,7 +306,7 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
   }
 
   set_addon_position() {
-    positionAddon(this._monitor, this._addonContainer, 'system-monitor');
+    positionAddon(this._monitor, this._addonContainer, 'system-monitor', this._pinKey);
   }
 
   _getCpuUsage() {

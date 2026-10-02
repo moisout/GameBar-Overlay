@@ -4,7 +4,7 @@ import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
-import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { DeviceSection } from './deviceSection.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
 import { readFile } from '../utils.js';
@@ -31,8 +31,10 @@ const getParentPid = (pid) => {
 };
 
 export class SoundControls {
-    constructor(overlay, monitor) {
+    constructor(overlay, monitor, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+        this._pinKey = pinKey;
         this._monitor = monitor;
         this._volumeControl = Volume.getMixerControl();
         this._outputSection = null;
@@ -56,7 +58,7 @@ export class SoundControls {
 
         this._cancellable = new Gio.Cancellable();
 
-        const { card, body } = createCard(_('Audio'), 'gamebar-audio-card', () => setCardHidden('sound', true));
+        const { card, body } = createCard(this._pinKey ? null : _('Audio'), 'gamebar-audio-card', 'sound');
 
         // Create the output and input device controls
         this._outputSection = new DeviceSection(this._volumeControl, 'output', _('Output'));
@@ -82,15 +84,22 @@ export class SoundControls {
             'stream-removed', () => this._syncApps(),
             this._addonContainer);
 
+        // The overlay updates its card when it opens, a pinned card updates when its monitor shows it.
+        if (this._pinKey) {
+            this._overlay.connectObject('notify::visible', () => {
+                if (this._overlay.visible) this.updateVolumeControls();
+            }, this._addonContainer);
+        }
+
         // Add the addon container to the overlay
         this._overlay.add_child(this._addonContainer);
-        makeDraggable(this._addonContainer, 'sound');
+        if (!this._pinKey) makeDraggable(this._addonContainer, 'sound');
 
 followCardSize(this._addonContainer, () => this.set_addon_position());
     }
 
     set_addon_position(){
-        positionAddon(this._monitor, this._addonContainer, 'sound');
+        positionAddon(this._monitor, this._addonContainer, 'sound', this._pinKey);
       }
 
     // Called every time the overlay opens

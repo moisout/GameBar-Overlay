@@ -6,7 +6,7 @@ import Shell from 'gi://Shell';
 import Soup from 'gi://Soup?version=3.0';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime, deleteOldFiles } from '../utils.js';
 
@@ -414,8 +414,10 @@ class CoverCache {
 }
 
 export class Music {
-    constructor(overlay, monitor) {
+    constructor(overlay, monitor, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+        this._pinKey = pinKey;
         this._monitor = monitor;
         this._addonContainer = null;
         this._visibilityChangedId = null;
@@ -432,7 +434,7 @@ export class Music {
             layout_manager: new Clutter.BinLayout()
         });
 
-        const { card, body } = createCard(_('Music'), 'gamebar-music-card', () => setCardHidden('music', true));
+        const { card, body } = createCard(this._pinKey ? null : _('Music'), 'gamebar-music-card', 'music');
 
         // With several players a tab bar below the header switches between them.
         this._tabBar = new TabBar(card, body, busName => {
@@ -458,7 +460,7 @@ export class Music {
 
         this._addonContainer.add_child(card);
         this._overlay.add_child(this._addonContainer);
-        makeDraggable(this._addonContainer, 'music');
+        if (!this._pinKey) makeDraggable(this._addonContainer, 'music');
 
         followCardSize(this._addonContainer, () => this.set_addon_position());
 
@@ -653,7 +655,7 @@ export class Music {
     }
 
     set_addon_position() {
-        positionAddon(this._monitor, this._addonContainer, 'music');
+        positionAddon(this._monitor, this._addonContainer, 'music', this._pinKey);
     }
 
     _destroyWidget() {

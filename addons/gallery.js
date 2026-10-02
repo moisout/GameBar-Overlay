@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Gettext from 'gettext';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime } from '../utils.js';
 
@@ -213,8 +213,10 @@ class CaptureLibrary {
 
 export class Gallery {
     // runWithOverlayClosed(callback) closes the overlay first, so the opened file or folder is not behind it.
-    constructor(overlay, monitor, runWithOverlayClosed) {
+    constructor(overlay, monitor, runWithOverlayClosed, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
+        this._pinKey = pinKey;
         this._monitor = monitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
@@ -237,7 +239,7 @@ export class Gallery {
         folderButton.x_align = Clutter.ActorAlign.CENTER;
         folderButton.connect('clicked', () => this._open(this._library.getFolder(this._tab)));
 
-        const { card, body } = createCard(_('Gallery'), 'gamebar-gallery-card', () => setCardHidden('gallery', true), folderButton);
+        const { card, body } = createCard(this._pinKey ? null : _('Gallery'), 'gamebar-gallery-card', 'gallery', folderButton);
 
         const tabs = [
             { id: 'all', name: _('All') },
@@ -265,7 +267,7 @@ export class Gallery {
 
         this._addonContainer.add_child(card);
         this._overlay.add_child(this._addonContainer);
-        makeDraggable(this._addonContainer, 'gallery');
+        if (!this._pinKey) makeDraggable(this._addonContainer, 'gallery');
 
         followCardSize(this._addonContainer, () => this.set_addon_position());
 
@@ -358,7 +360,7 @@ export class Gallery {
     }
 
     set_addon_position() {
-        positionAddon(this._monitor, this._addonContainer, 'gallery');
+        positionAddon(this._monitor, this._addonContainer, 'gallery', this._pinKey);
     }
 
     _destroyWidget() {

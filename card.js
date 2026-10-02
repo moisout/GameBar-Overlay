@@ -3,6 +3,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import { setCardHidden, isCardPinned, setCardPinned, trackPinButton } from './cardPosition.js';
 
 // Building blocks for the Adwaita style cards, see design/gnome-game-overlay-handoff.md.
 
@@ -15,9 +16,9 @@ const vertical = (isVertical = true) => {
 };
 
 // A card with an optional header bar. Children go into the returned body.
-// With onClose the header bar gets a close button, like the window controls of Adwaita.
-// leading is an actor for the slot on the left of the header bar, like a button of the card.
-const createCard = (title, styleClass = '', onClose = null, leading = null) => {
+// With the id of the card the header bar gets a pin button and a close button, like the window controls of Adwaita.
+// leading is an actor for the left of the header bar after the pin button, like a button of the card.
+const createCard = (title, styleClass = '', id = null, leading = null) => {
     const card = new St.BoxLayout({
         ...vertical(),
         style_class: `gamebar-card ${styleClass}`,
@@ -28,17 +29,23 @@ const createCard = (title, styleClass = '', onClose = null, leading = null) => {
 
     if (title) {
         const header = new St.BoxLayout({ style_class: 'gamebar-card-header' });
-        // The empty slot keeps the title centred opposite the close button.
-        header.add_child(leading
-            ? new St.Bin({ style_class: 'gamebar-window-control', child: leading })
-            : new St.Widget({ style_class: 'gamebar-window-control' }));
+        const start = new St.BoxLayout();
+        const end = new St.BoxLayout();
+        start.add_child(id ? createPinButton(id) : new St.Widget({ style_class: 'gamebar-window-control' }));
+        // Both sides are as wide, which keeps the title centred.
+        if (leading) {
+            start.add_child(new St.Bin({ style_class: 'gamebar-window-control', child: leading }));
+            end.add_child(new St.Widget({ style_class: 'gamebar-window-control' }));
+        }
+        end.add_child(id ? createCloseButton(() => setCardHidden(id, true)) : new St.Widget({ style_class: 'gamebar-window-control' }));
+        header.add_child(start);
         header.add_child(new St.Label({
             style_class: 'gamebar-card-title',
             text: title,
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         }));
-        header.add_child(onClose ? createCloseButton(onClose) : new St.Widget({ style_class: 'gamebar-window-control' }));
+        header.add_child(end);
         card.add_child(header);
     }
 
@@ -66,6 +73,25 @@ const createCloseButton = (onClose) => {
         }),
     });
     button.connect('clicked', onClose);
+    return button;
+};
+
+// Keeps the card on the monitor while the overlay is closed. Flat until the card is pinned, then filled like a
+// pressed toggle button.
+const createPinButton = (id) => {
+    const button = new St.Button({
+        style_class: 'gamebar-window-control gamebar-pin-button',
+        y_align: Clutter.ActorAlign.CENTER,
+        accessible_name: _('Pin'),
+        child: new St.Bin({
+            style_class: 'gamebar-window-control-circle',
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 16 }),
+        }),
+    });
+    button.connect('clicked', () => setCardPinned(id, !isCardPinned(id)));
+    trackPinButton(id, button);
     return button;
 };
 
@@ -286,4 +312,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { vertical, backgroundImageStyle, createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };
+export { vertical, backgroundImageStyle, createCard, createPinButton, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };

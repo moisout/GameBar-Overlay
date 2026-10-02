@@ -8,7 +8,8 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, isCardHidden } from './cardPosition.js';
+import { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, isCardHidden, syncPinButtons } from './cardPosition.js';
+import { PinnedCards } from './pinnedCards.js';
 import { getMonitorKey } from './utils.js';
 
 //Addon Imports:
@@ -20,7 +21,7 @@ import {Capture} from './addons/capture.js';
 import {Battery} from './addons/battery.js';
 import {Music} from './addons/music.js';
 import {Gallery} from './addons/gallery.js';
-import {Discord} from './addons/discord.js';
+import {Discord, DiscordPinned} from './addons/discord.js';
 //TODO:: weather addon
 //TODO:: brightness addon
 
@@ -103,23 +104,44 @@ class GameBar extends PanelMenu.Button {
         this._clock = new Clock(this._overlay, monitor); // Clock addon
         this._soundControls = new SoundControls(this._overlay, monitor); // Sound controls addon
         this._systemMonitor = new SystemMonitor(this._overlay, monitor); // System Monitor stats addon
-        this._capture = new Capture(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // Screenshot and screencast buttons
+        // The pinned cards are hidden for a screenshot, a recording hides them while it runs.
+        this._capture = new Capture(this._overlay, monitor,
+            callback => this._runWithOverlayClosed(() => this._pins.hideWhile(callback))); // Screenshot and screencast buttons
         this._battery = new Battery(this._overlay, monitor); // Battery of the computer and connected devices
         this._music = new Music(this._overlay, monitor); // Controls of the media player that played last
         this._gallery = new Gallery(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The latest screenshots and recordings
         this._discord = new Discord(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The voice channel of Discord
 
+        // A pinned card is the card built again for the monitor it is pinned on, without a header bar.
+        // Its buttons are never clicked, the pointer goes to the windows below the pinned cards.
+        const pinned = (Addon, ...args) => (layer, pinMonitor, pinKey) => new Addon(layer, pinMonitor, ...args, { pinKey });
+        const pinnedWithSettings = (Addon) => (...args) => {
+            const addon = pinned(Addon)(...args);
+            addon._updateSettings(this._settings);
+            return addon;
+        };
+        const noOverlay = () => {};
+
         // The cards the dash shows and hides, in the order of its buttons
         this._cards = [
-            { id: 'sound', name: _('Audio'), iconName: 'audio-volume-high-symbolic', addon: this._soundControls },
-            { id: 'capture', name: _('Capture'), iconName: 'camera-photo-symbolic', addon: this._capture },
-            { id: 'gallery', name: _('Gallery'), iconName: 'image-x-generic-symbolic', addon: this._gallery },
-            { id: 'clock', name: _('Clock'), iconName: 'preferences-system-time-symbolic', addon: this._clock },
-            { id: 'system-monitor', name: _('Hardware'), iconName: 'computer-symbolic', addon: this._systemMonitor },
-            { id: 'battery', name: _('Battery'), iconName: 'battery-symbolic', addon: this._battery },
-            { id: 'music', name: _('Music'), iconName: 'audio-x-generic-symbolic', addon: this._music },
-            { id: 'discord', name: _('Discord'), iconName: 'audio-headset-symbolic', addon: this._discord },
+            { id: 'sound', name: _('Audio'), iconName: 'audio-volume-high-symbolic', addon: this._soundControls,
+                createPinned: pinnedWithSettings(SoundControls) },
+            { id: 'capture', name: _('Capture'), iconName: 'camera-photo-symbolic', addon: this._capture,
+                createPinned: pinned(Capture, noOverlay) },
+            { id: 'gallery', name: _('Gallery'), iconName: 'image-x-generic-symbolic', addon: this._gallery,
+                createPinned: pinned(Gallery, noOverlay) },
+            { id: 'clock', name: _('Clock'), iconName: 'preferences-system-time-symbolic', addon: this._clock,
+                createPinned: pinnedWithSettings(Clock) },
+            { id: 'system-monitor', name: _('Hardware'), iconName: 'computer-symbolic', addon: this._systemMonitor,
+                createPinned: pinnedWithSettings(SystemMonitor) },
+            { id: 'battery', name: _('Battery'), iconName: 'battery-symbolic', addon: this._battery,
+                createPinned: pinned(Battery) },
+            { id: 'music', name: _('Music'), iconName: 'audio-x-generic-symbolic', addon: this._music,
+                createPinned: pinned(Music) },
+            { id: 'discord', name: _('Discord'), iconName: 'audio-headset-symbolic', addon: this._discord,
+                createPinned: (layer, pinMonitor, pinKey) => new DiscordPinned(layer, pinMonitor, { pinKey }) },
         ];
+        this._pins = new PinnedCards(this._cards, this._overlay);
         // Cards fading out after being closed, they are still visible until the animation ends.
         this._hidingCards = new Set();
         this._dash = new Dash(this._overlay, monitor, this._cards);
@@ -134,6 +156,7 @@ class GameBar extends PanelMenu.Button {
             //TODO:: fix bug: when change to a diferent resolution monitor, the size wont update properly
             this._closeOverlay(false);
             this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
+            this._pins.rebuild();
         });
 
         // The cards and the gaps between them grow with the scale factor of the shell.
@@ -141,6 +164,7 @@ class GameBar extends PanelMenu.Button {
         this._scaleFactorChangedId = this._themeContext.connect('notify::scale-factor', () => {
             this._positionCards();
             this._dash.set_addon_position();
+            this._pins.reposition();
         });
 
         // Close the overlay when clicking on an empty area, the cards stop the clicks on them
@@ -202,7 +226,9 @@ class GameBar extends PanelMenu.Button {
         }
 
         this._isOpen = true;
-        this._updateOverlayGeometry(this._getGameMonitor());
+        const monitor = this._getGameMonitor();
+        this._updateOverlayGeometry(monitor);
+        this._pins.overlayMonitorIndex = monitor.index;
         this._showOverlayWithAnimation();
         this._clock._updateClock();
         this._soundControls.updateVolumeControls();
@@ -557,12 +583,20 @@ class GameBar extends PanelMenu.Button {
         // A dragged addon is already in place.
         if (key === POSITIONS_KEY) {
             this._positionCards();
+            this._pins.reposition();
+            return;
+        }
+
+        if (key === PINNED_KEY) {
+            syncPinButtons();
+            this._pins.rebuild();
             return;
         }
 
         // Closing a card or showing it from the dash only changes which cards are visible.
         if (key === HIDDEN_KEY) {
             this._syncCardVisibility(true);
+            this._pins.rebuild();
             return;
         }
 
@@ -570,9 +604,11 @@ class GameBar extends PanelMenu.Button {
         if (CLOCK_KEYS.includes(key)) {
             this._clock._updateSettings(settings);
             this._onCardsRecreated();
+            this._pins.rebuild();
         } else if (SYSTEM_MONITOR_KEYS.includes(key)) {
             this._systemMonitor._updateSettings(settings);
             this._onCardsRecreated();
+            this._pins.rebuild();
         } else {
             this._updateOverlaySettings(settings);
         }
@@ -587,6 +623,7 @@ class GameBar extends PanelMenu.Button {
         this._systemMonitor._updateSettings(settings);
         this._onCardsRecreated();
         this._updateOverlaySettings(settings);
+        this._pins.rebuild();
     }
 
     // New cards start visible and on top of the dash.
@@ -611,6 +648,8 @@ class GameBar extends PanelMenu.Button {
      */
     destroy() {
         this._closeOverlay(false);
+        this._pins?.destroy();
+        this._pins = null;
 
         // Call the addon destroy:
         this._clock?.destroy();
