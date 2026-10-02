@@ -98,6 +98,11 @@
     background-color: rgba(255, 255, 255, 0.18);
 }
 
+/*A media button the player does not offer*/
+.gamebar-icon-button:insensitive {
+    color: rgba(255, 255, 255, 0.35);
+}
+
 /*Lines the icon of a button that starts a row up with the row padding, St breaks on negative margins*/
 .gamebar-row-leading-button {
     padding-left: 6px;
@@ -231,6 +236,73 @@
 .gamebar-battery-percentage {
     width: 44px;
     text-align: right;
+}
+
+/*Music styles*/
+.gamebar-music-card {
+    width: 400px;
+}
+
+/*One boxed group without rows, the slider below the track brings its own height*/
+.gamebar-music-player {
+    padding: 12px 12px 4px;
+}
+
+.gamebar-music-track {
+    spacing: 12px;
+}
+
+/*The cover is a background image so it follows the rounded corners*/
+.gamebar-music-cover {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    background-color: #4d4d55;
+    color: #d0d0d4;
+}
+
+/*Tab bar switching between players, the tab bar of the Gallery card in the design (like GNOME Files)*/
+.gamebar-tabs {
+    padding: 0 6px;
+}
+
+.gamebar-tab {
+    height: 44px;
+    padding: 0 8px;
+    border-radius: 9px;
+    color: #b5b5ba;
+}
+
+.gamebar-tab:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.gamebar-tab-selected,
+.gamebar-tab-selected:hover {
+    color: #ffffff;
+    font-weight: bold;
+    background-color: rgba(255, 255, 255, 0.11);
+}
+
+/*Only between two unselected tabs*/
+.gamebar-tab-separator {
+    width: 1px;
+    height: 18px;
+    background-color: rgba(255, 255, 255, 0.14);
+}
+
+/*The body below a tab bar*/
+.gamebar-card-body-tabbed {
+    padding-top: 12px;
+}
+
+.gamebar-music-title {
+    font-weight: bold;
+}
+
+.gamebar-music-progress {
+    min-height: 44px;
+    spacing: 10px;
 }
 
 /*Audio styles*/

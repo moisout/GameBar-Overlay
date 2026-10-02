@@ -15,6 +15,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - CPU/GPU usage and temperature monitor, memory, disk and network
 - Instant screenshot and screen recording of the monitor, saved and shown like GNOME's own
 - Battery of the computer and of connected devices like mice, headsets and controllers
+- Media controls with the cover, track and seek slider, and tabs to switch between several players
 - A dash to show and hide the cards
 - Cards can be dragged anywhere on the overlay
 - Fly In, Fade and Slide animations
@@ -46,6 +47,7 @@ Open the Overlay by clicking the top-bar button or by pressing `Super + G`. Clos
 - [x] Screenshot addon
 - [ ] Weather addon
 - [x] Battery addon
+- [x] Music addon
 - [ ] Brightness addon
 
 ## Known issues

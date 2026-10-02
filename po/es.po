@@ -319,3 +319,35 @@ msgstr "Completamente cargada"
 #: addons/battery.js
 msgid "Not charging"
 msgstr "No se está cargando"
+
+#: extension.js
+msgid "Music"
+msgstr "Música"
+
+#: addons/music.js
+msgid "Nothing playing"
+msgstr "No se está reproduciendo nada"
+
+#: addons/music.js
+msgid "Unknown title"
+msgstr "Título desconocido"
+
+#: addons/music.js
+msgid "Previous Track"
+msgstr "Pista anterior"
+
+#: addons/music.js
+msgid "Next Track"
+msgstr "Pista siguiente"
+
+#: addons/music.js
+msgid "Pause"
+msgstr "Pausar"
+
+#: addons/music.js
+msgid "Play"
+msgstr "Reproducir"
+
+#: addons/music.js
+msgid "Playback Position"
+msgstr "Posición de reproducción"

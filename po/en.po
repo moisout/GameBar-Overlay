@@ -319,3 +319,35 @@ msgstr "Fully charged"
 #: addons/battery.js
 msgid "Not charging"
 msgstr "Not charging"
+
+#: extension.js
+msgid "Music"
+msgstr "Music"
+
+#: addons/music.js
+msgid "Nothing playing"
+msgstr "Nothing playing"
+
+#: addons/music.js
+msgid "Unknown title"
+msgstr "Unknown title"
+
+#: addons/music.js
+msgid "Previous Track"
+msgstr "Previous Track"
+
+#: addons/music.js
+msgid "Next Track"
+msgstr "Next Track"
+
+#: addons/music.js
+msgid "Pause"
+msgstr "Pause"
+
+#: addons/music.js
+msgid "Play"
+msgstr "Play"
+
+#: addons/music.js
+msgid "Playback Position"
+msgstr "Playback Position"

@@ -5,7 +5,7 @@ The overlay follows the GNOME Adwaita look. The design was made with claude.desi
 - `design/gnome-game-overlay-handoff.md`: design tokens, layout and the description of every card.
 - `design/overlay-mockup.dc.html`: the HTML/CSS mockup at 1920×1080. It needs the design tool's runtime and does not render in a browser, read it as text for exact values.
 
-Implemented are the Audio, Capture, Clock, Hardware and Battery cards, together with the dash at the bottom that shows and hides them. The Gallery, Music and Discord cards of the design are not implemented yet.
+Implemented are the Audio, Capture, Clock, Hardware, Battery and Music cards, together with the dash at the bottom that shows and hides them. The Gallery and Discord cards of the design are not implemented yet.
 
 This file records where the implementation follows the design, where it departs from it and why.
 
@@ -31,6 +31,12 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - The recording goes through the screenshot UI of the shell, so the shell shows its recording indicator with the stop button and the notification. The screenshot UI has no API to record a monitor right away: its screen mode and the monitor are set on its private buttons, `_startScreencast()` reads the area before its first await, and the previous mode is restored right after. Without these internals the screenshot UI opens in screencast mode instead.
   - While a recording runs the record button turns into "Stop Recording", the design has no recording state. Without PipeWire or the GStreamer plugins the record button is disabled.
 - **Battery** (400px): "This Device" with the state as subtitle ("3 h 10 min remaining", "Fully charged", ...), a level bar and the percentage, from the UPower display device. Below it the group "Connected Devices": mice, headsets, controllers and other devices with a battery, with an icon for their type. A low battery (the warning level of UPower) shows "Low battery" and the bar in the warning colour `#ff938c`. Without any battery the card says so. UPower is read over D-Bus with proxies, the device lists of UPowerGlib are freed too early in GJS.
+- **Music** (400px): one boxed group with the cover (56px, radius 8px), the title in bold over "artist · player app", and the previous, play/pause and next buttons. Below them the elapsed time, a seek slider and the length. The players are found over MPRIS on the session bus like the media controls of the shell, which has no position and whose API differs between GNOME versions, so the card has its own proxies:
+  - The card shows the player that played last, playing players before paused ones. Stopped players have no track and are left out. Without a player the card says "Nothing playing".
+  - With several players a tab bar below the header switches between them. The design leaves switching open, the tab bar is the one of the Gallery card (like GNOME Files): equal-width tabs, 44px high, radius 9px, the selected one filled `rgba(255,255,255,0.11)` and bold, a separator between two unselected tabs. Tabs are named after the app, players of the same app (two browser tabs) after their track, and stay in the order the players appeared. A picked player stays shown until it goes away or the overlay closes, then the card shows the player that played last again.
+  - Players do not announce their position. It is read when the overlay opens, when the status or the track changes and on `Seeked`, and counted on between reads while playing.
+  - Dragging the slider seeks once it is let go, with `SetPosition`, or with `Seek` for players without a valid track id. Streams have no length, their card has no slider. Buttons the player does not offer are greyed out.
+  - Covers are a background image, which follows the rounded corners like the user avatars of the shell. `file://` covers are shown as they are, covers on the web (Spotify) are downloaded with libsoup to `~/.cache/gamebar-overlay@m0.is/covers`, keeping only the last one.
 - **Hardware** (400px): one boxed list with these rows:
   - **CPU** and **GPU**: the temperature as subtitle, a sparkline of the usage of the last 30 seconds in the accent colour and the usage in bold. On amdgpu the GPU subtitle adds the VRAM in use (sysfs `mem_info_vram_used`). Without libgtop the CPU row only shows the install hint.
   - **Memory**: "used of total" in GiB, a level bar and the percentage. Used is total minus available from `/proc/meminfo`, like GNOME System Monitor.
@@ -42,13 +48,14 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Group names "Output" and "Input"** instead of "Output" and "Microphone", so both groups are named the same way.
 - **Card shadow** `0 2px 4px 0 rgba(0,0,0,0.2)` instead of the design's `0 10px 30px rgba(0,0,0,0.5)`. The design's shadow is far heavier than anything in GNOME. The value is the one of the shell popup menus and Quick Settings. For comparison, libadwaita windows use three centred layers (`0 0 14px 5px` 15%, `0 0 5px 2px` 10%, 1px 5%), which St cannot draw since it supports only one shadow.
 - **Row separators** in the card background `#222226` instead of the design's lighter `rgba(255,255,255,0.08)`. GNOME lists show the background between the rows.
-- **Mute buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons, instead of the design's 44×44.
+- **Mute and media buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons, instead of the design's 44×44.
 - **No pin button on the cards.** Pinning is not designed yet, the slot opposite the close button stays empty so the title stays centred.
 - **No overlay close button.** The overlay closes with Esc, the shortcut, the top bar indicator and a click on an empty area, which is now on by default.
 - **No VRAM on Nvidia GPUs.** It would need `nvidia-smi`, which is spawned synchronously (see the sparklines below). Intel GPUs have no VRAM of their own.
 - **Network arrows** are the Adwaita `go-down` and `go-up` chevrons. Adwaita has no plain arrows, and its `network-receive` and `network-transmit` icons are horizontal arrow pairs.
 - **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but `nvidia-smi` is spawned synchronously and would block the shell every second.
 - **Device picker** opens inside the card instead of as a popup menu.
+- **Player tabs** on the Music card, the design has no way to switch between players yet.
 - **Dash buttons** are square, 52×52 instead of the design's 52×56.
 - **Close cross** is the 16px `window-close-symbolic` icon of the libadwaita window controls instead of the design's 12px icon. Adwaita's cross takes only half the icon, at 12px it was a tiny 6px.
 
@@ -72,7 +79,7 @@ Cards start in the column layout of the design (`cardPosition.js`):
 |---|---|---|
 | 1 | 400 | Audio, Battery |
 | 2 | 520 | Capture |
-| 3 | 400 | Clock |
+| 3 | 400 | Clock, Music |
 | 4 | 400 | Hardware |
 
 Columns are 40px apart and the grid is centred on the monitor, at y = 84. The cards of a column are stacked 24px apart, closed, dragged away and missing cards leave no gap, and the cards below a card move along when its height changes. On 1920×1080 this gives the design's x positions 40, 480, 1040 and 1480.
@@ -81,9 +88,9 @@ Monitors too narrow for the four columns get fewer:
 
 | Monitor width | Columns |
 |---|---|
-| 1920 and more | Audio, Battery · Capture · Clock · Hardware |
-| 1480 to 1919 | Audio, Battery · Clock, Capture · Hardware |
-| below 1480 | Audio, Battery · Clock, Capture, Hardware |
+| 1920 and more | Audio, Battery · Capture · Clock, Music · Hardware |
+| 1480 to 1919 | Audio, Battery · Clock, Music, Capture · Hardware |
+| below 1480 | Audio, Battery, Music · Clock, Capture, Hardware |
 
 On 1280×800 not every card fits above the dash, the bottom of the Hardware card reaches behind it. The dash is always kept above the cards.
 

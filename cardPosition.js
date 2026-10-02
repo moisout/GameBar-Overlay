@@ -9,9 +9,9 @@ const HIDDEN_KEY = 'hidden-cards';
 // Default layout from the design (design/gnome-game-overlay-handoff.md): columns of stacked cards, centred on the monitor.
 // A monitor too narrow for a layout gets the next one, the first one fits 1920px.
 const LAYOUTS = [
-    [['sound', 'battery'], ['capture'], ['clock'], ['system-monitor']],
-    [['sound', 'battery'], ['clock', 'capture'], ['system-monitor']],
-    [['sound', 'battery'], ['clock', 'capture', 'system-monitor']],
+    [['sound', 'battery'], ['capture'], ['clock', 'music'], ['system-monitor']],
+    [['sound', 'battery'], ['clock', 'music', 'capture'], ['system-monitor']],
+    [['sound', 'battery', 'music'], ['clock', 'capture', 'system-monitor']],
 ];
 // Width of the cards in the design, a column is as wide as its widest card.
 const CARD_WIDTHS = {
