@@ -360,11 +360,6 @@ export class Gallery {
         positionAddon(this._primaryMonitor, this._addonContainer, 'gallery');
     }
 
-    _updateSettings(settings) {
-        this._destroyWidget();
-        this._createGalleryWidget();
-    }
-
     _destroyWidget() {
         if (this._visibilityChangedId) {
             this._overlay.disconnect(this._visibilityChangedId);

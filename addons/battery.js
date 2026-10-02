@@ -306,11 +306,6 @@ export class Battery {
         positionAddon(this._primaryMonitor, this._addonContainer, 'battery');
     }
 
-    _updateSettings(settings) {
-        this._destroyWidget();
-        this._createBatteryWidget();
-    }
-
     _destroyWidget() {
         if (this._heightChangeId) {
             this._addonContainer.disconnect(this._heightChangeId);

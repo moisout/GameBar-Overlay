@@ -667,11 +667,6 @@ export class Music {
         positionAddon(this._primaryMonitor, this._addonContainer, 'music');
     }
 
-    _updateSettings(settings) {
-        this._destroyWidget();
-        this._createMusicWidget();
-    }
-
     _destroyWidget() {
         this._stopProgress();
 

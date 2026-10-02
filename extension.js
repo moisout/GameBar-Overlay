@@ -23,6 +23,11 @@ import {Discord} from './addons/discord.js';
 //TODO:: weather addon
 //TODO:: brightness addon
 
+// The settings of the Clock and the Hardware card, changing one recreates the card.
+const CLOCK_KEYS = ['clock-addon-font-size', 'clock-addon-show-seconds'];
+const SYSTEM_MONITOR_KEYS = ['cpu-temperature-unit', 'gpu-device', 'gpu-monitoring', 'cpu-monitoring', 'memory-monitoring',
+    'disk-monitoring', 'network-monitoring'];
+
 // Closing a card or showing it again from the dash.
 const CARD_TOGGLE_DURATION = 200;
 const CARD_TOGGLE_SCALE = 0.9;
@@ -542,7 +547,7 @@ class GameBar extends PanelMenu.Button {
 
     // Called when any settings has changed
     _onSettingsChanged(settings, key) {
-        // A dragged addon is already in place, recreating every addon would only make them flicker.
+        // A dragged addon is already in place.
         if (key === 'addon-positions') {
             this._positionCards();
             return;
@@ -554,37 +559,42 @@ class GameBar extends PanelMenu.Button {
             return;
         }
 
-        //load the new settings:
-        this._loadSettings(settings);
+        // Only the card a setting belongs to is recreated, recreating every card makes them flicker.
+        if (CLOCK_KEYS.includes(key)) {
+            this._clock._updateSettings(settings);
+            this._onCardsRecreated();
+        } else if (SYSTEM_MONITOR_KEYS.includes(key)) {
+            this._systemMonitor._updateSettings(settings);
+            this._onCardsRecreated();
+        } else {
+            this._updateOverlaySettings(settings);
+        }
     }
 
+    // The cards that depend on settings are created here, the other ones in their constructor.
     _updateSettings(settings) {
         set_position_settings(settings);
 
-        //Update addons settings
         this._clock._updateSettings(settings);
         this._soundControls._updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
-        this._capture._updateSettings(settings);
-        this._battery._updateSettings(settings);
-        this._music._updateSettings(settings);
-        this._gallery._updateSettings(settings);
-        this._discord._updateSettings(settings);
-        // The addons recreate their cards, which start visible and on top of the dash.
+        this._onCardsRecreated();
+        this._updateOverlaySettings(settings);
+    }
+
+    // New cards start visible and on top of the dash.
+    _onCardsRecreated() {
         this._syncCardVisibility(false);
         this._overlay.set_child_above_sibling(this._dash._addonContainer, null);
+    }
+
+    _updateOverlaySettings(settings) {
         this._emptyAreaClose = settings.get_boolean('overlay-empty-area-close');
         this._enterAnimation = settings.get_string('enter-animation');
         this._enterAnimationDuration = settings.get_int('enter-animation-duration');
         this._exitAnimation = settings.get_string('exit-animation');
         this._exitAnimationDuration = settings.get_int('exit-animation-duration');
-
-        //Update overlay settings
-
-        // TODO:: Overlay config styles
-        const backgroundColor = settings.get_string('overlay-background-color');
-        this._backdrop.style = `background-color: ${backgroundColor}`
-
+        this._backdrop.style = `background-color: ${settings.get_string('overlay-background-color')}`;
     }
 
     /**

@@ -131,7 +131,6 @@ export class SystemMonitor {
         this._prevCpu = null;
         this._gtopAvailable = GTop !== null;
         this._tempUnit = 'C'; // Default to Celsius
-        this._createMonitorWidget();
     }
 
     _createMonitorWidget() {

@@ -758,11 +758,6 @@ export class Discord {
         positionAddon(this._primaryMonitor, this._addonContainer, 'discord');
     }
 
-    _updateSettings(settings) {
-        this._destroyWidget();
-        this._createDiscordWidget();
-    }
-
     _destroyWidget() {
         if (this._heightChangeId) {
             this._addonContainer.disconnect(this._heightChangeId);

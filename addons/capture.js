@@ -139,11 +139,6 @@ export class Capture {
         positionAddon(this._primaryMonitor, this._addonContainer, 'capture');
     }
 
-    _updateSettings(settings) {
-        this.destroy();
-        this._createCaptureWidget();
-    }
-
     destroy() {
         if (this._heightChangeId) {
             this._addonContainer.disconnect(this._heightChangeId);

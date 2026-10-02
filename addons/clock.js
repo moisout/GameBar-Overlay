@@ -16,7 +16,6 @@ export class Clock {
     this._timeoutId = null;
     this._addonContainer = null;
     this._visibilityChangedId = null;
-    this._createClockWidget();
   }
 
   _createClockWidget() {
