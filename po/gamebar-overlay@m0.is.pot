@@ -197,3 +197,20 @@ msgstr ""
 #, no-c-format
 msgid "%A, %-d %B"
 msgstr ""
+
+#: addons/systemMonitor.js
+msgid "Memory"
+msgstr ""
+
+#: addons/systemMonitor.js
+msgid "Disk"
+msgstr ""
+
+#: addons/systemMonitor.js
+msgid "Network"
+msgstr ""
+
+#: addons/systemMonitor.js
+#, c-format
+msgid "%s of %s"
+msgstr ""

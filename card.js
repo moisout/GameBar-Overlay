@@ -86,6 +86,31 @@ const createLabel = (text, styleClass = '', props = {}) => {
     return label;
 };
 
+// Bar showing a fraction in the accent colour, like the level bars of the design.
+class LevelBar {
+    constructor() {
+        this._value = 0;
+        this._fill = new St.Widget({ style_class: 'gamebar-level-bar-fill' });
+        this.actor = new St.Widget({
+            style_class: 'gamebar-level-bar',
+            x_expand: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.actor.add_child(this._fill);
+        this.actor.connect('notify::width', () => this._sync());
+        this.actor.connect('notify::height', () => this._sync());
+    }
+
+    set value(value) {
+        this._value = Math.max(0, Math.min(value, 1));
+        this._sync();
+    }
+
+    _sync() {
+        this._fill.set_size(Math.round(this.actor.width * this._value), this.actor.height);
+    }
+}
+
 // Flat circular button holding a symbolic icon.
 const createIconButton = (iconName, styleClass = '') => new St.Button({
     style_class: `gamebar-icon-button ${styleClass}`,
@@ -93,4 +118,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, createIconButton };
+export { createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, LevelBar, createIconButton };

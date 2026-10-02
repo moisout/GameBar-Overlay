@@ -198,3 +198,20 @@ msgstr "GPU"
 #, no-c-format
 msgid "%A, %-d %B"
 msgstr "%A, %-d de %B"
+
+#: addons/systemMonitor.js
+msgid "Memory"
+msgstr "Memoria"
+
+#: addons/systemMonitor.js
+msgid "Disk"
+msgstr "Disco"
+
+#: addons/systemMonitor.js
+msgid "Network"
+msgstr "Red"
+
+#: addons/systemMonitor.js
+#, c-format
+msgid "%s of %s"
+msgstr "%s de %s"

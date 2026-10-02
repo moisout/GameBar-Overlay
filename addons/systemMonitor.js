@@ -1,11 +1,12 @@
 import St from 'gi://St';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Cairo from 'cairo';
 import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, makeDraggable } from '../cardPosition.js';
-import { createCard, BoxedList, createRow, createLabel } from '../card.js';
+import { createCard, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
 
 // Import GTop conditionally
@@ -80,6 +81,26 @@ class Sparkline {
     }
 }
 
+// Formats a value of a size: one decimal below 100, none above.
+const formatNumber = (value) => value < 100 ? value.toFixed(1) : Math.round(value).toString();
+
+// "18.4 of 31.2 GiB", both in the unit of the total. Memory uses binary units and disks decimal ones, like GNOME Settings.
+const formatUsage = (used, total, binary) => {
+    const base = binary ? 1024 : 1000;
+    const units = binary ? ['B', 'KiB', 'MiB', 'GiB', 'TiB'] : ['B', 'kB', 'MB', 'GB', 'TB'];
+    const exponent = Math.max(0, Math.min(Math.floor(Math.log(total) / Math.log(base)), units.length - 1));
+    const scale = base ** exponent;
+    return _('%s of %s').format(formatNumber(used / scale), `${formatNumber(total / scale)} ${units[exponent]}`);
+};
+
+// "12.4 MB/s"
+const formatRate = (bytesPerSecond) => {
+    const units = ['B/s', 'kB/s', 'MB/s', 'GB/s'];
+    const exponent = bytesPerSecond < 1 ? 0 : Math.min(Math.floor(Math.log(bytesPerSecond) / Math.log(1000)), units.length - 1);
+    const value = bytesPerSecond / 1000 ** exponent;
+    return `${exponent === 0 ? Math.round(value) : formatNumber(value)} ${units[exponent]}`;
+};
+
 export class SystemMonitor {
     constructor(overlay, primaryMonitor) {
         this._overlay = overlay;
@@ -93,6 +114,11 @@ export class SystemMonitor {
         this._gpuRow = null;
         this._gpuMonitoring = null;
         this._gpuDevice = null;
+
+        this._memoryRow = null;
+        this._diskRow = null;
+        this._networkRow = null;
+        this._prevNetwork = null;
         
         this._timeoutId = null;
         this._addonContainer = null;
@@ -118,14 +144,23 @@ export class SystemMonitor {
         body.add_child(list.actor);
 
         // Without GTop there is no usage to chart, the row only explains what is missing.
-        this._cpuRow = this._createStatRow(_('CPU'), this._gtopAvailable);
+        this._cpuRow = this._createStatRow(_('CPU'), this._gtopAvailable ? 'sparkline' : null);
         list.addRow(this._cpuRow.actor);
 
         // Add the GPU row if GPU monitoring is enabled.
         if (this._gpuMonitoring) {
-            this._gpuRow = this._createStatRow(_('GPU'), true);
+            this._gpuRow = this._createStatRow(_('GPU'), 'sparkline');
             list.addRow(this._gpuRow.actor);
         }
+
+        this._memoryRow = this._createStatRow(_('Memory'), 'level');
+        list.addRow(this._memoryRow.actor);
+
+        this._diskRow = this._createStatRow(_('Disk'), 'level');
+        list.addRow(this._diskRow.actor);
+
+        this._networkRow = this._createNetworkRow();
+        list.addRow(this._networkRow.actor);
 
         // Add the card to the addon container
         this._addonContainer.add_child(card);
@@ -164,8 +199,10 @@ export class SystemMonitor {
         }
     }
 
-  // Row with the name and temperature, a sparkline of the usage and the current usage.
-  _createStatRow(name, showUsage) {
+  // Row with the name and details, a sparkline or level bar of the usage and the current usage.
+  // Without a graph the row only shows the name and details.
+  _createStatRow(name, graph) {
+    const showUsage = graph !== null;
     const row = createRow('gamebar-stat-row');
 
     const info = new St.BoxLayout({
@@ -184,22 +221,46 @@ export class SystemMonitor {
       // Long hints wrap instead of being cut off.
       subtitle.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
       subtitle.clutter_text.line_wrap = true;
-      return { actor: row, subtitle, sparkline: null, usage: null };
+      return { actor: row, subtitle, sparkline: null, level: null, usage: null };
     }
 
-    const sparkline = new Sparkline();
-    row.add_child(sparkline.actor);
+    const sparkline = graph === 'sparkline' ? new Sparkline() : null;
+    const level = graph === 'level' ? new LevelBar() : null;
+    row.add_child((sparkline ?? level).actor);
 
     const usage = createLabel('', 'gamebar-stat-usage gamebar-numeric');
     row.add_child(usage);
 
-    return { actor: row, subtitle, sparkline, usage };
+    return { actor: row, subtitle, sparkline, level, usage };
+  }
+
+  // Row with the download and upload rate.
+  _createNetworkRow() {
+    const row = createRow('gamebar-stat-row');
+    row.add_child(createLabel(_('Network'), '', { x_expand: true }));
+
+    const addRate = (iconName) => {
+      const box = new St.BoxLayout({
+        style_class: 'gamebar-network-rate',
+        x_align: Clutter.ActorAlign.END,
+        y_align: Clutter.ActorAlign.CENTER,
+      });
+      box.add_child(new St.Icon({ icon_name: iconName, icon_size: 16 }));
+      const label = createLabel('-', 'gamebar-numeric');
+      box.add_child(label);
+      // A fixed width keeps the arrows in place while the rates change.
+      row.add_child(new St.Bin({ style_class: 'gamebar-network-rate-bin', child: box }));
+      return label;
+    };
+
+    return { actor: row, download: addRate('go-down-symbolic'), upload: addRate('go-up-symbolic') };
   }
 
   _startMonitor() {
     // A sparkline with a gap from the time the overlay was closed would be misleading.
     this._cpuRow?.sparkline?.clear();
     this._gpuRow?.sparkline?.clear();
+    this._prevNetwork = null;
 
     // Initial update
     this._updateMonitor();
@@ -315,6 +376,78 @@ export class SystemMonitor {
       return { temp: tempValue, unit: unitSymbol};
     }
 
+    // VRAM in use, only amdgpu reports it in sysfs.
+    _getGpuVram() {
+      if (!this._gpuDevice || getGpuDriver(this._gpuDevice) !== 'amdgpu') return null;
+      const used = readFile('/sys/class/drm/' + this._gpuDevice + '/device/mem_info_vram_used');
+      return used === null ? null : Number(used);
+    }
+
+    // Used memory like GNOME System Monitor: everything that is not available.
+    _getMemory() {
+      const meminfo = readFile('/proc/meminfo');
+      if (meminfo === null) return null;
+
+      const readKey = key => Number(meminfo.match(new RegExp(`^${key}:\\s+(\\d+) kB`, 'm'))?.[1]) * 1024;
+      const total = readKey('MemTotal');
+      const available = readKey('MemAvailable');
+      if (!Number.isFinite(total) || !Number.isFinite(available) || total <= 0) return null;
+      return { used: total - available, total };
+    }
+
+    // Usage of the root filesystem.
+    _getDisk() {
+      try {
+        const info = Gio.File.new_for_path('/').query_filesystem_info('filesystem::size,filesystem::used,filesystem::free', null);
+        const total = info.get_attribute_uint64('filesystem::size');
+        const used = info.has_attribute('filesystem::used')
+          ? info.get_attribute_uint64('filesystem::used')
+          : total - info.get_attribute_uint64('filesystem::free');
+        return total > 0 ? { used, total } : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Received and sent bytes per physical interface.
+    // Virtual interfaces (loopback, VPNs, containers) have no device and would count traffic twice.
+    _readNetworkBytes() {
+      const netdev = readFile('/proc/net/dev');
+      if (netdev === null) return null;
+
+      const totals = new Map();
+      for (const line of netdev.split('\n').slice(2)) {
+        const [name, data] = line.split(':');
+        const iface = name?.trim();
+        if (!data || !GLib.file_test('/sys/class/net/' + iface + '/device', GLib.FileTest.EXISTS)) continue;
+
+        const fields = data.trim().split(/\s+/);
+        totals.set(iface, [Number(fields[0]), Number(fields[8])]);
+      }
+      return totals;
+    }
+
+    // Download and upload rate since the last call, null on the first call.
+    _getNetworkRates() {
+      const time = GLib.get_monotonic_time();
+      const totals = this._readNetworkBytes();
+      const prev = this._prevNetwork;
+      this._prevNetwork = totals ? { time, totals } : null;
+      if (!totals || !prev) return null;
+
+      const seconds = (time - prev.time) / GLib.USEC_PER_SEC;
+      let download = 0;
+      let upload = 0;
+      for (const [iface, [received, sent]] of totals) {
+        const before = prev.totals.get(iface);
+        // An interface that just appeared or was reset has no rate yet.
+        if (!before) continue;
+        download += Math.max(received - before[0], 0);
+        upload += Math.max(sent - before[1], 0);
+      }
+      return { download: download / seconds, upload: upload / seconds };
+    }
+
     // Fallback to the first available GPU if the selected one does not exist
     _checkValidGpuDevice() {
         const gpus = listGpus().flat();
@@ -355,8 +488,27 @@ export class SystemMonitor {
         const gpuUsage = this._getGpuUsage();
         this._gpuRow.usage.set_text(gpuUsage + (gpuUsage !== "-" ? "%" : ""));
         this._gpuRow.sparkline.push(gpuUsage);
-        this._gpuRow.subtitle.set_text(formatTemperature(this._getGpuTemperature()));
-    } 
+        let gpuDetails = formatTemperature(this._getGpuTemperature());
+        const vram = this._getGpuVram();
+        if (vram !== null) {
+          gpuDetails += ` · ${(vram / 1024 ** 3).toFixed(1)} GiB`;
+        }
+        this._gpuRow.subtitle.set_text(gpuDetails);
+    }
+
+    for (const [row, usage, binary] of [[this._memoryRow, this._getMemory(), true], [this._diskRow, this._getDisk(), false]]) {
+      if (usage) {
+        row.subtitle.set_text(formatUsage(usage.used, usage.total, binary));
+        row.level.value = usage.used / usage.total;
+        row.usage.set_text(Math.round(usage.used / usage.total * 100) + "%");
+      }
+    }
+
+    const rates = this._getNetworkRates();
+    if (rates) {
+      this._networkRow.download.set_text(formatRate(rates.download));
+      this._networkRow.upload.set_text(formatRate(rates.upload));
+    }
 
     return true;
   }
@@ -402,6 +554,10 @@ export class SystemMonitor {
     // Cleanup properties
     this._cpuRow = null;
     this._gpuRow = null;
+    this._memoryRow = null;
+    this._diskRow = null;
+    this._networkRow = null;
+    this._prevNetwork = null;
     this._prevCpu = null;
     this._cpuHwmonPath = null;
   }

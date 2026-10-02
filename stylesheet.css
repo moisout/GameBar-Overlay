@@ -156,3 +156,24 @@
     font-weight: bold;
     text-align: right;
 }
+
+.gamebar-network-rate {
+    spacing: 4px;
+}
+
+.gamebar-network-rate-bin {
+    width: 100px;
+}
+
+/*Level bar, the fill uses the accent colour where the shell has one (GNOME 47+)*/
+.gamebar-level-bar {
+    height: 6px;
+    border-radius: 3px;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.gamebar-level-bar-fill {
+    border-radius: 3px;
+    background-color: #3584e4;
+    background-color: -st-accent-color;
+}
