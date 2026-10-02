@@ -268,7 +268,7 @@
 
 /*Battery styles*/
 .gamebar-battery-card {
-    width: 400px;
+    width: 440px;
 }
 
 .gamebar-battery-info {
@@ -429,7 +429,7 @@
 
 /*Audio styles*/
 .gamebar-audio-card {
-    width: 400px;
+    width: 440px;
 }
 
 .gamebar-device-row:hover,
@@ -442,7 +442,7 @@
 }
 
 .gamebar-app-name {
-    width: 68px;
+    width: 108px;
     margin-left: 4px;
 }
 
