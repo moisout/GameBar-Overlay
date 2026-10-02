@@ -160,14 +160,15 @@ The schema defaults changed to match the design: overlay background `rgba(8,9,12
 
 ## Testing without logging out
 
-The screenshots for this work came from a headless shell in an isolated home directory, with a copy of the extension that opens the overlay and takes a screenshot:
+`tests/run.sh` runs a scenario against the extension in a headless shell with a home directory of its own:
 
 ```sh
-export HOME=<scratch>/home XDG_CONFIG_HOME=$HOME/.config XDG_DATA_HOME=$HOME/.local/share XDG_CACHE_HOME=$HOME/.cache
-export GSETTINGS_BACKEND=keyfile
-gsettings set org.gnome.shell enabled-extensions "['gamebar-overlay@m0.is']"
-gsettings set org.gnome.shell disable-extension-version-validation true
-dbus-run-session -- gnome-shell --headless --virtual-monitor 1920x1080 --wayland --no-x11
+tests/run.sh tests/overlay.test.js
 ```
 
-Copy the extension to `$HOME/.local/share/gnome-shell/extensions/` first. Export the variables before `dbus-run-session`: services started by D-Bus, like the screen recorder of the shell, take their home from the D-Bus daemon and would otherwise save to the real home. Real clicks can be tested with a virtual pointer from `Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE)`. Its absolute motion loses the y coordinate in the headless shell, so steer it with relative motion and check `global.get_pointer()`. Hide the overview first, it grabs the input. A `pacat --raw /dev/zero` stream gives the Applications group a silent app to show.
+- A scenario is JavaScript that runs at the end of `enable()` of a copy of the extension, with the helpers of `tests/prelude.js`: `click(actor)`, `drag(actor, dx, dy)` and `key(keyval)` with a virtual pointer and keyboard, `shot(name, actor)` for a screenshot in `tests/output`, `check(condition, message)`, `openOverlay()` and `sleep(ms)`.
+- It prints one line per check and exits with 1 if a check failed. The log of the shell is in `tests/output/shell.log`.
+- At the end the extension is disabled, what it leaves behind shows up in the log.
+- The absolute motion of a virtual pointer loses the y coordinate in the headless shell, the helpers steer it with relative motion.
+- The variables of the home directory are exported before `dbus-run-session`: services started by D-Bus, like the screen recorder of the shell, take their home from the D-Bus daemon and would otherwise save to the real home.
+- The isolated session has no keyring and no captures. The Discord client of the real session is reachable, its token is not. A `pacat --raw /dev/zero` stream gives the Applications group a silent app to show.
