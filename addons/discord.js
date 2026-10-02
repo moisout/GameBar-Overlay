@@ -519,6 +519,15 @@ class AvatarCache {
     }
 }
 
+// The icon of the icon theme, or the one shipped in icons/ for themes without it.
+const setIcon = (icon, name, fallbackName) => {
+    icon.gicon = new Gio.ThemedIcon({ name });
+    icon.fallback_gicon = fallbackName ? Gio.FileIcon.new(
+        Gio.File.new_for_uri(import.meta.url).resolve_relative_path(`../../icons/${fallbackName}.svg`)) : null;
+};
+// Adwaita has no crossed out headphones, Papirus has.
+const DEAFENED_ICON = ['audio-volume-muted-headphones-symbolic', 'gamebar-headphones-disabled-symbolic'];
+
 const setStyleClass = (actor, styleClass, enabled) => {
     if (enabled) {
         actor.add_style_class_name(styleClass);
@@ -585,10 +594,8 @@ export class Discord {
         this._muteButton.connect('clicked', () => this._client.toggleMute());
         this._deafenButton = createIconButton('audio-headphones-symbolic', 'gamebar-call-button');
         this._deafenButton.connect('clicked', () => this._client.toggleDeaf());
-        this._leaveButton = createIconButton('', 'gamebar-call-button gamebar-call-button-destructive');
-        // The receiver of Adwaita. Other icon themes colour call-stop red, which does not show on the red button.
-        this._leaveButton.child.gicon = Gio.FileIcon.new(
-            Gio.File.new_for_uri(import.meta.url).resolve_relative_path('../../icons/gamebar-call-end-symbolic.svg'));
+        this._leaveButton = createIconButton('', 'gamebar-call-button');
+        setIcon(this._leaveButton.child, 'call-stop-symbolic', 'gamebar-call-end-symbolic');
         this._leaveButton.accessible_name = _('Disconnect');
         this._leaveButton.connect('clicked', () => this._client.leaveChannel());
         [this._muteButton, this._deafenButton, this._leaveButton].forEach(button => this._controls.add_child(button));
@@ -679,8 +686,7 @@ export class Discord {
         this._muteButton.child.icon_name = muted ? 'microphone-disabled-symbolic' : 'audio-input-microphone-symbolic';
         this._muteButton.accessible_name = muted ? _('Unmute') : _('Mute');
         setStyleClass(this._muteButton, 'gamebar-dim', muted);
-        // Adwaita has no crossed out headphones.
-        this._deafenButton.child.icon_name = deaf ? 'audio-volume-muted-symbolic' : 'audio-headphones-symbolic';
+        setIcon(this._deafenButton.child, ...(deaf ? DEAFENED_ICON : ['audio-headphones-symbolic']));
         this._deafenButton.accessible_name = deaf ? _('Undeafen') : _('Deafen');
         setStyleClass(this._deafenButton, 'gamebar-dim', deaf);
     }
@@ -763,7 +769,8 @@ export class Discord {
         row.add_child(nameLabel);
         const status = new St.BoxLayout({ style_class: 'gamebar-discord-status gamebar-dim', y_align: Clutter.ActorAlign.CENTER });
         const mutedIcon = new St.Icon({ icon_name: 'microphone-disabled-symbolic', icon_size: 16 });
-        const deafenedIcon = new St.Icon({ icon_name: 'audio-volume-muted-symbolic', icon_size: 16 });
+        const deafenedIcon = new St.Icon({ icon_size: 16 });
+        setIcon(deafenedIcon, ...DEAFENED_ICON);
         status.add_child(mutedIcon);
         status.add_child(deafenedIcon);
         row.add_child(status);
