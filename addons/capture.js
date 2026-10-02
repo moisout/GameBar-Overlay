@@ -1,11 +1,10 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {captureScreenshot} from 'resource:///org/gnome/shell/ui/screenshot.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { createCard, createPillButton } from '../card.js';
 
 // Screencast mode of the screenshot UI of the shell (UIMode in js/ui/screenshot.js, not exported).
@@ -67,8 +66,6 @@ export class Capture {
         this._primaryMonitor = primaryMonitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
-        this._widthChangeId = null;
-        this._heightChangeId = null;
         this._createCaptureWidget();
     }
 
@@ -109,19 +106,7 @@ export class Capture {
         this._overlay.add_child(this._addonContainer);
         makeDraggable(this._addonContainer, 'capture');
 
-        this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
-
-        this._heightChangeId = this._addonContainer.connect('notify::height', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
+        followCardSize(this._addonContainer, () => this.set_addon_position());
     }
 
     _syncRecordButton() {
@@ -140,16 +125,6 @@ export class Capture {
     }
 
     destroy() {
-        if (this._heightChangeId) {
-            this._addonContainer.disconnect(this._heightChangeId);
-            this._heightChangeId = null;
-        }
-
-        if (this._widthChangeId) {
-            this._addonContainer.disconnect(this._widthChangeId);
-            this._widthChangeId = null;
-        }
-
         // Also disconnects from the screenshot UI.
         this._addonContainer?.destroy();
         this._addonContainer = null;

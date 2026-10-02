@@ -1,7 +1,6 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import GLib from 'gi://GLib';
-import { isCardHidden, setCardHidden } from '../cardPosition.js';
+import { isCardHidden, setCardHidden, followCardSize } from '../cardPosition.js';
 
 // Distance of the dash from the bottom edge of the monitor.
 const BOTTOM_MARGIN = 20;
@@ -52,12 +51,7 @@ export class Dash {
 
         this._overlay.add_child(this._addonContainer);
 
-        this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
+        followCardSize(this._addonContainer, () => this.set_addon_position());
     }
 
     // available: whether the card exists at all (the Hardware card does not without any row).
@@ -82,11 +76,6 @@ export class Dash {
     }
 
     destroy() {
-        if (this._widthChangeId) {
-            this._addonContainer.disconnect(this._widthChangeId);
-            this._widthChangeId = null;
-        }
-
         this._addonContainer?.destroy();
         this._addonContainer = null;
         this._buttons.clear();

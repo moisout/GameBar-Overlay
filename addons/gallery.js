@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Gettext from 'gettext';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime } from '../utils.js';
 
@@ -201,8 +201,6 @@ export class Gallery {
         this._primaryMonitor = primaryMonitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
-        this._widthChangeId = null;
-        this._heightChangeId = null;
         this._visibilityChangedId = null;
         this._tab = 'all';
         this._interfaceSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.interface' });
@@ -252,19 +250,7 @@ export class Gallery {
         this._overlay.add_child(this._addonContainer);
         makeDraggable(this._addonContainer, 'gallery');
 
-        this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
-
-        this._heightChangeId = this._addonContainer.connect('notify::height', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
+        followCardSize(this._addonContainer, () => this.set_addon_position());
 
         // New captures are taken while the overlay is closed, it looks again every time it opens.
         this._visibilityChangedId = this._overlay.connect('notify::visible', () => {
@@ -364,16 +350,6 @@ export class Gallery {
         if (this._visibilityChangedId) {
             this._overlay.disconnect(this._visibilityChangedId);
             this._visibilityChangedId = null;
-        }
-
-        if (this._heightChangeId) {
-            this._addonContainer.disconnect(this._heightChangeId);
-            this._heightChangeId = null;
-        }
-
-        if (this._widthChangeId) {
-            this._addonContainer.disconnect(this._widthChangeId);
-            this._widthChangeId = null;
         }
 
         this._addonContainer?.destroy();

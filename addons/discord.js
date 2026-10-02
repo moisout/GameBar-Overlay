@@ -5,7 +5,7 @@ import GLib from 'gi://GLib';
 import Secret from 'gi://Secret';
 import Soup from 'gi://Soup?version=3.0';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
 
 // The voice channel of the Discord client over its local RPC server. The voice commands need an OAuth token with the
@@ -502,8 +502,6 @@ export class Discord {
         this._primaryMonitor = primaryMonitor;
         this._runWithOverlayClosed = runWithOverlayClosed;
         this._addonContainer = null;
-        this._widthChangeId = null;
-        this._heightChangeId = null;
         this._authorizeTimeoutId = 0;
         this._expanded = false;
         this._avatars = new AvatarCache();
@@ -569,19 +567,7 @@ export class Discord {
         this._overlay.add_child(this._addonContainer);
         makeDraggable(this._addonContainer, 'discord');
 
-        this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
-
-        this._heightChangeId = this._addonContainer.connect('notify::height', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
+        followCardSize(this._addonContainer, () => this.set_addon_position());
 
         // Only connected while the card is on screen. Opening the overlay starts with the short member list again.
         this._overlay.connectObject('notify::visible', () => {
@@ -759,16 +745,6 @@ export class Discord {
     }
 
     _destroyWidget() {
-        if (this._heightChangeId) {
-            this._addonContainer.disconnect(this._heightChangeId);
-            this._heightChangeId = null;
-        }
-
-        if (this._widthChangeId) {
-            this._addonContainer.disconnect(this._widthChangeId);
-            this._widthChangeId = null;
-        }
-
         // Also disconnects from the overlay.
         const container = this._addonContainer;
         this._addonContainer = null;

@@ -2,7 +2,7 @@ import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
-import { positionAddon, makeDraggable } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { createCard } from '../card.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -10,8 +10,6 @@ export class Clock {
   constructor(overlay, primaryMonitor) {
     this._overlay = overlay;
     this._primaryMonitor = primaryMonitor;
-    this._widthChangeId = null;
-    this._heightChangeId = null;
     this._timeLabel = null;
     this._dateLabel = null;
     this._timeoutId = null;
@@ -57,19 +55,7 @@ export class Clock {
     this._overlay.add_child(this._addonContainer);
     makeDraggable(this._addonContainer, 'clock');
 
-    this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-      GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-        this.set_addon_position();
-        return GLib.SOURCE_REMOVE;
-      });
-    });
-
-    this._heightChangeId = this._addonContainer.connect('notify::height', () => {
-      GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-        this.set_addon_position();
-        return GLib.SOURCE_REMOVE;
-      });
-    });
+    followCardSize(this._addonContainer, () => this.set_addon_position());
 
     // Connect to overlay visibility changes
     this._visibilityChangedId = this._overlay.connect('notify::visible', () => {
@@ -147,16 +133,6 @@ export class Clock {
     this._stopClock();
 
     // Disconnect all signals
-    if (this._heightChangeId) {
-      this._addonContainer.disconnect(this._heightChangeId);
-      this._heightChangeId = null;
-    }
-
-    if (this._widthChangeId) {
-      this._addonContainer.disconnect(this._widthChangeId);
-      this._widthChangeId = null;
-    }
-
     if (this._visibilityChangedId) {
       this._overlay.disconnect(this._visibilityChangedId);
       this._visibilityChangedId = null;

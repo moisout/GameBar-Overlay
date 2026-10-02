@@ -146,6 +146,28 @@ const positionAddon = (primaryMonitor, element, id) => {
     }
 };
 
+// Calls reposition() once the size of a card changed, when the layout is done. The idle is removed with the card.
+const followCardSize = (element, reposition) => {
+    let idleId = 0;
+    const queue = () => {
+        if (idleId) return;
+        idleId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+            idleId = 0;
+            reposition();
+            return GLib.SOURCE_REMOVE;
+        });
+    };
+
+    element.connect('notify::width', queue);
+    element.connect('notify::height', queue);
+    element.connect('destroy', () => {
+        if (idleId) {
+            GLib.Source.remove(idleId);
+            idleId = 0;
+        }
+    });
+};
+
 // Let the user move an addon around the overlay by dragging any non-interactive part of it.
 const makeDraggable = (element, id) => {
     let grab = null;
@@ -211,4 +233,4 @@ const makeDraggable = (element, id) => {
     element.connect('destroy', endDrag);
 };
 
-export { set_position_settings, saveCustomPosition, isCardHidden, setCardHidden, positionAddon, makeDraggable };
+export { set_position_settings, saveCustomPosition, isCardHidden, setCardHidden, positionAddon, followCardSize, makeDraggable };

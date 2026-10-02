@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import UPower from 'gi://UPowerGlib';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { createCard, createGroupTitle, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 
 // UPower over D-Bus like the shell, the device lists of UPowerGlib are freed too early in GJS.
@@ -200,8 +200,6 @@ export class Battery {
         this._primaryMonitor = primaryMonitor;
         this._addonContainer = null;
         this._body = null;
-        this._widthChangeId = null;
-        this._heightChangeId = null;
         this._model = new BatteryModel(() => this._sync());
         this._createBatteryWidget();
     }
@@ -219,19 +217,7 @@ export class Battery {
         this._overlay.add_child(this._addonContainer);
         makeDraggable(this._addonContainer, 'battery');
 
-        this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
-
-        this._heightChangeId = this._addonContainer.connect('notify::height', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
+        followCardSize(this._addonContainer, () => this.set_addon_position());
     }
 
     _sync() {
@@ -307,16 +293,6 @@ export class Battery {
     }
 
     _destroyWidget() {
-        if (this._heightChangeId) {
-            this._addonContainer.disconnect(this._heightChangeId);
-            this._heightChangeId = null;
-        }
-
-        if (this._widthChangeId) {
-            this._addonContainer.disconnect(this._widthChangeId);
-            this._widthChangeId = null;
-        }
-
         this._addonContainer?.destroy();
         this._addonContainer = null;
         this._body = null;

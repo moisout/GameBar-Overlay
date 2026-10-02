@@ -6,7 +6,7 @@ import Shell from 'gi://Shell';
 import Soup from 'gi://Soup?version=3.0';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime } from '../utils.js';
 
@@ -413,8 +413,6 @@ export class Music {
         this._overlay = overlay;
         this._primaryMonitor = primaryMonitor;
         this._addonContainer = null;
-        this._widthChangeId = null;
-        this._heightChangeId = null;
         this._visibilityChangedId = null;
         this._timeoutId = null;
         // The bus name of the player picked in the tab bar, null for the one that played last.
@@ -457,19 +455,7 @@ export class Music {
         this._overlay.add_child(this._addonContainer);
         makeDraggable(this._addonContainer, 'music');
 
-        this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
-
-        this._heightChangeId = this._addonContainer.connect('notify::height', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                this.set_addon_position();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
+        followCardSize(this._addonContainer, () => this.set_addon_position());
 
         // The elapsed time only moves while the overlay is open.
         // Opening the overlay shows the player that played last again.
@@ -673,16 +659,6 @@ export class Music {
         if (this._visibilityChangedId) {
             this._overlay.disconnect(this._visibilityChangedId);
             this._visibilityChangedId = null;
-        }
-
-        if (this._heightChangeId) {
-            this._addonContainer.disconnect(this._heightChangeId);
-            this._heightChangeId = null;
-        }
-
-        if (this._widthChangeId) {
-            this._addonContainer.disconnect(this._widthChangeId);
-            this._widthChangeId = null;
         }
 
         this._addonContainer?.destroy();

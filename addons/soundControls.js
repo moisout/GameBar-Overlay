@@ -4,7 +4,7 @@ import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
-import { positionAddon, makeDraggable, setCardHidden } from '../cardPosition.js';
+import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { DeviceSection } from './deviceSection.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
 import { createCard, createGroupTitle, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
@@ -28,9 +28,6 @@ export class SoundControls {
         this._addonContainer = null;
         this._appStreamIds = null;
         this._appsByName = null;
-        //Listeners:
-        this._widthChangeId = null;
-        this._heightChangeId = null;
     }
 
     // Create the main volume controls
@@ -69,21 +66,7 @@ export class SoundControls {
         this._overlay.add_child(this._addonContainer);
         makeDraggable(this._addonContainer, 'sound');
 
-        //Add the listeners for change width and height:
-
-        this._widthChangeId = this._addonContainer.connect('notify::width', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-              this.set_addon_position();
-              return GLib.SOURCE_REMOVE;
-            });
-          });
-        
-          this._heightChangeId = this._addonContainer.connect('notify::height', () => {
-            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-              this.set_addon_position();
-              return GLib.SOURCE_REMOVE;
-            });
-          });
+followCardSize(this._addonContainer, () => this.set_addon_position());
     }
 
     set_addon_position(){
@@ -231,16 +214,6 @@ export class SoundControls {
     }
 
     destroy() {
-        if(this._heightChangeId){
-            this._addonContainer.disconnect(this._heightChangeId);
-            this._heightChangeId = null;
-        }
-  
-        if(this._widthChangeId){
-            this._addonContainer.disconnect(this._widthChangeId);
-            this._widthChangeId = null;
-        }
-
         if (this._addonContainer) {
             this._addonContainer.destroy();
             this._addonContainer = null;
