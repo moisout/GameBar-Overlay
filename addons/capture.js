@@ -5,7 +5,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {captureScreenshot} from 'resource:///org/gnome/shell/ui/screenshot.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { createCard, createPillButton } from '../card.js';
+import { vertical, createCard, createPillButton } from '../card.js';
 
 // Screencast mode of the screenshot UI of the shell (UIMode in js/ui/screenshot.js, not exported).
 const SCREENCAST_MODE = 1;
@@ -77,7 +77,7 @@ export class Capture {
         const { card, body } = createCard(_('Capture'), 'gamebar-capture-card', () => setCardHidden('capture', true));
         body.add_style_class_name('gamebar-capture-body');
         // Both buttons as wide as the wider one.
-        body.vertical = false;
+        Object.assign(body, vertical(false));
         body.layout_manager.homogeneous = true;
 
         const screenshot = createPillButton('camera-photo-symbolic', _('Take Screenshot'));

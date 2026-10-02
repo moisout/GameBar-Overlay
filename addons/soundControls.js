@@ -7,7 +7,7 @@ import Shell from 'gi://Shell';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
 import { DeviceSection } from './deviceSection.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
-import { createCard, createGroupTitle, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
+import { vertical, createCard, createGroupTitle, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
 import GLib from 'gi://GLib';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -45,7 +45,7 @@ export class SoundControls {
         this._outputSection.title.add_style_class_name('gamebar-group-title-first');
 
         // Create a group for app-specific volume controls, hidden while no app plays audio
-        this._appVolumesGroup = new St.BoxLayout({ vertical: true });
+        this._appVolumesGroup = new St.BoxLayout({ ...vertical() });
         this._appVolumesList = new BoxedList();
         this._appVolumesGroup.add_child(createGroupTitle(_('Applications')));
         this._appVolumesGroup.add_child(this._appVolumesList.actor);

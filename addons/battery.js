@@ -5,7 +5,7 @@ import GLib from 'gi://GLib';
 import UPower from 'gi://UPowerGlib';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { createCard, createGroupTitle, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
+import { vertical, createCard, createGroupTitle, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 
 // UPower over D-Bus like the shell, the device lists of UPowerGlib are freed too early in GJS.
 // UPowerGlib is only used for its enums.
@@ -265,7 +265,7 @@ export class Battery {
         row.add_child(new St.Icon({ icon_name: iconName, icon_size: 16, y_align: Clutter.ActorAlign.CENTER }));
 
         const info = new St.BoxLayout({
-            vertical: true,
+            ...vertical(),
             style_class: 'gamebar-battery-info',
             y_align: Clutter.ActorAlign.CENTER,
         });

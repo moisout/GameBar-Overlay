@@ -5,12 +5,20 @@ import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js'
 
 // Building blocks for the Adwaita style cards, see design/gnome-game-overlay-handoff.md.
 
+// Properties of a vertical or horizontal St.BoxLayout. Its vertical property is deprecated since GNOME 48,
+// older versions have no orientation.
+const HAS_ORIENTATION = St.BoxLayout.find_property('orientation') !== null;
+const vertical = (isVertical = true) => {
+    if (!HAS_ORIENTATION) return { vertical: isVertical };
+    return { orientation: isVertical ? Clutter.Orientation.VERTICAL : Clutter.Orientation.HORIZONTAL };
+};
+
 // A card with an optional header bar. Children go into the returned body.
 // With onClose the header bar gets a close button, like the window controls of Adwaita.
 // leading is an actor for the slot on the left of the header bar, like a button of the card.
 const createCard = (title, styleClass = '', onClose = null, leading = null) => {
     const card = new St.BoxLayout({
-        vertical: true,
+        ...vertical(),
         style_class: `gamebar-card ${styleClass}`,
         // Keeps the expanding rows from stretching the card over the whole overlay.
         x_expand: false,
@@ -34,7 +42,7 @@ const createCard = (title, styleClass = '', onClose = null, leading = null) => {
     }
 
     const body = new St.BoxLayout({
-        vertical: true,
+        ...vertical(),
         style_class: title ? 'gamebar-card-body' : 'gamebar-card-body gamebar-card-body-headerless',
     });
     card.add_child(body);
@@ -69,7 +77,7 @@ const createGroupTitle = (text) => new St.Label({
 class BoxedList {
     constructor() {
         this.actor = new St.BoxLayout({
-            vertical: true,
+            ...vertical(),
             style_class: 'gamebar-boxed-list',
         });
     }
@@ -244,4 +252,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };
+export { vertical, createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };

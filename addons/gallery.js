@@ -5,7 +5,7 @@ import GLib from 'gi://GLib';
 import Gettext from 'gettext';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
+import { vertical, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime } from '../utils.js';
 
 Gio._promisify(Gio.File.prototype, 'enumerate_children_async');
@@ -242,7 +242,7 @@ export class Gallery {
         this._emptyList.addRow(emptyRow);
         body.add_child(this._emptyList.actor);
 
-        this._grid = new St.BoxLayout({ vertical: true, style_class: 'gamebar-gallery-grid', x_expand: true });
+        this._grid = new St.BoxLayout({ ...vertical(), style_class: 'gamebar-gallery-grid', x_expand: true });
         body.add_child(this._grid);
         this._render();
 

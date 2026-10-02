@@ -1,6 +1,7 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import { isCardHidden, setCardHidden, followCardSize } from '../cardPosition.js';
+import { vertical } from '../card.js';
 
 // Distance of the dash from the bottom edge of the monitor.
 const BOTTOM_MARGIN = 20;
@@ -26,7 +27,7 @@ export class Dash {
             });
 
             const content = new St.BoxLayout({
-                vertical: true,
+                ...vertical(),
                 style_class: 'gamebar-dash-button-content',
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,

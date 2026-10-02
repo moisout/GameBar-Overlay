@@ -5,7 +5,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
-import { createGroupTitle, BoxedList, createSeparator, createRow, createLabel, createIconButton } from '../card.js';
+import { vertical, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, createIconButton } from '../card.js';
 
 // Expanding the device list animates like a submenu of the shell (js/ui/popupMenu.js).
 const EXPAND_DURATION = 250;
@@ -49,7 +49,7 @@ export class DeviceSection {
         this._isSettingVolume = false;
         this._expanded = false;
 
-        this.actor = new St.BoxLayout({ vertical: true });
+        this.actor = new St.BoxLayout({ ...vertical() });
         this.title = createGroupTitle(title);
         this.actor.add_child(this.title);
 
@@ -84,7 +84,7 @@ export class DeviceSection {
 
         // Every item adds its own separator, so the hidden list leaves no double line.
         this._deviceList = new St.BoxLayout({
-            vertical: true,
+            ...vertical(),
             visible: false,
             clip_to_allocation: true // Hides the items that do not fit yet while the list grows.
         });

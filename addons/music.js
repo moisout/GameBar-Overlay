@@ -7,7 +7,7 @@ import Soup from 'gi://Soup?version=3.0';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
+import { vertical, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime } from '../utils.js';
 
 // Media players over MPRIS, like the media controls of the shell (js/ui/mpris.js).
@@ -486,7 +486,7 @@ export class Music {
         row.add_child(this._cover);
 
         const info = new St.BoxLayout({
-            vertical: true,
+            ...vertical(),
             x_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
         });

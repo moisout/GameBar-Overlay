@@ -6,7 +6,7 @@ import Cairo from 'cairo';
 import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { createCard, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
+import { vertical, createCard, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
 
 const NO_GPU_READING = { usage: null, temperature: null, vram: null };
@@ -220,7 +220,7 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
     const row = createRow('gamebar-stat-row');
 
     const info = new St.BoxLayout({
-      vertical: true,
+      ...vertical(),
       style_class: showUsage ? 'gamebar-stat-info' : '',
       x_expand: !showUsage,
       y_align: Clutter.ActorAlign.CENTER,
