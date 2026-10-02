@@ -7,8 +7,8 @@ import Soup from 'gi://Soup?version=3.0';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { vertical, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
-import { formatPlaybackTime } from '../utils.js';
+import { vertical, backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
+import { formatPlaybackTime, deleteOldFiles } from '../utils.js';
 
 // Media players over MPRIS, like the media controls of the shell (js/ui/mpris.js).
 // The shell's players have no position and their API differs between GNOME versions, so the card has its own proxies.
@@ -17,6 +17,9 @@ const MPRIS_PATH = '/org/mpris/MediaPlayer2';
 const PLAYER_INTERFACE = 'org.mpris.MediaPlayer2.Player';
 // Track id of a player without a track, SetPosition() needs a real one.
 const NO_TRACK = '/org/mpris/MediaPlayer2/TrackList/NoTrack';
+
+// Downloaded covers of earlier sessions are deleted after a day, in seconds.
+const COVER_MAX_AGE = 24 * 60 * 60;
 
 // The elapsed time is counted locally between the positions read from the player, see Player.position.
 const PROGRESS_INTERVAL = 500;
@@ -325,6 +328,8 @@ class CoverCache {
         this._session = null;
         this._cancellable = null;
         this._downloaded = null;
+        // The last cover of earlier sessions, which nobody remembers.
+        deleteOldFiles(this._directory, COVER_MAX_AGE);
     }
 
     // callback(path) with the file of the cover, or null without one. A new call cancels the previous one.
@@ -623,9 +628,7 @@ export class Music {
 
         const showCover = (path) => {
             if (!this._cover) return;
-            // A background image follows the rounded corners, like the user avatars of the shell.
-            const escaped = path?.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-            this._cover.style = path ? `background-image: url("${escaped}"); background-size: cover;` : null;
+            this._cover.style = path ? backgroundImageStyle(path) : null;
             this._coverIcon.visible = !path;
         };
         showCover(null);

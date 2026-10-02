@@ -224,6 +224,13 @@ class LevelBar {
     }
 }
 
+// Style showing an image file as the background of an actor. A background image follows the rounded corners,
+// like the user avatars of the shell.
+const backgroundImageStyle = (path) => {
+    const escaped = path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    return `background-image: url("${escaped}"); background-size: cover;`;
+};
+
 // Large rounded button with an icon and a bold label, like the pill buttons of Adwaita.
 const createPillButton = (iconName, text, styleClass = '') => {
     const icon = new St.Icon({ icon_name: iconName, icon_size: 16 });
@@ -252,4 +259,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { vertical, createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };
+export { vertical, backgroundImageStyle, createCard, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };

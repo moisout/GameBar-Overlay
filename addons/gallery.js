@@ -5,7 +5,7 @@ import GLib from 'gi://GLib';
 import Gettext from 'gettext';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { vertical, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
+import { vertical, backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime } from '../utils.js';
 
 Gio._promisify(Gio.File.prototype, 'enumerate_children_async');
@@ -20,6 +20,8 @@ const COLUMNS = 3;
 // Thumbnails of the freedesktop thumbnail cache, the ones of GNOME Files are used too.
 // The helper writes x-large ones, large ones are still sharp enough at 100%.
 const THUMBNAIL_SIZES = ['x-large', 'large'];
+// A helper that takes longer hangs in a broken file or codec and is ended, in seconds.
+const HELPER_TIMEOUT = 30;
 const HELPER = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent()
     .get_child('helpers').get_child('galleryThumbnailer.js').get_path();
 
@@ -105,6 +107,7 @@ class CaptureLibrary {
         this._failed = new Set();
         this._helper = null;
         this._helperPending = false;
+        this._helperTimeoutId = 0;
     }
 
     // tab: 'all', 'screenshots' or 'recordings'
@@ -161,6 +164,11 @@ class CaptureLibrary {
             return;
         }
         const helper = this._helper;
+        this._helperTimeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, HELPER_TIMEOUT, () => {
+            this._helperTimeoutId = 0;
+            helper.force_exit();
+            return GLib.SOURCE_REMOVE;
+        });
         helper.communicate_utf8_async(null, this._cancellable).then(([stdout]) => {
             const results = new Map((stdout ?? '').split('\n').filter(line => line).map(line => {
                 const result = JSON.parse(line);
@@ -180,6 +188,7 @@ class CaptureLibrary {
         }).catch(logError).finally(() => {
             if (this._helper !== helper) return;
             this._helper = null;
+            this._stopHelperTimeout();
             if (this._helperPending) {
                 this._helperPending = false;
                 this._readDetails();
@@ -187,8 +196,16 @@ class CaptureLibrary {
         });
     }
 
+    _stopHelperTimeout() {
+        if (this._helperTimeoutId) {
+            GLib.Source.remove(this._helperTimeoutId);
+            this._helperTimeoutId = 0;
+        }
+    }
+
     destroy() {
         this._cancellable.cancel();
+        this._stopHelperTimeout();
         this._helper?.force_exit();
         this._helper = null;
     }
@@ -323,9 +340,7 @@ export class Gallery {
             child: content,
         });
         if (item.thumbnail) {
-            // A background image follows the rounded corners, like the cover of the Music card.
-            const escaped = item.thumbnail.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-            tile.style = `background-image: url("${escaped}"); background-size: cover;`;
+            tile.style = backgroundImageStyle(item.thumbnail);
         }
         tile.connect('clicked', () => this._open(item.path));
         return tile;

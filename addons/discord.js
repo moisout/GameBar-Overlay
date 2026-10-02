@@ -6,7 +6,8 @@ import Secret from 'gi://Secret';
 import Soup from 'gi://Soup?version=3.0';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable, setCardHidden } from '../cardPosition.js';
-import { createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
+import { backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
+import { deleteOldFiles } from '../utils.js';
 
 // The voice channel of the Discord client over its local RPC server. The voice commands need an OAuth token with the
 // rpc scope, which Discord only grants to approved applications. The card authorises as the StreamKit Overlay of
@@ -25,6 +26,15 @@ const CHANNEL_EVENTS = ['VOICE_STATE_CREATE', 'VOICE_STATE_UPDATE', 'VOICE_STATE
 const COLLAPSED_LIMIT = 5;
 const EXPANDED_LIMIT = 15;
 
+// A stage channel with hundreds of listeners is larger than the 128 KiB a message may have by default.
+const MAX_MESSAGE_SIZE = 8 * 1024 * 1024;
+// Something else may listen on one of the ports and never answer, and a session without a keyring may not either. In milliseconds.
+const CONNECT_TIMEOUT = 2000;
+const READY_TIMEOUT = 5000;
+const KEYRING_TIMEOUT = 3000;
+// Avatars not downloaded again for this long are deleted, in seconds.
+const AVATAR_MAX_AGE = 30 * 24 * 60 * 60;
+
 // How long the card stays connected with the overlay closed, waiting for the user to answer the prompt of Discord.
 const AUTHORIZE_TIMEOUT = 120;
 
@@ -35,6 +45,23 @@ const logError = (error) => {
 };
 
 const cancelledError = () => new GLib.Error(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED, 'Disconnected from Discord');
+
+// Runs start(attempt) with a cancellable that is cancelled after the timeout, or with the cancellable given.
+const withTimeout = async (cancellable, timeout, start) => {
+    const attempt = new Gio.Cancellable();
+    const cancelId = cancellable.connect(() => attempt.cancel());
+    let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeout, () => {
+        timeoutId = 0;
+        attempt.cancel();
+        return GLib.SOURCE_REMOVE;
+    });
+    try {
+        return await start(attempt);
+    } finally {
+        if (timeoutId) GLib.Source.remove(timeoutId);
+        cancellable.disconnect(cancelId);
+    }
+};
 
 // The token is kept in the keyring, it allows controlling the Discord client.
 let tokenSchema = null;
@@ -144,6 +171,7 @@ class DiscordClient {
             return;
         }
 
+        connection.max_incoming_payload_size = MAX_MESSAGE_SIZE;
         this._connection = connection;
         this._connectionIds = [
             connection.connect('message', (connection_, type, bytes) => {
@@ -161,13 +189,17 @@ class DiscordClient {
                 this._setState('unavailable');
             }),
         ];
-        await new Promise((resolve, reject) => this._pending.set('ready', { resolve, reject }));
+        await withTimeout(cancellable, READY_TIMEOUT, attempt => new Promise((resolve, reject) => {
+            this._pending.set('ready', { resolve, reject });
+            attempt.connect(() => reject(cancelledError()));
+        }));
 
+        // Without an answer of the keyring the card offers to connect, the token then lasts until the shell restarts.
         let token = this._token;
         try {
-            token ??= await lookupToken(cancellable);
+            token ??= await withTimeout(cancellable, KEYRING_TIMEOUT, attempt => lookupToken(attempt));
         } catch (e) {
-            if (isCancelled(e)) throw e;
+            if (cancellable.is_cancelled()) throw e;
             logError(e);
         }
         if (token && await this._authenticate(token)) {
@@ -194,17 +226,17 @@ class DiscordClient {
         for (let port = FIRST_PORT; port <= LAST_PORT; port++) {
             const message = Soup.Message.new('GET', `ws://127.0.0.1:${port}/?v=1&client_id=${CLIENT_ID}`);
             try {
-                return await new Promise((resolve, reject) => {
-                    this._session.websocket_connect_async(message, ORIGIN, [], GLib.PRIORITY_DEFAULT, cancellable, (session, result) => {
+                return await withTimeout(cancellable, CONNECT_TIMEOUT, attempt => new Promise((resolve, reject) => {
+                    this._session.websocket_connect_async(message, ORIGIN, [], GLib.PRIORITY_DEFAULT, attempt, (session, result) => {
                         try {
                             resolve(session.websocket_connect_finish(result));
                         } catch (e) {
                             reject(e);
                         }
                     });
-                });
+                }));
             } catch (e) {
-                if (isCancelled(e)) throw e;
+                if (cancellable.is_cancelled()) throw e;
             }
         }
         return null;
@@ -438,6 +470,7 @@ class AvatarCache {
         this._cancellable = new Gio.Cancellable();
         // The callbacks waiting for a download, by its path.
         this._loading = new Map();
+        deleteOldFiles(this._directory, AVATAR_MAX_AGE);
     }
 
     // callback(path) once the avatar is there, never without one.
@@ -714,8 +747,7 @@ export class Discord {
             });
             this._avatars.load(avatarUrl, avatarKey, path => {
                 if (destroyed) return;
-                // A background image follows the rounded corners, like the user avatars of the shell.
-                avatar.style = `background-image: url("${path}"); background-size: cover;`;
+                avatar.style = backgroundImageStyle(path);
                 initial.hide();
             });
         }

@@ -1,4 +1,5 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 
 const readFile = (path) => {
     try {
@@ -152,4 +153,43 @@ const formatPlaybackTime = (seconds) => {
     return `${minutes}:${pad(seconds % 60)}`;
 };
 
-export { readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit, formatPlaybackTime };
+// Deletes the files of a directory that were last changed more than maxAge seconds ago. A missing directory has none.
+const deleteOldFiles = (path, maxAge, cancellable = null) => {
+    const limit = GLib.get_real_time() / GLib.USEC_PER_SEC - maxAge;
+    Gio.File.new_for_path(path).enumerate_children_async('standard::name,time::modified',
+        Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_LOW, cancellable, (directory, result) => {
+            let enumerator;
+            try {
+                enumerator = directory.enumerate_children_finish(result);
+            } catch (e) {
+                return;
+            }
+
+            const next = () => enumerator.next_files_async(50, GLib.PRIORITY_LOW, cancellable, (source, nextResult) => {
+                let infos;
+                try {
+                    infos = enumerator.next_files_finish(nextResult);
+                } catch (e) {
+                    return;
+                }
+                if (infos.length === 0) {
+                    enumerator.close_async(GLib.PRIORITY_LOW, null, null);
+                    return;
+                }
+
+                infos.filter(info => info.get_modification_date_time().to_unix() < limit).forEach(info => {
+                    enumerator.get_child(info).delete_async(GLib.PRIORITY_LOW, null, (file, deleteResult) => {
+                        try {
+                            file.delete_finish(deleteResult);
+                        } catch (e) {
+                            // Deleted by somebody else.
+                        }
+                    });
+                });
+                next();
+            });
+            next();
+        });
+};
+
+export { deleteOldFiles, readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit, formatPlaybackTime };
