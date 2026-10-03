@@ -112,6 +112,7 @@ A pinned card stays on its monitor while the overlay is closed, over the desktop
 - The Discord card has its own pinned card, like the overlay of Discord on Windows: the members of the voice channel as avatars with the name on a dark tag, a green ring (`#23a55a`) around who is speaking and the muted and deafened icons in red (`#f23f43`). It shows nothing outside a voice channel. It has a connection of its own to Discord.
 - The pinned cards are hidden for a screenshot of the Capture card and while a recording runs.
 - While a layer is shown, unredirect is off: a fullscreen window that bypasses the compositor would cover the pinned cards. Games are then always composited, which can cost some latency. Not tested with a fullscreen game.
+- Pinned Card Opacity in the preferences fades the pinned cards, 100% by default. Every pinned card is faded as a whole, in an offscreen buffer of its own (`AUTOMATIC_FOR_OPACITY`), otherwise its rows and its fill would show through each other.
 
 ## Monitors
 

@@ -1,3 +1,4 @@
+import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
@@ -33,6 +34,7 @@ export class PinnedCards {
         this._overlayMonitorIndex = -1;
         this._hidingCount = 0;
         this._unredirectDisabled = false;
+        this._opacity = 255;
 
         this._overlay.connectObject('notify::visible', () => this._syncVisibility(), this);
         Main.screenshotUI.connectObject('notify::screencast-in-progress', () => this._syncVisibility(), this);
@@ -42,6 +44,21 @@ export class PinnedCards {
     set overlayMonitorIndex(index) {
         this._overlayMonitorIndex = index;
         this._syncVisibility();
+    }
+
+    // In percent.
+    set opacity(percent) {
+        this._opacity = Math.round(255 * Math.max(0, Math.min(percent, 100)) / 100);
+        this._layers.forEach(({ addons }) => addons.forEach(addon => this._applyOpacity(addon)));
+    }
+
+    _applyOpacity(addon) {
+        const container = addon._addonContainer;
+        if (!container) return;
+
+        // Faded as a whole, otherwise the rows and the fill of the card would show through each other.
+        container.offscreen_redirect = Clutter.OffscreenRedirect.AUTOMATIC_FOR_OPACITY;
+        container.opacity = this._opacity;
     }
 
     rebuild() {
@@ -61,6 +78,7 @@ export class PinnedCards {
             const entry = { layer, index: monitor.index, addons: [] };
             this._layers.push(entry);
             entry.addons = cards.map(card => card.createPinned(layer, monitor, key));
+            entry.addons.forEach(addon => this._applyOpacity(addon));
         }
         this._syncVisibility();
     }

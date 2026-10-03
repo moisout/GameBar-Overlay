@@ -73,6 +73,13 @@
       <description>Cards closed with their close button or the dash, by the connector of the monitor</description>
     </key>
 
+    <key name="pinned-cards-opacity" type="i">
+      <range min="10" max="100"/>
+      <default>100</default>
+      <summary>Opacity of the pinned cards</summary>
+      <description>Opacity of the pinned cards over the windows, in percent</description>
+    </key>
+
     <key name="monitor-pinned-cards" type="a{sas}">
       <default>{}</default>
       <summary>Pinned cards of every monitor</summary>

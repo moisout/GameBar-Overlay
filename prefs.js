@@ -56,6 +56,19 @@ export default class Preferences extends ExtensionPreferences {
         overlayBackgroundColorRow.add_suffix(colorButton);
         appearanceGroup.add(overlayBackgroundColorRow);
 
+        const pinnedOpacityRow = new Adw.SpinRow({
+            title: _('Pinned Card Opacity'),
+            subtitle: _('Opacity of the cards pinned over the windows, in percent'),
+            adjustment: new Gtk.Adjustment({
+                lower: 10,
+                upper: 100,
+                step_increment: 5,
+                page_increment: 10,
+            }),
+        });
+        appearanceGroup.add(pinnedOpacityRow);
+        settings.bind('pinned-cards-opacity', pinnedOpacityRow, 'value', Gio.SettingsBindFlags.DEFAULT);
+
         // Animations
         const enterAnimationValues = ['None', 'Fade', 'Slide', 'Fly In'];
         const exitAnimationValues = ['None', 'Fade', 'Slide', 'Fly Out'];
