@@ -1,4 +1,5 @@
 import GObject from 'gi://GObject';
+import Gio from 'gi://Gio';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
@@ -76,9 +77,19 @@ const createCloseButton = (onClose) => {
     return button;
 };
 
-// Keeps the card on the monitor while the overlay is closed. Flat until the card is pinned, then filled like a
-// pressed toggle button.
+// The icon of the icon theme, or the one shipped in icons/ for themes without it.
+// Without a name of the theme it is always the shipped one.
+const setIcon = (icon, name, fallbackName) => {
+    const shipped = fallbackName ? Gio.FileIcon.new(
+        Gio.File.new_for_uri(import.meta.url).resolve_relative_path(`../icons/${fallbackName}.svg`)) : null;
+    icon.gicon = name ? new Gio.ThemedIcon({ name }) : shipped;
+    icon.fallback_gicon = name ? shipped : null;
+};
+
+// Keeps the card on the monitor while the overlay is closed. An outline pin until the card is pinned, then the
+// filled pin of the icon theme on a filled circle like a pressed toggle button. Icon themes have no outline pin.
 const createPinButton = (id) => {
+    const icon = new St.Icon({ icon_size: 16 });
     const button = new St.Button({
         style_class: 'gamebar-window-control gamebar-pin-button',
         y_align: Clutter.ActorAlign.CENTER,
@@ -87,9 +98,15 @@ const createPinButton = (id) => {
             style_class: 'gamebar-window-control-circle',
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
-            child: new St.Icon({ icon_name: 'view-pin-symbolic', icon_size: 16 }),
+            child: icon,
         }),
     });
+    const syncIcon = () => {
+        setIcon(icon, ...(button.checked ? ['view-pin-symbolic'] : [null, 'gamebar-pin-outline-symbolic']));
+        button.accessible_name = button.checked ? _('Unpin') : _('Pin');
+    };
+    button.connect('notify::checked', syncIcon);
+    syncIcon();
     button.connect('clicked', () => setCardPinned(id, !isCardPinned(id)));
     trackPinButton(id, button);
     return button;
@@ -312,4 +329,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { vertical, backgroundImageStyle, createCard, createPinButton, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };
+export { vertical, backgroundImageStyle, setIcon, createCard, createPinButton, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };

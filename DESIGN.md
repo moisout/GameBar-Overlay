@@ -66,7 +66,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Card shadow** `0 2px 4px 0 rgba(0,0,0,0.2)` instead of the design's `0 10px 30px rgba(0,0,0,0.5)`. The design's shadow is far heavier than anything in GNOME. The value is the one of the shell popup menus and Quick Settings. For comparison, libadwaita windows use three centred layers (`0 0 14px 5px` 15%, `0 0 5px 2px` 10%, 1px 5%), which St cannot draw since it supports only one shadow.
 - **Row separators** in the card background `#222226` instead of the design's lighter `rgba(255,255,255,0.08)`. GNOME lists show the background between the rows.
 - **Mute and media buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons, instead of the design's 44×44.
-- **Pin button** is flat until the card is pinned, then filled like a pressed toggle button. The design does not show the pinned state. The Clock has no header bar, its pin button is in its top left corner while the pointer is over the card or it is pinned.
+- **Pin button** shows an outline pin until the card is pinned, then the filled `view-pin-symbolic` of the icon theme on a filled circle like a pressed toggle button. Icon themes have no outline pin, it is `icons/gamebar-pin-outline-symbolic.svg`, Adwaita's pin as an outline. The design does not show the pinned state. The Clock has no header bar, its pin button is in its top left corner while the pointer is over the card or it is pinned.
 - **No overlay close button.** The overlay closes with Esc, the shortcut, the top bar indicator and a click on an empty area, which is now on by default.
 - **Network arrows** are the Adwaita `go-down` and `go-up` chevrons. Adwaita has no plain arrows, and its `network-receive` and `network-transmit` icons are horizontal arrow pairs.
 - **Sparklines start empty** each time the overlay opens. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but would run `nvidia-smi` every second for nothing.
@@ -74,7 +74,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 - **Player tabs** on the Music card, the design has no way to switch between players yet.
 - **Discord states** are shown without the design's "Speaking" and "Muted" texts: the ring is enough for speaking, muted and deafened are icons, a deafened member has both. A deafened member and the active deafen button show the crossed out headphones of the icon theme (`audio-volume-muted-headphones`, Papirus has them). Adwaita has none, themes without them get `icons/gamebar-headphones-disabled-symbolic.svg`: Adwaita's `audio-headphones` crossed out like its `microphone-disabled`. Active mute and deafen buttons switch to the muted glyph in secondary grey, like the mute buttons of the Audio card.
 - **Disconnect icon** is `call-stop` of the icon theme, so it matches the other icons. Themes without it get the receiver of Adwaita's, shipped in `icons/`. The button has the neutral fill of mute and deafen instead of the design's destructive red: themes like Papirus colour their `call-stop` red, which hardly shows on a red button.
-- **Icons shipped in `icons/`** are only fallbacks for icon themes that lack the icon (`fallback_gicon` of `St.Icon`).
+- **Icons shipped in `icons/`** are only fallbacks for icon themes that lack the icon (`fallback_gicon` of `St.Icon`), except the outline pin, which no icon theme has.
 - **Dash icon of Discord** is the Adwaita headset, Adwaita has no Discord icon and the logo is a trademark.
 - **Gallery tiles** show the type as an icon in the middle and the time and length on the thumbnail, instead of a caption like "Recording · 0:42 · 21:31" below it.
 - **Dash buttons** are square, 52×52 instead of the design's 52×56.
@@ -112,9 +112,9 @@ A pinned card stays on its monitor while the overlay is closed, over the desktop
 - The layer of the monitor of the overlay is hidden while the overlay is shown, its cards are in the overlay. The layers of the other monitors stay.
 - A pinned card is the card built a second time for its monitor, `createPinned` of its entry in `extension.js`. It updates itself while its layer is shown, like the card of the overlay while the overlay is shown: the Hardware card samples, the Discord card is connected. By default it is the card without its header bar, at the place of the card in the overlay on that monitor.
 - The Discord card has its own pinned card, like the overlay of Discord on Windows: the members of the voice channel as avatars with the name on a dark tag, a green ring (`#23a55a`) around who is speaking and the muted and deafened icons in red (`#f23f43`). It shows nothing outside a voice channel. It has a connection of its own to Discord.
+- Pinned Card Opacity in the preferences fades the pinned cards, 100% by default. Every pinned card is faded as a whole, in an offscreen buffer of its own (`AUTOMATIC_FOR_OPACITY`), otherwise its rows and its fill would show through each other.
 - The pinned cards are hidden for a screenshot of the Capture card and while a recording runs.
 - While a layer is shown, unredirect is off: a fullscreen window that bypasses the compositor would cover the pinned cards. Games are then always composited, which can cost some latency. Not tested with a fullscreen game.
-- Pinned Card Opacity in the preferences fades the pinned cards, 100% by default. Every pinned card is faded as a whole, in an offscreen buffer of its own (`AUTOMATIC_FOR_OPACITY`), otherwise its rows and its fill would show through each other.
 
 ## Monitors
 
