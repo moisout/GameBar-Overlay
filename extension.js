@@ -651,6 +651,7 @@ class GameBar extends PanelMenu.Button {
         this._pins?.destroy();
         this._pins = null;
 
+        this._pins.opacity = settings.get_int('pinned-cards-opacity');
         // Call the addon destroy:
         this._clock?.destroy();
         this._clock = null;

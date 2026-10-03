@@ -30,6 +30,12 @@ const picked = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
 check(!layer.contains(picked), `the pointer goes through it (${picked})`);
 await shot('pinned-hardware', pinned);
 
+settings.set_int('pinned-cards-opacity', 60);
+await sleep(300);
+check(pinned.opacity === 153, `the opacity setting fades it (${pinned.opacity})`);
+await shot('pinned-hardware-faded', pinned);
+settings.reset('pinned-cards-opacity');
+
 await pins.hideWhile(async () => check(!layer.visible, 'a screenshot hides it'));
 check(layer.visible, 'and shows it again');
 
