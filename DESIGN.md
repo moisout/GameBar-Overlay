@@ -97,6 +97,8 @@ Every card with a header bar has the Adwaita window control in it: a 24px circle
 - The overlay is modal while it is open, like the overview (`Main.pushModal`): the keys go to the overlay, the shortcuts of the shell and the Super key do nothing, and a game loses its pointer lock until the overlay closes. The grab also keeps fullscreen windows from bypassing the compositor. Only the shortcut of the overlay is allowed in its mode.
 - The overlay and its backdrop are in the UI group of the shell, above the windows and the top bar and below the dialogs of the shell. A keyring or polkit prompt appears above the overlay.
 - It does not open on top of a dialog of the shell. An open overview is closed first.
+- A click on the empty area only closes the overlay when it was pressed there too. The top bar button opens the overlay on the press (a click gesture that recognizes on press on GNOME 50), and the release of that click came to the overlay, which covers the top bar, for a quick click and for one held until the overlay was there.
+- The overlay takes no clicks during its exit animation, a click on the top bar button below it opens the overlay again.
 - Whether the overlay is open is a flag of its own, the actor stays visible until the exit animation ends. Toggling during the exit animation opens the overlay again.
 - The overlay is hidden when the fade of the backdrop stops, which takes as long as the cards move. The cards cannot tell: a card recreated or shown during the animation never finishes it.
 - Disabling the extension (the shell does that when the screen locks) and a change of the monitors close an open overlay and release the grab.

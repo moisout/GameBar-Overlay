@@ -50,3 +50,26 @@ await shot('dragged');
 gamebar._toggleOverlay();
 await closed();
 check(!gamebar._overlay.visible && Main.modalCount === 0, `the shortcut closes it (${state()})`);
+
+// The button opens the overlay on the press, the release of the same click is not a click on the empty area.
+// It came to the overlay for a quick click and for one held until the overlay was there.
+for (const hold of [0, 300, 700]) {
+    await moveTo(...centre(gamebar));
+    pointer.notify_button(now(), Clutter.BUTTON_PRIMARY, Clutter.ButtonState.PRESSED);
+    await sleep(hold);
+    pointer.notify_button(now(), Clutter.BUTTON_PRIMARY, Clutter.ButtonState.RELEASED);
+    await sleep(settings.get_int('enter-animation-duration') + 300);
+    check(gamebar._isOpen, `a click held ${hold} ms on the top bar button opens the overlay (${state()})`);
+    await key(Clutter.KEY_Escape);
+    await closed();
+}
+
+// During the exit animation the click goes to the top bar button below the overlay.
+await openOverlay();
+gamebar._toggleOverlay();
+await sleep(100);
+await click(gamebar);
+await sleep(settings.get_int('enter-animation-duration') + 300);
+check(gamebar._isOpen, `a click on the top bar button during the exit animation opens it again (${state()})`);
+await key(Clutter.KEY_Escape);
+await closed();

@@ -167,9 +167,17 @@ class GameBar extends PanelMenu.Button {
             this._pins.reposition();
         });
 
-        // Close the overlay when clicking on an empty area, the cards stop the clicks on them
+        // Close the overlay when clicking on an empty area, the cards stop the clicks on them.
+        // Only a click pressed on the overlay counts: the top bar button opens it on the press, and the release of
+        // that click can come to the overlay, which covers the top bar.
+        this._overlay.connect('button-press-event', () => {
+            this._pressedOnOverlay = true;
+            return Clutter.EVENT_PROPAGATE;
+        });
         this._overlay.connect('button-release-event', () => {
-            if (this._emptyAreaClose) {
+            const pressedOnOverlay = this._pressedOnOverlay;
+            this._pressedOnOverlay = false;
+            if (this._emptyAreaClose && pressedOnOverlay) {
                 this._closeOverlay();
             }
         });
@@ -226,6 +234,8 @@ class GameBar extends PanelMenu.Button {
         }
 
         this._isOpen = true;
+        this._pressedOnOverlay = false;
+        this._overlay.reactive = true;
         const monitor = this._getGameMonitor();
         this._updateOverlayGeometry(monitor);
         this._pins.overlayMonitorIndex = monitor.index;
@@ -254,6 +264,8 @@ class GameBar extends PanelMenu.Button {
     _closeOverlay(animate = true) {
         if (!this._isOpen) return;
         this._isOpen = false;
+        // During the exit animation a click goes to what is below, like the top bar button that opens it again.
+        this._overlay.reactive = false;
 
         if (this._modalGrab) {
             Main.popModal(this._modalGrab);
@@ -639,6 +651,7 @@ class GameBar extends PanelMenu.Button {
         this._exitAnimation = settings.get_string('exit-animation');
         this._exitAnimationDuration = settings.get_int('exit-animation-duration');
         this._backdrop.style = `background-color: ${settings.get_string('overlay-background-color')}`;
+        this._pins.opacity = settings.get_int('pinned-cards-opacity');
     }
 
     /**
@@ -651,7 +664,6 @@ class GameBar extends PanelMenu.Button {
         this._pins?.destroy();
         this._pins = null;
 
-        this._pins.opacity = settings.get_int('pinned-cards-opacity');
         // Call the addon destroy:
         this._clock?.destroy();
         this._clock = null;
