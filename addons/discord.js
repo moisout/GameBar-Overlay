@@ -6,7 +6,7 @@ import Secret from 'gi://Secret';
 import Soup from 'gi://Soup?version=3.0';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
-import { vertical, backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
+import { vertical, backgroundImageStyle, setIcon, createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
 import { deleteOldFiles } from '../utils.js';
 
 // The voice channel of the Discord client over its local RPC server. The voice commands need an OAuth token with the
@@ -519,12 +519,6 @@ class AvatarCache {
     }
 }
 
-// The icon of the icon theme, or the one shipped in icons/ for themes without it.
-const setIcon = (icon, name, fallbackName) => {
-    icon.gicon = new Gio.ThemedIcon({ name });
-    icon.fallback_gicon = fallbackName ? Gio.FileIcon.new(
-        Gio.File.new_for_uri(import.meta.url).resolve_relative_path(`../../icons/${fallbackName}.svg`)) : null;
-};
 // Adwaita has no crossed out headphones, Papirus has.
 const DEAFENED_ICON = ['audio-volume-muted-headphones-symbolic', 'gamebar-headphones-disabled-symbolic'];
 
