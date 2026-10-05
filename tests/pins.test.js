@@ -17,12 +17,34 @@ await click(pinButton('system-monitor'));
 await sleep(300);
 check(pinnedCards().includes('system-monitor') && pinButton('system-monitor').checked, 'the pin button pins the Hardware card');
 check(pins._layers.length === 1 && !pins._layers[0].layer.visible, 'its pinned card is hidden while the overlay is open');
+
+// The pinned card stays during the exit and enter animations, its card in the overlay fades over it without moving.
+const inPlace = () => hardware.x === overlayX && hardware.y === overlayY && hardware.translation_x === 0 &&
+    hardware.translation_y === 0 && hardware.scale_x === 1;
+gamebar._toggleOverlay();
+await sleep(settings.get_int('exit-animation-duration') / 2);
+check(pins._layers[0].layer.visible, 'its pinned card shows during the exit animation');
+check(inPlace() && hardware.opacity > 0 && hardware.opacity < 255,
+    `and its card in the overlay fades out in place (opacity ${hardware.opacity})`);
+await closed();
+gamebar._openOverlay();
+await sleep(settings.get_int('enter-animation-duration') / 2);
+check(pins._layers[0].layer.visible, 'its pinned card shows during the enter animation');
+check(inPlace() && hardware.opacity > 0 && hardware.opacity < 255,
+    `and its card in the overlay fades in in place (opacity ${hardware.opacity})`);
+await sleep(settings.get_int('enter-animation-duration') / 2 + 300);
+check(!pins._layers[0].layer.visible && hardware.opacity === 255, 'it is hidden once the card faded in');
 await close();
 
 const { layer, addons } = pins._layers[0];
 const pinned = addons[0]._addonContainer;
 check(layer.visible && pinned.visible, 'and shown once the overlay is closed');
-check(pinned.x === overlayX && pinned.y === overlayY, `where the card is in the overlay (${pinned.x}, ${pinned.y})`);
+// The first row of the body, of the card in the overlay and of the pinned card.
+const firstRow = container => container.get_first_child().get_last_child().get_first_child();
+const [, rowY] = firstRow(hardware).get_transformed_position();
+const [, pinnedRowY] = firstRow(pinned).get_transformed_position();
+check(pinned.x === overlayX && pinnedRowY === rowY && pinned.y + pinned.height === overlayY + hardware.height,
+    `where the card is in the overlay, with the content in the same place (${pinned.x}, ${pinnedRowY}, ${rowY})`);
 await sleep(1500);
 check(addons[0]._cpuRow?.usage.text !== '', `and it updates (CPU ${addons[0]._cpuRow?.usage.text})`);
 const [x, y] = centre(pinned);

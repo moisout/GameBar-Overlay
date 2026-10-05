@@ -8,7 +8,7 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, isCardHidden, syncPinButtons } from './cardPosition.js';
+import { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, isCardHidden, isCardPinned, syncPinButtons } from './cardPosition.js';
 import { PinnedCards } from './pinnedCards.js';
 import { getMonitorKey } from './utils.js';
 
@@ -143,7 +143,7 @@ class GameBar extends PanelMenu.Button {
             { id: 'discord', name: _('Discord'), iconName: 'audio-headset-symbolic', addon: this._discord,
                 createPinned: (layer, pinMonitor, pinKey) => new DiscordPinned(layer, pinMonitor, { pinKey }) },
         ];
-        this._pins = new PinnedCards(this._cards, this._overlay);
+        this._pins = new PinnedCards(this._cards);
         // Cards fading out after being closed, they are still visible until the animation ends.
         this._hidingCards = new Set();
         this._dash = new Dash(this._overlay, monitor, this._cards);
@@ -268,6 +268,8 @@ class GameBar extends PanelMenu.Button {
         this._isOpen = false;
         // During the exit animation a click goes to what is below, like the top bar button that opens it again.
         this._overlay.reactive = false;
+        // The pinned cards are back right away, their cards in the overlay fade out over them.
+        this._pins.overlayShown = false;
 
         if (this._modalGrab) {
             Main.popModal(this._modalGrab);
@@ -305,13 +307,28 @@ class GameBar extends PanelMenu.Button {
                 opacity: 255,
                 duration: animationDuration,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                // The pinned cards stay until their cards in the overlay faded in over them.
+                onComplete: () => {
+                    this._pins.overlayShown = true;
+                },
+            });
+
+            // A pinned card does not move, its card in the overlay fades in over it like the backdrop.
+            this._getPinnedChildren().forEach(child => {
+                child.set_opacity(0);
+                child.ease({
+                    opacity: 255,
+                    duration: animationDuration,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
             });
         } else {
             this._backdrop.set_opacity(255);
+            this._pins.overlayShown = true;
         }
 
         if (animationType === 'Fade') {
-            this._getShownChildren().forEach(child => {
+            this._getMovingChildren().forEach(child => {
                 child.set_opacity(0);
                 child.set_scale(0.8, 0.8);
 
@@ -324,7 +341,7 @@ class GameBar extends PanelMenu.Button {
                 });
             });
         } else if (animationType === 'Slide') {
-            this._getShownChildren().forEach(child => {
+            this._getMovingChildren().forEach(child => {
 
                 // Determine slide direction and initial position
                 if (child.y < this._overlay.height / 3) {
@@ -378,7 +395,7 @@ class GameBar extends PanelMenu.Button {
         const centerX = this._overlay.width / 2;
         const centerY = this._overlay.height / 2;
 
-        const cards = this._getShownChildren().map(child => {
+        const cards = this._getMovingChildren().map(child => {
             const offsetX = child.x + child.width / 2 - centerX;
             const offsetY = child.y + child.height / 2 - centerY;
             return {
@@ -418,12 +435,21 @@ class GameBar extends PanelMenu.Button {
                     this._overlay?.hide();
                 },
             });
+
+            // A pinned card does not move, its card in the overlay fades out over it like the backdrop.
+            this._getPinnedChildren().forEach(child => {
+                child.ease({
+                    opacity: 0,
+                    duration: animationDuration,
+                    mode: Clutter.AnimationMode.EASE_IN_QUAD,
+                });
+            });
         } else {
             this._backdrop.hide();
         }
 
         if (animationType === 'Fade') {
-            this._getShownChildren().forEach(child => {
+            this._getMovingChildren().forEach(child => {
                 child.ease({
                     opacity: 0,
                     scale_x: 0.8,
@@ -433,7 +459,7 @@ class GameBar extends PanelMenu.Button {
                 });
             });
         } else if (animationType === 'Slide') {
-            this._getShownChildren().forEach(child => {
+            this._getMovingChildren().forEach(child => {
                 let translationX = 0;
                 let translationY = 0;
 
@@ -499,9 +525,18 @@ class GameBar extends PanelMenu.Button {
         waitForHidden(this._overlay, () => waitForHidden(this._backdrop, callback));
     }
 
-    // The children the animations move, closed cards are hidden and left alone.
-    _getShownChildren() {
-        return this._overlay.get_children().filter(child => child.visible);
+    // The children the animations move, closed cards are hidden and left alone. Pinned cards stay where they are.
+    _getMovingChildren() {
+        const pinned = this._getPinnedChildren();
+        return this._overlay.get_children().filter(child => child.visible && !pinned.includes(child));
+    }
+
+    // The cards of the overlay that are pinned on its monitor, they are at the place of their pinned card.
+    // A card fading out after being closed has no pinned card anymore.
+    _getPinnedChildren() {
+        return this._cards
+            .filter(({ id, addon }) => addon._addonContainer?.visible && isCardPinned(id) && !this._hidingCards.has(id))
+            .map(({ addon }) => addon._addonContainer);
     }
 
     // Show the cards that are not closed and update the dots of the dash.

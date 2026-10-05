@@ -163,7 +163,32 @@ const syncPinButtons = () => {
     });
 };
 
-const placeCard = (monitor, element, id, key = monitorKey) => {
+// The card in the container of an addon, the pinned Discord card is not one.
+const findCard = (element) => element?.get_children().find(child => child.has_style_class_name('gamebar-card')) ?? null;
+
+// How far below the top of a card its content starts: below the header bar, at the tab bar or the padding of the body.
+const getContentTop = (card) => {
+    let top = 0;
+    for (const child of card.get_children()) {
+        if (!child.visible) continue;
+        if (child.has_style_class_name('gamebar-card-body')) return top + child.get_theme_node().get_padding(St.Side.TOP);
+        if (!child.has_style_class_name('gamebar-card-header')) return top;
+        top += child.get_preferred_height(-1)[1];
+    }
+    return top;
+};
+
+// A pinned card has no header bar, it is lower than its card in the overlay by as much. Their content is in the same
+// place and they end at the same bottom, so the card of the overlay fades in and out over it without a jump.
+const getPinOffset = (id, element) => {
+    const card = findCard(cardElements.get(id));
+    const pinnedCard = findCard(element);
+    if (!card || !pinnedCard) return 0;
+    return getContentTop(card) - getContentTop(pinnedCard);
+};
+
+// offset moves a pinned card down from the place of its card.
+const placeCard = (monitor, element, id, key = monitorKey, offset = 0) => {
     if (element._dragging) return;
 
     const [, , width, height] = element.get_preferred_size();
@@ -176,6 +201,7 @@ const placeCard = (monitor, element, id, key = monitorKey) => {
     } else {
         [x, y] = getDefaultPosition(monitor, id, key);
     }
+    y += offset;
 
     element.set_position(
         clamp(Math.round(x), 1, monitor.width - width), // x >= 1, an actor at 0,0 is shown in the centre of the screen.
@@ -194,12 +220,13 @@ const trackElement = (elements, id, element) => {
 
 // Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
 // The cards below it in its column move along, they depend on its height.
-// pinKey is the monitor of a pinned card, which is placed where its card is in the overlay on that monitor.
+// pinKey is the monitor of a pinned card, which is placed where its card is in the overlay on that monitor, with its
+// content where the content of that card is.
 const positionAddon = (monitor, element, id, pinKey = null) => {
     if (!monitor || !element) return;
 
     if (pinKey !== null) {
-        placeCard(monitor, element, id, pinKey);
+        placeCard(monitor, element, id, pinKey, getPinOffset(id, element));
         return;
     }
 

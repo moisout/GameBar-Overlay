@@ -93,7 +93,7 @@ Every card with a header bar has the Adwaita window control in it: a 24px circle
 
 - Closed cards are saved for the monitor of the overlay in the `monitor-hidden-cards` setting and stay closed across sessions, like dragged positions. A card closed on one monitor is still shown on the others.
 - Closing and showing a card while the overlay is open fades and scales it (200ms, from 90%).
-- The enter and exit animations only move the shown cards.
+- The enter and exit animations only move the shown cards that are not pinned.
 - The Hardware card does not exist without any row, the dash then has no button for it.
 - Clicks on the dash do not count as clicks on the empty area.
 
@@ -115,7 +115,8 @@ A pinned card stays on its monitor while the overlay is closed, over the desktop
 - Pinned cards are saved per monitor in `monitor-pinned-cards`. A closed card is not shown pinned.
 - Every monitor with a pinned card has a layer above the windows and below the top bar, the overview, notifications and the overlay (`pinnedCards.js`). The layer and its children are never picked, the pointer goes to the window below: a game keeps its clicks and its pointer lock. To use a pinned card, open the overlay.
 - The layer of the monitor of the overlay is hidden while the overlay is shown, its cards are in the overlay. The layers of the other monitors stay.
-- A pinned card is the card built a second time for its monitor, `createPinned` of its entry in `extension.js`. It updates itself while its layer is shown, like the card of the overlay while the overlay is shown: the Hardware card samples, the Discord card is connected. By default it is the card without its header bar, at the place of the card in the overlay on that monitor.
+- The enter and exit animations leave the pinned cards where they are. Their cards in the overlay fade in over them like the backdrop, and the layer is hidden once they have. Closing shows the layer right away, and the cards of the overlay fade out over it.
+- A pinned card is the card built a second time for its monitor, `createPinned` of its entry in `extension.js`. It updates itself while its layer is shown, like the card of the overlay while the overlay is shown: the Hardware card samples, the Discord card is connected. By default it is the card without its header bar, at the place of the card in the overlay on that monitor. It is lower by the header bar, so its content is where the content of the card in the overlay is and both end at the same bottom: the card of the overlay fades over it without a jump.
 - The Discord card has its own pinned card, like the overlay of Discord on Windows: the members of the voice channel as avatars with the name on a dark tag, a green ring (`#23a55a`) around who is speaking and the muted and deafened icons in red (`#f23f43`). It shows nothing outside a voice channel. It has a connection of its own to Discord.
 - Pinned Card Opacity in the preferences fades the pinned cards, 100% by default. Every pinned card is faded as a whole, in an offscreen buffer of its own (`AUTOMATIC_FOR_OPACITY`), otherwise its rows and its fill would show through each other.
 - The pinned cards are hidden for a screenshot of the Capture card and while a recording runs.

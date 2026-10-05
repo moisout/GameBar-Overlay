@@ -25,24 +25,30 @@ const setUnredirect = (enabled) => {
 // The pinned cards of every monitor, shown while the overlay is not on that monitor. Every pinned card is built a
 // second time, by createPinned of its card, and updates itself while its layer is shown.
 export class PinnedCards {
-    // cards: [{ id, createPinned(layer, monitor, pinKey) }]. overlay: the actor of the overlay.
-    constructor(cards, overlay) {
+    // cards: [{ id, createPinned(layer, monitor, pinKey) }].
+    constructor(cards) {
         this._cards = cards;
-        this._overlay = overlay;
         // { layer, index, addons } of every monitor with a pinned card.
         this._layers = [];
         this._overlayMonitorIndex = -1;
+        this._overlayShown = false;
         this._hidingCount = 0;
         this._unredirectDisabled = false;
         this._opacity = 255;
 
-        this._overlay.connectObject('notify::visible', () => this._syncVisibility(), this);
         Main.screenshotUI.connectObject('notify::screencast-in-progress', () => this._syncVisibility(), this);
     }
 
     // The monitor the overlay is on, its pinned cards are in the overlay while it is shown.
     set overlayMonitorIndex(index) {
         this._overlayMonitorIndex = index;
+        this._syncVisibility();
+    }
+
+    // Whether the overlay covers the pinned cards of its monitor. Not during its enter and exit animations: the pinned
+    // cards stay, and their cards in the overlay fade in and out over them.
+    set overlayShown(shown) {
+        this._overlayShown = shown;
         this._syncVisibility();
     }
 
@@ -102,7 +108,7 @@ export class PinnedCards {
     _syncVisibility() {
         const capturing = this._hidingCount > 0 || Main.screenshotUI.screencast_in_progress;
         this._layers.forEach(({ layer, index }) => {
-            layer.visible = !capturing && !(this._overlay.visible && index === this._overlayMonitorIndex);
+            layer.visible = !capturing && !(this._overlayShown && index === this._overlayMonitorIndex);
         });
 
         const shown = this._layers.some(({ layer }) => layer.visible);
@@ -121,7 +127,6 @@ export class PinnedCards {
     }
 
     destroy() {
-        this._overlay.disconnectObject(this);
         Main.screenshotUI.disconnectObject(this);
         this._destroyLayers();
         if (this._unredirectDisabled) {
