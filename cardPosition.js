@@ -109,6 +109,18 @@ const getDefaultPosition = (monitor, id, key) => {
     return [x, y];
 };
 
+// Whether a card was dragged on the monitor of the overlay.
+const hasCustomPositions = () => Object.keys(getCustomPositions()).length > 0;
+
+// Every card of the monitor of the overlay back to its place in the default layout.
+const resetCustomPositions = () => {
+    if (!position_settings || !hasCustomPositions()) return;
+
+    const monitors = position_settings.get_value(POSITIONS_KEY).deepUnpack();
+    delete monitors[monitorKey];
+    position_settings.set_value(POSITIONS_KEY, new GLib.Variant('a{sa{s(dd)}}', monitors));
+};
+
 const getHiddenCards = () => {
     return position_settings?.get_value(HIDDEN_KEY).deepUnpack() ?? {};
 };
@@ -327,5 +339,6 @@ const makeDraggable = (element, id) => {
     element.connect('destroy', endDrag);
 };
 
-export { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, saveCustomPosition, isCardHidden, setCardHidden,
+export { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, saveCustomPosition, hasCustomPositions,
+    resetCustomPositions, isCardHidden, setCardHidden,
     isCardPinned, setCardPinned, trackPinButton, syncPinButtons, positionAddon, followCardSize, makeDraggable, findCard };
