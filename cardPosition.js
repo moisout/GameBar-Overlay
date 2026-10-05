@@ -12,9 +12,9 @@ const PINNED_KEY = 'monitor-pinned-cards';
 // Default layout from the design (design/gnome-game-overlay-handoff.md): columns of stacked cards, centred on the monitor.
 // A monitor too narrow for a layout gets the next one, the first one fits 1920px.
 const LAYOUTS = [
-    [['sound', 'battery'], ['capture', 'gallery'], ['clock', 'music', 'discord'], ['system-monitor']],
-    [['sound', 'battery', 'music', 'discord'], ['clock', 'capture', 'gallery'], ['system-monitor']],
-    [['sound', 'battery', 'music', 'discord'], ['clock', 'capture', 'gallery', 'system-monitor']],
+    [['sound', 'battery'], ['capture', 'gallery'], ['clock', 'music', 'discord'], ['system-monitor', 'settings']],
+    [['sound', 'battery', 'music', 'discord'], ['clock', 'capture', 'gallery'], ['system-monitor', 'settings']],
+    [['sound', 'battery', 'music', 'discord'], ['clock', 'capture', 'gallery', 'system-monitor', 'settings']],
 ];
 // Width of the cards in the design, a column is as wide as its widest card.
 const CARD_WIDTHS = {

@@ -5,7 +5,7 @@ The overlay follows the GNOME Adwaita look. The design was made with claude.desi
 - `design/gnome-game-overlay-handoff.md`: design tokens, layout and the description of every card.
 - `design/overlay-mockup.dc.html`: the HTML/CSS mockup at 1920×1080. It needs the design tool's runtime and does not render in a browser, read it as text for exact values.
 
-Implemented are the Audio, Capture, Gallery, Clock, Hardware, Battery, Music and Discord cards, together with the dash at the bottom that shows and hides them.
+Implemented are the Audio, Capture, Gallery, Clock, Hardware, Battery, Music and Discord cards, together with the dash at the bottom that shows and hides them. The Settings card is not in the design.
 
 This file records where the implementation follows the design, where it departs from it and why.
 
@@ -63,6 +63,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - **Memory**: "used of total" in GiB, a level bar and the percentage. Used is total minus available from `/proc/meminfo`, like GNOME System Monitor.
   - **Disk**: the same for the filesystem of the home folder in GB, on image based systems the root filesystem is a small read-only image. The percentage is used of the whole size like GNOME Settings, so it is a few points lower than `df`, which leaves out the space reserved for root.
   - **Network**: download and upload rate from `/proc/net/dev`, counting only interfaces with a device behind them. Loopback, VPN and container interfaces would count the same traffic twice.
+- **Settings** (400px): the settings changed while playing, the others stay in the preferences window. A boxed list with Pinned Card Opacity, a slider from 10% to 100% like the preferences with the percentage on the right, and "Reset Card Positions", a row that is a button like the button rows of Adwaita. Reset moves the cards of the monitor of the overlay back, the positions are saved per monitor, and is greyed out while no card there was dragged. Below the list the pill button "More Settings…" closes the overlay and opens the preferences window, which would open behind it. The card has a close button and no pin button, a pinned card could not be used. It is below the Hardware card, its dash button is the `preferences-system-symbolic` of the icon theme.
 
 ## Departures from the design
 

@@ -23,6 +23,7 @@ import {Battery, BatteryModel, BATTERY_KEYS} from './addons/battery.js';
 import {Music} from './addons/music.js';
 import {Gallery} from './addons/gallery.js';
 import {Discord, DiscordPinned} from './addons/discord.js';
+import {SettingsCard} from './addons/settings.js';
 //TODO:: weather addon
 //TODO:: brightness addon
 
@@ -117,6 +118,7 @@ class GameBar extends PanelMenu.Button {
         this._music = new Music(this._overlay, monitor); // Controls of the media player that played last
         this._gallery = new Gallery(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The latest screenshots and recordings
         this._discord = new Discord(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The voice channel of Discord
+        this._settingsCard = new SettingsCard(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // Pinned card opacity and positions
 
         // A pinned card is the card built again for the monitor it is pinned on, without a header bar.
         // Its buttons are never clicked, the pointer goes to the windows below the pinned cards.
@@ -146,6 +148,8 @@ class GameBar extends PanelMenu.Button {
                 createPinned: pinned(Music) },
             { id: 'discord', name: _('Discord'), iconName: 'audio-headset-symbolic', addon: this._discord,
                 createPinned: (layer, pinMonitor, pinKey) => new DiscordPinned(layer, pinMonitor, { pinKey }) },
+            { id: 'settings', name: _('Settings'), iconName: 'preferences-system-symbolic', addon: this._settingsCard,
+                createPinned: null },
         ];
         this._pins = new PinnedCards(this._cards);
         // The pinned cards growing into their cards in the overlay and back, by the id of the card.
@@ -713,6 +717,7 @@ class GameBar extends PanelMenu.Button {
         this._soundControls._updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
         this._batteryModel.updateSettings(settings);
+        this._settingsCard._updateSettings(settings);
         this._onCardsRecreated();
         this._updateOverlaySettings(settings);
         this._pins.rebuild();
@@ -764,6 +769,8 @@ class GameBar extends PanelMenu.Button {
         this._gallery = null;
         this._discord?.destroy();
         this._discord = null;
+        this._settingsCard?.destroy();
+        this._settingsCard = null;
         this._dash?.destroy();
         this._dash = null;
         this._cards = null;

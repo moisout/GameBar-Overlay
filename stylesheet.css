@@ -565,3 +565,17 @@
 .gamebar-level-bar-fill-warning {
     background-color: #ff938c;
 }
+
+/*Settings card*/
+.gamebar-settings-card {
+    width: 400px;
+}
+
+.gamebar-settings-body {
+    spacing: 12px;
+}
+
+.gamebar-settings-reset-row:hover,
+.gamebar-settings-reset-row:active {
+    border-radius: 0 0 12px 12px;
+}

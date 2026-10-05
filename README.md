@@ -18,6 +18,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - Battery of the computer and of connected devices like mice, headsets and controllers, also of devices on a Logi Bolt receiver over HID++
 - Media controls with the cover, track and seek slider, and tabs to switch between several players
 - The Discord voice channel: who is in it and who is speaking, with mute, deafen and disconnect (needs the official Discord client)
+- A settings card for the opacity of the pinned cards and resetting the card positions, with a button to the preferences
 - A dash to show and hide the cards
 - Cards can be dragged anywhere on the overlay
 - Pin cards to keep them over the game while the overlay is closed, clicks go through them
