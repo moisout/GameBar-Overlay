@@ -54,7 +54,7 @@ export class HidppNode {
     // The node is opened read and write once, the reads and writes poll it in the main loop.
     async open() {
         this._stream = await Gio.File.new_for_path(this.path).open_readwrite_async(GLib.PRIORITY_DEFAULT, this._cancellable);
-        const fd = this._stream.get_output_stream().get_fd();
+        const fd = /** @type {GioUnix.OutputStream} */ (this._stream.get_output_stream()).get_fd();
         this._input = new GioUnix.InputStream({ fd, close_fd: false });
         this._output = new GioUnix.OutputStream({ fd, close_fd: false });
         this._readLoop();

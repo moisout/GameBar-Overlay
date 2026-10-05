@@ -7,6 +7,8 @@ const BUS_NAME = 'org.freedesktop.UPower';
 const OBJECT_PATH = '/org/freedesktop/UPower';
 const DISPLAY_DEVICE_PATH = '/org/freedesktop/UPower/devices/DisplayDevice';
 
+// A proxy has the methods and properties of its interface, which the types cannot know.
+/** @type {any} */
 const UPowerProxy = Gio.DBusProxy.makeProxyWrapper(`
 <node>
   <interface name="org.freedesktop.UPower">
@@ -16,6 +18,7 @@ const UPowerProxy = Gio.DBusProxy.makeProxyWrapper(`
   </interface>
 </node>`);
 
+/** @type {any} */
 const DeviceProxy = Gio.DBusProxy.makeProxyWrapper(`
 <node>
   <interface name="org.freedesktop.UPower.Device">
@@ -52,7 +55,10 @@ export class UPowerSource {
                 if (!error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) console.warn(`GameBar: ${error.message}`);
                 return;
             }
-            for (const [name, handler] of [['DeviceAdded', path => this._addDevice(path)], ['DeviceRemoved', path => this._removeDevice(path)]]) {
+            for (const [name, handler] of Object.entries({
+                DeviceAdded: path => this._addDevice(path),
+                DeviceRemoved: path => this._removeDevice(path),
+            })) {
                 const id = proxy.connectSignal(name, (proxy_, sender, [path]) => handler(path));
                 this._connections.push({ proxy, id, dbusSignal: true });
             }

@@ -18,6 +18,7 @@ const setUnredirect = (enabled) => {
     if (global.compositor?.disable_unredirect) {
         enabled ? global.compositor.enable_unredirect() : global.compositor.disable_unredirect();
     } else {
+        // @ts-expect-error Only up to GNOME 47, the types are the ones of GNOME 50.
         enabled ? Meta.enable_unredirect_for_display(global.display) : Meta.disable_unredirect_for_display(global.display);
     }
 };

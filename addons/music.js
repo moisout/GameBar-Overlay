@@ -24,6 +24,8 @@ const COVER_MAX_AGE = 24 * 60 * 60;
 // The elapsed time is counted locally between the positions read from the player, see Player.position.
 const PROGRESS_INTERVAL = 500;
 
+// A proxy has the methods and properties of its interface, which the types cannot know.
+/** @type {any} */
 const DBusProxy = Gio.DBusProxy.makeProxyWrapper(`
 <node>
   <interface name="org.freedesktop.DBus">
@@ -34,6 +36,7 @@ const DBusProxy = Gio.DBusProxy.makeProxyWrapper(`
   </interface>
 </node>`);
 
+/** @type {any} */
 const MprisProxy = Gio.DBusProxy.makeProxyWrapper(`
 <node>
   <interface name="org.mpris.MediaPlayer2">
@@ -42,6 +45,7 @@ const MprisProxy = Gio.DBusProxy.makeProxyWrapper(`
   </interface>
 </node>`);
 
+/** @type {any} */
 const PlayerProxy = Gio.DBusProxy.makeProxyWrapper(`
 <node>
   <interface name="org.mpris.MediaPlayer2.Player">
@@ -300,7 +304,7 @@ class MusicModel {
     // The player the card shows unless another one is picked: the one that played last, playing players first.
     get current() {
         const players = this.players;
-        players.sort((a, b) => (b.status === 'Playing') - (a.status === 'Playing') || b.lastActive - a.lastActive);
+        players.sort((a, b) => Number(b.status === 'Playing') - Number(a.status === 'Playing') || b.lastActive - a.lastActive);
         return players[0] ?? null;
     }
 
@@ -600,7 +604,7 @@ export class Music {
         this._setCover(player.coverUrl);
 
         const playing = player.status === 'Playing';
-        this._playPauseButton.child.icon_name = playing ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
+        /** @type {St.Icon} */ (this._playPauseButton.child).icon_name = playing ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
         this._playPauseButton.accessible_name = playing ? _('Pause') : _('Play');
         this._playPauseButton.reactive = player.canPlayPause;
         this._previousButton.reactive = player.canGoPrevious;

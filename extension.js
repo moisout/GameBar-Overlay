@@ -262,6 +262,7 @@ class GameBar extends PanelMenu.Button {
         const grab = Main.pushModal(this._overlay, { actionMode: Shell.ActionMode.SYSTEM_MODAL });
         this._modalGrab = grab;
         // Up to GNOME 49 a grab can fail, another client may hold the keyboard on X11.
+        // @ts-expect-error GrabState is gone since GNOME 50, the types are the ones of GNOME 50.
         if (grab.get_seat_state && (grab.get_seat_state() & Clutter.GrabState.KEYBOARD) === 0) {
             this._closeOverlay(false);
         }
@@ -409,6 +410,7 @@ class GameBar extends PanelMenu.Button {
                 translationX: offsetX * (FLY_SCALE - 1),
                 translationY: offsetY * (FLY_SCALE - 1),
                 distance: Math.hypot(offsetX, offsetY),
+                closeness: 0,
             };
         });
 

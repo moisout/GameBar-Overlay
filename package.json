@@ -1,0 +1,17 @@
+{
+  "name": "gamebar-overlay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc"
+  },
+  "devDependencies": {
+    "@girs/gdkpixbuf-2.0": "~4.9.0",
+    "@girs/gnome-shell": "^50.0.4",
+    "@girs/gst-1.0": "~4.9.0",
+    "@girs/gtop-2.0": "~4.9.0",
+    "@girs/secret-1": "~4.9.0",
+    "@girs/soup-3.0": "~4.9.0",
+    "typescript": "^7.0.2"
+  }
+}

@@ -276,7 +276,7 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
             isSyncing = false;
 
             const muted = stream.is_muted || slider.value <= 0;
-            muteButton.child.icon_name = muted ? 'audio-volume-muted-symbolic' : 'audio-volume-high-symbolic';
+            /** @type {St.Icon} */ (muteButton.child).icon_name = muted ? 'audio-volume-muted-symbolic' : 'audio-volume-high-symbolic';
             [muteButton, label].forEach(actor => {
                 if (muted) {
                     actor.add_style_class_name('gamebar-dim');

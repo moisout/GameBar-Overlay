@@ -514,7 +514,10 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
       this._gpuRow.subtitle.set_text(details.join(' · '));
     }
 
-    for (const [row, getUsage, binary] of [[this._memoryRow, () => this._getMemory(), true], [this._diskRow, () => this._getDisk(), false]]) {
+    for (const { row, getUsage, binary } of [
+      { row: this._memoryRow, getUsage: () => this._getMemory(), binary: true },
+      { row: this._diskRow, getUsage: () => this._getDisk(), binary: false },
+    ]) {
       const usage = row ? getUsage() : null;
       if (usage) {
         row.subtitle.set_text(formatUsage(usage.used, usage.total, binary));

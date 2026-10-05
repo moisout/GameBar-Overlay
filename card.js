@@ -278,10 +278,12 @@ class LevelLayout extends Clutter.LayoutManager {
     }
 
     // The size of the bar comes from the stylesheet and the row.
+    /** @returns {[number, number]} */
     vfunc_get_preferred_width() {
         return [0, 0];
     }
 
+    /** @returns {[number, number]} */
     vfunc_get_preferred_height() {
         return [0, 0];
     }

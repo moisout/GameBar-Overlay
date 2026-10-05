@@ -15,7 +15,7 @@ const SCREENCAST_MODE = 1;
 const takeScreenshot = async (monitor) => {
     const shooter = new Shell.Screenshot();
     const [content, scale] = await shooter.screenshot_stage_to_content();
-    await captureScreenshot(content.get_texture(),
+    await captureScreenshot(/** @type {Clutter.TextureContent} */ (content).get_texture(),
         [monitor.x * scale, monitor.y * scale, monitor.width * scale, monitor.height * scale], scale, null);
 };
 

@@ -44,7 +44,7 @@ const logError = (error) => {
     if (!isCancelled(error)) console.warn(`GameBar: ${error.message}`);
 };
 
-const cancelledError = () => new GLib.Error(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED, 'Disconnected from Discord');
+const cancelledError = () => GLib.Error.new_literal(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED, 'Disconnected from Discord');
 
 // Runs start(attempt) with a cancellable that is cancelled after the timeout, or with the cancellable given.
 const withTimeout = async (cancellable, timeout, start) => {
@@ -707,7 +707,7 @@ export class Discord {
 
         // A deafened user is muted too.
         const muted = mute || deaf;
-        this._muteButton.child.icon_name = muted ? 'microphone-disabled-symbolic' : 'audio-input-microphone-symbolic';
+        /** @type {St.Icon} */ (this._muteButton.child).icon_name = muted ? 'microphone-disabled-symbolic' : 'audio-input-microphone-symbolic';
         this._muteButton.accessible_name = muted ? _('Unmute') : _('Mute');
         setStyleClass(this._muteButton, 'gamebar-dim', muted);
         setIcon(this._deafenButton.child, ...(deaf ? DEAFENED_ICON : ['audio-headphones-symbolic']));

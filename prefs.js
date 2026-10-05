@@ -8,7 +8,8 @@ import { listGpus, getGpuModel, readFile } from './utils.js';
 import { listHidppNodes } from './addons/batterySources/hidpp.js';
 
 export default class Preferences extends ExtensionPreferences {
-    fillPreferencesWindow(window) {
+    // Async since GNOME 47, it does not wait for anything.
+    async fillPreferencesWindow(window) {
         const settings = this.getSettings('org.gnome.shell.extensions.gamebar-overlay');
 
         // General Page
@@ -90,7 +91,7 @@ export default class Preferences extends ExtensionPreferences {
 
         enterAnimationRow.connect('notify::selected', () => {
             const selectedIndex = enterAnimationRow.selected;
-            const selectedValue = enterAnimationRow.model.get_string(selectedIndex);
+            const selectedValue = enterAnimationValues[selectedIndex];
             settings.set_string('enter-animation', selectedValue);
         });
 
@@ -124,7 +125,7 @@ export default class Preferences extends ExtensionPreferences {
 
         exitAnimationRow.connect('notify::selected', () => {
             const selectedIndex = exitAnimationRow.selected;
-            const selectedValue = exitAnimationRow.model.get_string(selectedIndex);
+            const selectedValue = exitAnimationValues[selectedIndex];
             settings.set_string('exit-animation', selectedValue);
         });
 
@@ -313,7 +314,7 @@ export default class Preferences extends ExtensionPreferences {
 
         temperatureUnitRow.connect('notify::selected', () => {
             const selectedIndex = temperatureUnitRow.selected;
-            const selectedValue = temperatureUnitRow.model.get_string(selectedIndex);
+            const selectedValue = temperatureUnitValues[selectedIndex];
             settings.set_string('cpu-temperature-unit', selectedValue);
         });
     

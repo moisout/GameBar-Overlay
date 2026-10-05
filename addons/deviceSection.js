@@ -178,7 +178,7 @@ export class DeviceSection {
         } else {
             iconName = high;
         }
-        this._muteButton.child.icon_name = iconName;
+        /** @type {St.Icon} */ (this._muteButton.child).icon_name = iconName;
         if (isMuted) {
             this._muteButton.add_style_class_name('gamebar-dim');
         } else {
