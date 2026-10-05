@@ -328,4 +328,4 @@ const makeDraggable = (element, id) => {
 };
 
 export { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, saveCustomPosition, isCardHidden, setCardHidden,
-    isCardPinned, setCardPinned, trackPinButton, syncPinButtons, positionAddon, followCardSize, makeDraggable };
+    isCardPinned, setCardPinned, trackPinButton, syncPinButtons, positionAddon, followCardSize, makeDraggable, findCard };

@@ -58,6 +58,13 @@
     margin: 2px;
 }
 
+/*A pinned card growing into its card in the overlay and back, both are drawn on one frame*/
+.gamebar-card.gamebar-card-bare {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
 /*Pinned cards over the windows have no header bar*/
 .gamebar-pin-layer .gamebar-card-body-headerless {
     padding: 12px;

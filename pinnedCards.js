@@ -8,7 +8,7 @@ import { getMonitorKey } from './utils.js';
 
 // A layer over the windows of a monitor that is never picked, with all its children. The pointer goes to the window
 // below it, a game keeps its clicks and its pointer lock.
-const PinLayer = GObject.registerClass(
+export const PinLayer = GObject.registerClass(
 class PinLayer extends St.Widget {
     vfunc_pick() {}
 });
@@ -28,7 +28,7 @@ export class PinnedCards {
     // cards: [{ id, createPinned(layer, monitor, pinKey) }].
     constructor(cards) {
         this._cards = cards;
-        // { layer, index, addons } of every monitor with a pinned card.
+        // { layer, index, ids, addons } of every monitor with a pinned card, ids are the ids of the addons.
         this._layers = [];
         this._overlayMonitorIndex = -1;
         this._overlayShown = false;
@@ -81,12 +81,18 @@ export class PinnedCards {
             // Above the windows, below the top bar, the overview, notifications and the overlay.
             Main.layoutManager.uiGroup.insert_child_above(layer, global.window_group);
 
-            const entry = { layer, index: monitor.index, addons: [] };
+            const entry = { layer, index: monitor.index, ids: cards.map(({ id }) => id), addons: [] };
             this._layers.push(entry);
             entry.addons = cards.map(card => card.createPinned(layer, monitor, key));
             entry.addons.forEach(addon => this._applyOpacity(addon));
         }
         this._syncVisibility();
+    }
+
+    // The pinned card of a card on the monitor of the overlay.
+    getPinned(id) {
+        const entry = this._layers.find(({ index }) => index === this._overlayMonitorIndex);
+        return entry?.addons[entry.ids.indexOf(id)] ?? null;
     }
 
     reposition() {

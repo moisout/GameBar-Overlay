@@ -18,22 +18,34 @@ await sleep(300);
 check(pinnedCards().includes('system-monitor') && pinButton('system-monitor').checked, 'the pin button pins the Hardware card');
 check(pins._layers.length === 1 && !pins._layers[0].layer.visible, 'its pinned card is hidden while the overlay is open');
 
-// The pinned card stays during the exit and enter animations, its card in the overlay fades over it without moving.
+// The pinned card stays during the exit and enter animations and grows into its card in the overlay and back.
+// The card in the overlay does not move, it shows inside a frame between the pinned card and itself.
 const inPlace = () => hardware.x === overlayX && hardware.y === overlayY && hardware.translation_x === 0 &&
     hardware.translation_y === 0 && hardware.scale_x === 1;
+const growing = () => {
+    const transition = gamebar._pinTransitions.get('system-monitor');
+    const pinnedCard = pins.getPinned('system-monitor')._addonContainer;
+    const frame = transition?._frame;
+    return frame && pinnedCard.get_parent().get_parent() === transition.group && frame.y > hardware.y &&
+        frame.y < pinnedCard.y && Math.abs(frame.y + frame.height - pinnedCard.y - pinnedCard.height) < 0.5 && hardware.has_clip;
+};
+// Sampled where the content of one card is clearly fading over the other, the transition eases in and out.
 gamebar._toggleOverlay();
-await sleep(settings.get_int('exit-animation-duration') / 2);
+await sleep(settings.get_int('exit-animation-duration') * 2 / 3);
 check(pins._layers[0].layer.visible, 'its pinned card shows during the exit animation');
-check(inPlace() && hardware.opacity > 0 && hardware.opacity < 255,
-    `and its card in the overlay fades out in place (opacity ${hardware.opacity})`);
+check(inPlace() && growing() && hardware.opacity > 0 && hardware.opacity < 255,
+    `and its card in the overlay shrinks into it in place (opacity ${hardware.opacity})`);
 await closed();
+check(gamebar._pinTransitions.size === 0 && hardware.get_parent() === gamebar._overlay && !hardware.has_clip &&
+    pins.getPinned('system-monitor')._addonContainer.get_parent() === pins._layers[0].layer, 'and both are put back');
 gamebar._openOverlay();
-await sleep(settings.get_int('enter-animation-duration') / 2);
+await sleep(settings.get_int('enter-animation-duration') / 3);
 check(pins._layers[0].layer.visible, 'its pinned card shows during the enter animation');
-check(inPlace() && hardware.opacity > 0 && hardware.opacity < 255,
-    `and its card in the overlay fades in in place (opacity ${hardware.opacity})`);
-await sleep(settings.get_int('enter-animation-duration') / 2 + 300);
-check(!pins._layers[0].layer.visible && hardware.opacity === 255, 'it is hidden once the card faded in');
+check(inPlace() && growing() && hardware.opacity > 0 && hardware.opacity < 255,
+    `and grows into its card in the overlay (opacity ${hardware.opacity})`);
+await sleep(settings.get_int('enter-animation-duration') * 2 / 3 + 300);
+check(!pins._layers[0].layer.visible && hardware.opacity === 255 && gamebar._pinTransitions.size === 0 &&
+    hardware.get_parent() === gamebar._overlay, 'it is hidden once it has grown');
 await close();
 
 const { layer, addons } = pins._layers[0];

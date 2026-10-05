@@ -8,8 +8,9 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
-import { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, isCardHidden, isCardPinned, syncPinButtons } from './cardPosition.js';
+import { set_position_settings, setCardMonitor, POSITIONS_KEY, HIDDEN_KEY, PINNED_KEY, isCardHidden, isCardPinned, syncPinButtons, findCard } from './cardPosition.js';
 import { PinnedCards } from './pinnedCards.js';
+import { PinTransition } from './pinTransition.js';
 import { getMonitorKey } from './utils.js';
 
 //Addon Imports:
@@ -38,6 +39,9 @@ const CARD_TOGGLE_SCALE = 0.9;
 const FLY_SCALE = 1.3;
 // Part of the animation duration the innermost card waits for the outer ones.
 const FLY_STAGGER = 0.2;
+
+// A pinned card growing into its card in the overlay and back.
+const PIN_TRANSITION_MODE = Clutter.AnimationMode.EASE_IN_OUT_CUBIC;
 
 const GameBar = GObject.registerClass(
 class GameBar extends PanelMenu.Button {
@@ -144,6 +148,8 @@ class GameBar extends PanelMenu.Button {
                 createPinned: (layer, pinMonitor, pinKey) => new DiscordPinned(layer, pinMonitor, { pinKey }) },
         ];
         this._pins = new PinnedCards(this._cards);
+        // The pinned cards growing into their cards in the overlay and back, by the id of the card.
+        this._pinTransitions = new Map();
         // Cards fading out after being closed, they are still visible until the animation ends.
         this._hidingCards = new Set();
         this._dash = new Dash(this._overlay, monitor, this._cards);
@@ -157,6 +163,8 @@ class GameBar extends PanelMenu.Button {
         this._monitorsChangedId = Main.layoutManager.connect('monitors-changed', () => {
             //TODO:: fix bug: when change to a diferent resolution monitor, the size wont update properly
             this._closeOverlay(false);
+            // The overlay may be in its exit animation.
+            this._endPinTransitions();
             this._updateOverlayGeometry(Main.layoutManager.primaryMonitor);
             this._pins.rebuild();
         });
@@ -279,6 +287,7 @@ class GameBar extends PanelMenu.Button {
         if (animate) {
             this._hideOverlayWithAnimation();
         } else {
+            this._endPinTransitions();
             this._backdrop.remove_all_transitions();
             this._backdrop.hide();
             this._overlay.hide();
@@ -307,22 +316,15 @@ class GameBar extends PanelMenu.Button {
                 opacity: 255,
                 duration: animationDuration,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                // The pinned cards stay until their cards in the overlay faded in over them.
+                // The pinned cards stay until they have grown into their cards in the overlay.
                 onComplete: () => {
+                    this._endPinTransitions();
                     this._pins.overlayShown = true;
                 },
             });
-
-            // A pinned card does not move, its card in the overlay fades in over it like the backdrop.
-            this._getPinnedChildren().forEach(child => {
-                child.set_opacity(0);
-                child.ease({
-                    opacity: 255,
-                    duration: animationDuration,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                });
-            });
+            this._animatePinnedCards(true, animationDuration);
         } else {
+            this._endPinTransitions();
             this._backdrop.set_opacity(255);
             this._pins.overlayShown = true;
         }
@@ -431,20 +433,14 @@ class GameBar extends PanelMenu.Button {
                 onStopped: () => {
                     // Stopped by opening the overlay again.
                     if (this._isOpen) return;
+                    this._endPinTransitions();
                     this._backdrop?.hide();
                     this._overlay?.hide();
                 },
             });
-
-            // A pinned card does not move, its card in the overlay fades out over it like the backdrop.
-            this._getPinnedChildren().forEach(child => {
-                child.ease({
-                    opacity: 0,
-                    duration: animationDuration,
-                    mode: Clutter.AnimationMode.EASE_IN_QUAD,
-                });
-            });
+            this._animatePinnedCards(false, animationDuration);
         } else {
+            this._endPinTransitions();
             this._backdrop.hide();
         }
 
@@ -527,16 +523,54 @@ class GameBar extends PanelMenu.Button {
 
     // The children the animations move, closed cards are hidden and left alone. Pinned cards stay where they are.
     _getMovingChildren() {
-        const pinned = this._getPinnedChildren();
+        const pinned = [...this._getPinnedCards().map(({ addon }) => addon._addonContainer), ...this._getPinTransitionGroups()];
         return this._overlay.get_children().filter(child => child.visible && !pinned.includes(child));
     }
 
     // The cards of the overlay that are pinned on its monitor, they are at the place of their pinned card.
     // A card fading out after being closed has no pinned card anymore.
-    _getPinnedChildren() {
-        return this._cards
-            .filter(({ id, addon }) => addon._addonContainer?.visible && isCardPinned(id) && !this._hidingCards.has(id))
-            .map(({ addon }) => addon._addonContainer);
+    _getPinnedCards() {
+        return this._cards.filter(({ id, addon }) => addon._addonContainer?.visible && isCardPinned(id) && !this._hidingCards.has(id));
+    }
+
+    _getPinTransitionGroups() {
+        return [...this._pinTransitions.values()].map(transition => transition.group);
+    }
+
+    // The pinned cards do not move with the other cards, they grow into their cards in the overlay and back.
+    // A transition that runs goes on from where it is. The pinned Discord card is no card, its card in the overlay
+    // fades in and out over it.
+    _animatePinnedCards(open, duration) {
+        this._getPinnedCards().forEach(({ id, addon }) => {
+            let transition = this._pinTransitions.get(id);
+            const pinned = this._pins.getPinned(id);
+            if (!transition && findCard(addon._addonContainer) && findCard(pinned?._addonContainer)) {
+                // The card that just started goes on where the other one is, like a Hardware card with its samples.
+                const [from, to] = open ? [pinned, addon] : [addon, pinned];
+                to.continueFrom?.(from);
+                transition = new PinTransition(this._overlay, addon, pinned, open ? 0 : 1);
+                this._pinTransitions.set(id, transition);
+            }
+
+            if (transition) {
+                transition.animate(open ? 1 : 0, duration, PIN_TRANSITION_MODE);
+                return;
+            }
+
+            const container = addon._addonContainer;
+            if (open) container.set_opacity(0);
+            container.ease({
+                opacity: open ? 255 : 0,
+                duration,
+                mode: open ? Clutter.AnimationMode.EASE_OUT_QUAD : Clutter.AnimationMode.EASE_IN_QUAD,
+            });
+        });
+    }
+
+    // Puts the cards of the transitions back where they were.
+    _endPinTransitions() {
+        this._pinTransitions.forEach(transition => transition.end());
+        this._pinTransitions.clear();
     }
 
     // Show the cards that are not closed and update the dots of the dash.
@@ -605,7 +639,9 @@ class GameBar extends PanelMenu.Button {
     _resetOverlayChildren() {
         if (!this._overlay) return;
 
-        this._overlay.get_children().forEach(child => {
+        // A pinned card growing back into its pinned card turns around.
+        const groups = this._getPinTransitionGroups();
+        this._overlay.get_children().filter(child => !groups.includes(child)).forEach(child => {
             // A delayed card of a running exit animation would hide the overlay again.
             child.remove_all_transitions();
             child.set_opacity(255);
@@ -629,6 +665,9 @@ class GameBar extends PanelMenu.Button {
 
     // Called when any settings has changed
     _onSettingsChanged(settings, key) {
+        // A setting can recreate or move the cards of a transition.
+        this._endPinTransitions();
+
         // A dragged addon is already in place.
         if (key === POSITIONS_KEY) {
             this._positionCards();
@@ -702,6 +741,7 @@ class GameBar extends PanelMenu.Button {
      */
     destroy() {
         this._closeOverlay(false);
+        this._endPinTransitions();
         this._pins?.destroy();
         this._pins = null;
 

@@ -58,6 +58,11 @@ class Sparkline {
         this.actor.queue_repaint();
     }
 
+    continueFrom(other) {
+        this._values = [...other._values];
+        this.actor.queue_repaint();
+    }
+
     _draw() {
         const cr = this.actor.get_context();
         const [width, height] = this.actor.get_surface_size();
@@ -294,6 +299,19 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
         update();
         return GLib.SOURCE_CONTINUE;
       });
+    }
+  }
+
+  // The card of the overlay and its pinned card are one card while the overlay opens and closes, the one that
+  // just started goes on with the samples of the other one.
+  continueFrom(other) {
+    for (const name of ['_cpuRow', '_gpuRow', '_memoryRow', '_diskRow', '_networkRow']) {
+      const [row, from] = [this[name], other[name]];
+      if (!row || !from) continue;
+      for (const label of ['subtitle', 'usage', 'download', 'upload']) {
+        if (row[label] && from[label]) row[label].text = from[label].text;
+      }
+      if (row.sparkline && from.sparkline) row.sparkline.continueFrom(from.sparkline);
     }
   }
 
