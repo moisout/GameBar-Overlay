@@ -15,7 +15,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - CPU/GPU usage and temperature monitor, memory, disk and network
 - Instant screenshot and screen recording of the monitor, saved and shown like GNOME's own
 - A gallery of the latest screenshots and recordings
-- Battery of the computer and of connected devices like mice, headsets and controllers
+- Battery of the computer and of connected devices like mice, headsets and controllers, also of devices on a Logi Bolt receiver over HID++
 - Media controls with the cover, track and seek slider, and tabs to switch between several players
 - The Discord voice channel: who is in it and who is speaking, with mute, deafen and disconnect (needs the official Discord client)
 - A dash to show and hide the cards
@@ -36,6 +36,7 @@ Installing these packages is optional, but they will provide additional function
 - `libgtop` - required for the System Monitor addon.
    - On Ubuntu and derivatives, you also need the package `gir1.2-gtop-2.0` (see [issue #29](https://github.com/dekotale/GameBar-Overlay/issues/29)).
 - `hwdata` - needed to read your GPU name.
+- `solaar`, or only its udev rule `42-logitech-unify-permissions.rules` - needed by the Logitech Receivers source of the Battery card, which is off by default. The rule lets you open the Logitech receivers without root.
 
 ## Usage
 

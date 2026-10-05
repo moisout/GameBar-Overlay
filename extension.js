@@ -18,7 +18,7 @@ import {SoundControls} from './addons/soundControls.js';
 import {SystemMonitor} from './addons/systemMonitor.js';
 import {Dash} from './addons/dash.js';
 import {Capture} from './addons/capture.js';
-import {Battery} from './addons/battery.js';
+import {Battery, BatteryModel, BATTERY_KEYS} from './addons/battery.js';
 import {Music} from './addons/music.js';
 import {Gallery} from './addons/gallery.js';
 import {Discord, DiscordPinned} from './addons/discord.js';
@@ -107,7 +107,9 @@ class GameBar extends PanelMenu.Button {
         // The pinned cards are hidden for a screenshot, a recording hides them while it runs.
         this._capture = new Capture(this._overlay, monitor,
             callback => this._runWithOverlayClosed(() => this._pins.hideWhile(callback))); // Screenshot and screencast buttons
-        this._battery = new Battery(this._overlay, monitor); // Battery of the computer and connected devices
+        // The batteries are read once for the card and its pinned copies.
+        this._batteryModel = new BatteryModel();
+        this._battery = new Battery(this._overlay, monitor, this._batteryModel); // Battery of the computer and connected devices
         this._music = new Music(this._overlay, monitor); // Controls of the media player that played last
         this._gallery = new Gallery(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The latest screenshots and recordings
         this._discord = new Discord(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The voice channel of Discord
@@ -135,7 +137,7 @@ class GameBar extends PanelMenu.Button {
             { id: 'system-monitor', name: _('Hardware'), iconName: 'computer-symbolic', addon: this._systemMonitor,
                 createPinned: pinnedWithSettings(SystemMonitor) },
             { id: 'battery', name: _('Battery'), iconName: 'battery-symbolic', addon: this._battery,
-                createPinned: pinned(Battery) },
+                createPinned: pinned(Battery, this._batteryModel) },
             { id: 'music', name: _('Music'), iconName: 'audio-x-generic-symbolic', addon: this._music,
                 createPinned: pinned(Music) },
             { id: 'discord', name: _('Discord'), iconName: 'audio-headset-symbolic', addon: this._discord,
@@ -621,6 +623,9 @@ class GameBar extends PanelMenu.Button {
             this._systemMonitor._updateSettings(settings);
             this._onCardsRecreated();
             this._pins.rebuild();
+        } else if (BATTERY_KEYS.includes(key)) {
+            // The Battery cards update themselves.
+            this._batteryModel.updateSettings(settings);
         } else {
             this._updateOverlaySettings(settings);
         }
@@ -633,6 +638,7 @@ class GameBar extends PanelMenu.Button {
         this._clock._updateSettings(settings);
         this._soundControls._updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
+        this._batteryModel.updateSettings(settings);
         this._onCardsRecreated();
         this._updateOverlaySettings(settings);
         this._pins.rebuild();
@@ -675,6 +681,8 @@ class GameBar extends PanelMenu.Button {
         this._capture = null;
         this._battery?.destroy();
         this._battery = null;
+        this._batteryModel?.destroy();
+        this._batteryModel = null;
         this._music?.destroy();
         this._music = null;
         this._gallery?.destroy();

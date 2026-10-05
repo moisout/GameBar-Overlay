@@ -67,6 +67,18 @@
 
 
 
+    <key name="battery-source-upower" type="b">
+      <default>true</default>
+      <summary>Read the batteries from UPower</summary>
+      <description>Show the battery of the computer and the devices UPower knows on the Battery card</description>
+    </key>
+
+    <key name="battery-source-logitech" type="b">
+      <default>false</default>
+      <summary>Read the batteries of Logitech devices over HID++</summary>
+      <description>Show the battery of the devices on Logitech receivers on the Battery card, read over HID++ like Solaar does. Needs read and write access to the hidraw nodes of the receivers</description>
+    </key>
+
     <key name="monitor-hidden-cards" type="a{sas}">
       <default>{}</default>
       <summary>Hidden cards of every monitor</summary>

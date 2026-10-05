@@ -454,3 +454,35 @@ msgstr "Press the new shortcut. Esc cancels, Backspace disables the shortcut"
 #: prefs.js
 msgid "The shortcut needs Ctrl, Alt or Super"
 msgstr "The shortcut needs Ctrl, Alt or Super"
+
+#: prefs.js
+msgid "Sources"
+msgstr "Sources"
+
+#: prefs.js
+msgid "Choose where the Battery card reads the batteries from"
+msgstr "Choose where the Battery card reads the batteries from"
+
+#: prefs.js
+msgid "UPower"
+msgstr "UPower"
+
+#: prefs.js
+msgid "The battery of this computer and the devices the system knows"
+msgstr "The battery of this computer and the devices the system knows"
+
+#: prefs.js
+msgid "Logitech Receivers"
+msgstr "Logitech Receivers"
+
+#: prefs.js
+msgid "Mice and keyboards on a Logi Bolt or Unifying receiver, read like Solaar does"
+msgstr "Mice and keyboards on a Logi Bolt or Unifying receiver, read like Solaar does"
+
+#: prefs.js
+msgid "No access to the Logitech receiver"
+msgstr "No access to the Logitech receiver"
+
+#: prefs.js
+msgid "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"
+msgstr "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"

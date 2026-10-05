@@ -1,42 +1,20 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import UPower from 'gi://UPowerGlib';
+import * as Signals from 'resource:///org/gnome/shell/misc/signals.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, createCard, createGroupTitle, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
+import { UPowerSource } from './batterySources/upower.js';
+import { LogitechSource } from './batterySources/logitech.js';
 
-// UPower over D-Bus like the shell, the device lists of UPowerGlib are freed too early in GJS.
-// UPowerGlib is only used for its enums.
-const BUS_NAME = 'org.freedesktop.UPower';
-const OBJECT_PATH = '/org/freedesktop/UPower';
-const DISPLAY_DEVICE_PATH = '/org/freedesktop/UPower/devices/DisplayDevice';
-
-const UPowerProxy = Gio.DBusProxy.makeProxyWrapper(`
-<node>
-  <interface name="org.freedesktop.UPower">
-    <method name="EnumerateDevices"><arg name="devices" type="ao" direction="out"/></method>
-    <signal name="DeviceAdded"><arg name="device" type="o"/></signal>
-    <signal name="DeviceRemoved"><arg name="device" type="o"/></signal>
-  </interface>
-</node>`);
-
-const DeviceProxy = Gio.DBusProxy.makeProxyWrapper(`
-<node>
-  <interface name="org.freedesktop.UPower.Device">
-    <property name="Type" type="u" access="read"/>
-    <property name="PowerSupply" type="b" access="read"/>
-    <property name="IsPresent" type="b" access="read"/>
-    <property name="Percentage" type="d" access="read"/>
-    <property name="State" type="u" access="read"/>
-    <property name="TimeToEmpty" type="x" access="read"/>
-    <property name="TimeToFull" type="x" access="read"/>
-    <property name="WarningLevel" type="u" access="read"/>
-    <property name="Model" type="s" access="read"/>
-    <property name="Vendor" type="s" access="read"/>
-  </interface>
-</node>`);
+// The sources of the batteries, each turned on by its setting. Their devices are listed in this order.
+const SOURCES = [
+    { id: 'upower', key: 'battery-source-upower', Source: UPowerSource },
+    { id: 'logitech', key: 'battery-source-logitech', Source: LogitechSource },
+];
+export const BATTERY_KEYS = SOURCES.map(source => source.key);
 
 const DEVICE_ICONS = {
     [UPower.DeviceKind.MOUSE]: 'input-mouse-symbolic',
@@ -52,8 +30,6 @@ const DEVICE_ICONS = {
     [UPower.DeviceKind.COMPUTER]: 'computer-symbolic',
     [UPower.DeviceKind.CAMERA]: 'camera-photo-symbolic',
 };
-
-const LOW_LEVELS = [UPower.DeviceLevel.LOW, UPower.DeviceLevel.CRITICAL, UPower.DeviceLevel.ACTION];
 
 // "3 h 10 min"
 const formatDuration = (seconds) => {
@@ -79,130 +55,103 @@ const describeState = (device) => {
     }
 };
 
-// Keeps the battery of the computer and the connected devices up to date.
-// onChanged() is called after every change, also before the first devices arrive.
-class BatteryModel {
-    constructor(onChanged) {
-        this._onChanged = onChanged;
-        this._cancellable = new Gio.Cancellable();
-        this._devices = new Map();
-        this._displayDevice = null;
-        this._upower = null;
+const CHARGING_STATES = [UPower.DeviceState.CHARGING, UPower.DeviceState.FULLY_CHARGED];
+
+// The state of a connected device, most devices do not know how long their battery lasts.
+const describeDevice = (device) => {
+    switch (device.state) {
+    case UPower.DeviceState.CHARGING:
+        return _('Charging');
+    case UPower.DeviceState.FULLY_CHARGED:
+        return _('Fully charged');
+    default:
+        return device.low ? _('Low battery') : '';
+    }
+};
+
+// The battery of the computer and the connected devices from the turned on sources, shared by every Battery card.
+// Emits 'changed' after every change, once for several changes at once.
+export class BatteryModel extends Signals.EventEmitter {
+    constructor() {
+        super();
+        // Source by id, of the turned on sources
+        this._sources = new Map();
         this._changedId = 0;
-        // { proxy, id, dbusSignal } of every connection, for destroy()
-        this._connections = [];
-
-        this._displayDevice = this._createDevice(DISPLAY_DEVICE_PATH);
-        this._upower = new UPowerProxy(Gio.DBus.system, BUS_NAME, OBJECT_PATH, (proxy, error) => {
-            if (error) {
-                if (!error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) console.warn(`GameBar: ${error.message}`);
-                return;
-            }
-            for (const [name, handler] of [['DeviceAdded', path => this._addDevice(path)], ['DeviceRemoved', path => this._removeDevice(path)]]) {
-                const id = proxy.connectSignal(name, (proxy_, sender, [path]) => handler(path));
-                this._connections.push({ proxy, id, dbusSignal: true });
-            }
-            this._upower.EnumerateDevicesAsync()
-                .then(([paths]) => paths.forEach(path => this._addDevice(path)))
-                .catch(e => console.warn(`GameBar: ${e.message}`));
-        }, this._cancellable);
     }
 
-    _createDevice(path) {
-        return new DeviceProxy(Gio.DBus.system, BUS_NAME, path, (proxy, error) => {
-            if (error) {
-                if (!error.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) console.warn(`GameBar: ${error.message}`);
-                return;
+    // Turns the sources on and off: { upower: true, logitech: false }.
+    setEnabled(enabled) {
+        for (const { id, Source } of SOURCES) {
+            const source = this._sources.get(id);
+            if (enabled[id] && !source) {
+                this._sources.set(id, new Source(() => this._queueChanged()));
+            } else if (!enabled[id] && source) {
+                source.destroy();
+                this._sources.delete(id);
             }
-            this._connections.push({ proxy, id: proxy.connect('g-properties-changed', () => this._queueChanged()), dbusSignal: false });
-            this._queueChanged();
-        }, this._cancellable);
-    }
-
-    _addDevice(path) {
-        if (this._devices.has(path)) return;
-        this._devices.set(path, this._createDevice(path));
-    }
-
-    _removeDevice(path) {
-        const proxy = this._devices.get(path);
-        this._devices.delete(path);
-        this._disconnect(proxy);
+        }
         this._queueChanged();
     }
 
-    _disconnect(proxy) {
-        this._connections = this._connections.filter(connection => {
-            if (connection.proxy !== proxy) return true;
-            if (connection.dbusSignal) {
-                proxy.disconnectSignal(connection.id);
-            } else {
-                proxy.disconnect(connection.id);
-            }
-            return false;
-        });
+    updateSettings(settings) {
+        this.setEnabled(Object.fromEntries(SOURCES.map(({ id, key }) => [id, settings.get_boolean(key)])));
     }
 
-    // Several properties change at once, update the card once.
     _queueChanged() {
         if (this._changedId) return;
         this._changedId = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
             this._changedId = 0;
-            this._onChanged();
+            this.emit('changed');
             return GLib.SOURCE_REMOVE;
         });
     }
 
-    static _read(proxy) {
-        return {
-            kind: proxy.Type,
-            percentage: proxy.Percentage,
-            state: proxy.State,
-            timeToEmpty: proxy.TimeToEmpty,
-            timeToFull: proxy.TimeToFull,
-            low: LOW_LEVELS.includes(proxy.WarningLevel),
-            name: proxy.Model || proxy.Vendor || _('Device'),
-        };
+    _turnedOn() {
+        return SOURCES.map(({ id }) => this._sources.get(id)).filter(Boolean);
     }
 
     // The battery of the computer, null on a computer without one.
     get computer() {
-        const proxy = this._displayDevice;
-        if (!proxy?.IsPresent || proxy.Type !== UPower.DeviceKind.BATTERY) return null;
-        return BatteryModel._read(proxy);
+        return this._turnedOn().map(source => source.computer).find(Boolean) ?? null;
     }
 
     // Mice, headsets, controllers and other devices with a battery, sorted by name.
+    // A device already listed by an earlier source is left out: the kernel names a Logitech device in UPower like HID++.
     get connectedDevices() {
-        return [...this._devices.values()]
-            .filter(proxy => proxy.Type !== null && !proxy.PowerSupply && proxy.IsPresent &&
-                proxy.Type !== UPower.DeviceKind.LINE_POWER && proxy.Type !== UPower.DeviceKind.UNKNOWN)
-            .map(proxy => BatteryModel._read(proxy))
-            .sort((a, b) => a.name.localeCompare(b.name));
+        const devices = [];
+        const listed = new Set();
+        const key = device => device.name.toLowerCase();
+        for (const source of this._turnedOn()) {
+            const added = source.devices.map(device => ({ ...device, name: device.name || _('Device') }))
+                .filter(device => !listed.has(key(device)));
+            devices.push(...added);
+            added.forEach(device => listed.add(key(device)));
+        }
+        return devices.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     destroy() {
-        this._cancellable.cancel();
-        [...new Set(this._connections.map(connection => connection.proxy))].forEach(proxy => this._disconnect(proxy));
+        this._sources.forEach(source => source.destroy());
+        this._sources.clear();
         if (this._changedId) {
             GLib.Source.remove(this._changedId);
             this._changedId = 0;
         }
-        this._devices.clear();
-        this._displayDevice = null;
-        this._upower = null;
+        this.disconnectAll();
     }
 }
 
 export class Battery {
-    constructor(overlay, monitor, { pinKey = null } = {}) {
+    // model: the BatteryModel of the extension.
+    constructor(overlay, monitor, model, { pinKey = null } = {}) {
         this._overlay = overlay;
         // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
         this._pinKey = pinKey;
         this._monitor = monitor;
         this._addonContainer = null;
         this._body = null;
-        this._model = new BatteryModel(() => this._sync());
+        this._model = model;
+        this._changedId = model.connect('changed', () => this._sync());
         this._createBatteryWidget();
     }
 
@@ -246,8 +195,11 @@ export class Battery {
 
             const list = new BoxedList();
             connectedDevices.forEach(device => {
-                const subtitle = device.low ? _('Low battery') : '';
-                list.addRow(this._createDeviceRow(DEVICE_ICONS[device.kind] ?? 'battery-symbolic', device.name, subtitle, device));
+                // A low battery that is charging is no longer a warning.
+                const charging = CHARGING_STATES.includes(device.state);
+                const shown = { ...device, low: device.low && !charging };
+                list.addRow(this._createDeviceRow(DEVICE_ICONS[device.kind] ?? 'battery-symbolic', device.name,
+                    describeDevice(shown), shown));
             });
             this._body.add_child(list.actor);
         }
@@ -302,7 +254,7 @@ export class Battery {
 
     destroy() {
         this._destroyWidget();
-        this._model?.destroy();
+        this._model?.disconnect(this._changedId);
         this._model = null;
     }
 }

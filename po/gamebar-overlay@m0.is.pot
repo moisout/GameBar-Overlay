@@ -453,3 +453,35 @@ msgstr ""
 #: prefs.js
 msgid "The shortcut needs Ctrl, Alt or Super"
 msgstr ""
+
+#: prefs.js
+msgid "Sources"
+msgstr ""
+
+#: prefs.js
+msgid "Choose where the Battery card reads the batteries from"
+msgstr ""
+
+#: prefs.js
+msgid "UPower"
+msgstr ""
+
+#: prefs.js
+msgid "The battery of this computer and the devices the system knows"
+msgstr ""
+
+#: prefs.js
+msgid "Logitech Receivers"
+msgstr ""
+
+#: prefs.js
+msgid "Mice and keyboards on a Logi Bolt or Unifying receiver, read like Solaar does"
+msgstr ""
+
+#: prefs.js
+msgid "No access to the Logitech receiver"
+msgstr ""
+
+#: prefs.js
+msgid "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"
+msgstr ""

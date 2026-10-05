@@ -454,3 +454,35 @@ msgstr "Pulsa el nuevo atajo. Esc cancela, Retroceso desactiva el atajo"
 #: prefs.js
 msgid "The shortcut needs Ctrl, Alt or Super"
 msgstr "El atajo necesita Ctrl, Alt o Super"
+
+#: prefs.js
+msgid "Sources"
+msgstr "Fuentes"
+
+#: prefs.js
+msgid "Choose where the Battery card reads the batteries from"
+msgstr "Elige de dónde lee las baterías la tarjeta de batería"
+
+#: prefs.js
+msgid "UPower"
+msgstr "UPower"
+
+#: prefs.js
+msgid "The battery of this computer and the devices the system knows"
+msgstr "La batería de este equipo y los dispositivos que conoce el sistema"
+
+#: prefs.js
+msgid "Logitech Receivers"
+msgstr "Receptores Logitech"
+
+#: prefs.js
+msgid "Mice and keyboards on a Logi Bolt or Unifying receiver, read like Solaar does"
+msgstr "Ratones y teclados en un receptor Logi Bolt o Unifying, leídos como lo hace Solaar"
+
+#: prefs.js
+msgid "No access to the Logitech receiver"
+msgstr "Sin acceso al receptor Logitech"
+
+#: prefs.js
+msgid "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"
+msgstr "Instala Solaar o su regla udev 42-logitech-unify-permissions.rules y vuelve a conectar el receptor"

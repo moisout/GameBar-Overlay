@@ -5,6 +5,7 @@ import Gdk from 'gi://Gdk';
 
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 import { listGpus, getGpuModel, readFile } from './utils.js';
+import { listHidppNodes } from './addons/batterySources/hidpp.js';
 
 export default class Preferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
@@ -387,6 +388,39 @@ export default class Preferences extends ExtensionPreferences {
             box.append(icon);
             hwdataRow.add_prefix(box)
             gpuGroup.add(hwdataRow);
+        }
+
+        // Battery addon page
+        const batteryPage = new Adw.PreferencesPage({
+            title: _('Battery'),
+            icon_name: 'battery-symbolic',
+        });
+        window.add(batteryPage);
+
+        const sourcesGroup = new Adw.PreferencesGroup({
+            title: _('Sources'),
+            description: _('Choose where the Battery card reads the batteries from'),
+        });
+        batteryPage.add(sourcesGroup);
+
+        [
+            ['battery-source-upower', _('UPower'), _('The battery of this computer and the devices the system knows')],
+            ['battery-source-logitech', _('Logitech Receivers'),
+                _('Mice and keyboards on a Logi Bolt or Unifying receiver, read like Solaar does')],
+        ].forEach(([key, title, subtitle]) => {
+            const row = new Adw.SwitchRow({ title, subtitle });
+            sourcesGroup.add(row);
+            settings.bind(key, row, 'active', Gio.SettingsBindFlags.DEFAULT);
+        });
+
+        // A receiver needs the udev rule of Solaar, without it only root can open it.
+        if (listHidppNodes().some(node => !node.canAccess)) {
+            const accessRow = new Adw.ActionRow({
+                title: _('No access to the Logitech receiver'),
+                subtitle: _('Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again'),
+            });
+            accessRow.add_prefix(new Gtk.Image({ icon_name: 'dialog-warning-symbolic' }));
+            sourcesGroup.add(accessRow);
         }
     }
 }
