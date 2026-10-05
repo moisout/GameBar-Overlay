@@ -86,8 +86,34 @@ const setIcon = (icon, name, fallbackName) => {
     icon.fallback_gicon = name ? shipped : null;
 };
 
+// Icon themes have no outline pin. The pins shipped for these themes, by the folder of the theme view-pin-symbolic
+// comes from: Papirus-Dark, Papirus-Light and ePapirus have the pin of Papirus. A filled pin of null is the one of the
+// theme. Adwaita's outline is its pin as an outline, Papirus gets an upright pin and its outline in its style instead
+// of its slanted pin.
+const PINS = {
+    'Adwaita': { outline: 'gamebar-pin-outline-symbolic', filled: null },
+    'Papirus': { outline: 'gamebar-pin-outline-papirus-symbolic', filled: 'gamebar-pin-papirus-symbolic' },
+};
+// A theme with a pin of its own shows it dimmed until the card is pinned, like the "not starred" star of Papirus.
+const PIN_DIMMED_OPACITY = 89;
+
+let iconTheme = null;
+const getIconTheme = () => {
+    iconTheme ??= new St.IconTheme();
+    return iconTheme;
+};
+
+// The pins shipped for the icon theme, null for a theme with a pin of its own.
+const getPins = () => {
+    const path = getIconTheme().lookup_icon('view-pin-symbolic', 16, 0)?.get_filename();
+    if (!path) return PINS['Adwaita'];
+    const folders = path.split('/');
+    const theme = Object.keys(PINS).find(name => folders.some(folder => folder.includes(name)));
+    return theme ? PINS[theme] : null;
+};
+
 // Keeps the card on the monitor while the overlay is closed. An outline pin until the card is pinned, then the
-// filled pin of the icon theme on a filled circle like a pressed toggle button. Icon themes have no outline pin.
+// filled pin of the icon theme on a filled circle like a pressed toggle button.
 const createPinButton = (id) => {
     const icon = new St.Icon({ icon_size: 16 });
     const button = new St.Button({
@@ -102,10 +128,14 @@ const createPinButton = (id) => {
         }),
     });
     const syncIcon = () => {
-        setIcon(icon, ...(button.checked ? ['view-pin-symbolic'] : [null, 'gamebar-pin-outline-symbolic']));
+        const pins = getPins();
+        const shipped = pins?.[button.checked ? 'filled' : 'outline'];
+        setIcon(icon, ...(shipped ? [null, shipped] : ['view-pin-symbolic']));
+        icon.opacity = button.checked || pins ? 255 : PIN_DIMMED_OPACITY;
         button.accessible_name = button.checked ? _('Unpin') : _('Pin');
     };
     button.connect('notify::checked', syncIcon);
+    getIconTheme().connectObject('changed', syncIcon, button);
     syncIcon();
     button.connect('clicked', () => setCardPinned(id, !isCardPinned(id)));
     trackPinButton(id, button);
