@@ -18,8 +18,9 @@ const vertical = (isVertical = true) => {
 
 // A card with an optional header bar. Children go into the returned body.
 // With the id of the card the header bar gets a pin button and a close button, like the window controls of Adwaita.
+// A card that cannot be pinned only gets the close button.
 // leading is an actor for the left of the header bar after the pin button, like a button of the card.
-const createCard = (title, styleClass = '', id = null, leading = null) => {
+const createCard = (title, styleClass = '', id = null, leading = null, { pinnable = true } = {}) => {
     const card = new St.BoxLayout({
         ...vertical(),
         style_class: `gamebar-card ${styleClass}`,
@@ -32,7 +33,7 @@ const createCard = (title, styleClass = '', id = null, leading = null) => {
         const header = new St.BoxLayout({ style_class: 'gamebar-card-header' });
         const start = new St.BoxLayout();
         const end = new St.BoxLayout();
-        start.add_child(id ? createPinButton(id) : new St.Widget({ style_class: 'gamebar-window-control' }));
+        start.add_child(id && pinnable ? createPinButton(id) : new St.Widget({ style_class: 'gamebar-window-control' }));
         // Both sides are as wide, which keeps the title centred.
         if (leading) {
             start.add_child(new St.Bin({ style_class: 'gamebar-window-control', child: leading }));

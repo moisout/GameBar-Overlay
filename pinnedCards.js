@@ -25,7 +25,7 @@ const setUnredirect = (enabled) => {
 // The pinned cards of every monitor, shown while the overlay is not on that monitor. Every pinned card is built a
 // second time, by createPinned of its card, and updates itself while its layer is shown.
 export class PinnedCards {
-    // cards: [{ id, createPinned(layer, monitor, pinKey) }].
+    // cards: [{ id, createPinned(layer, monitor, pinKey) }], createPinned is null for a card that cannot be pinned.
     constructor(cards) {
         this._cards = cards;
         // { layer, index, ids, addons } of every monitor with a pinned card, ids are the ids of the addons.
@@ -72,7 +72,7 @@ export class PinnedCards {
 
         for (const monitor of Main.layoutManager.monitors) {
             const key = getMonitorKey(monitor.index);
-            const cards = this._cards.filter(({ id }) => isCardPinned(id, key) && !isCardHidden(id, key));
+            const cards = this._cards.filter(({ id, createPinned }) => createPinned && isCardPinned(id, key) && !isCardHidden(id, key));
             if (cards.length === 0) continue;
 
             const layer = new PinLayer({ style_class: 'gamebar-pin-layer', visible: false });
