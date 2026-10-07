@@ -9,9 +9,9 @@ const HIDDEN_KEY = 'monitor-hidden-cards';
 // Cards that stay on the monitor while the overlay is closed.
 const PINNED_KEY = 'monitor-pinned-cards';
 
-// Default layout on a 1920x1080 monitor, after the design (design/gnome-game-overlay-handoff.md): the place of every
-// card and the size it usually has. A card does not depend on the other cards, so dragging, closing or resizing one
-// leaves the others where they are. Every card is shown on a monitor, except the ones in DEFAULT_HIDDEN.
+// Default layout on a 1920x1080 monitor: the place of every card and the size it usually has. A card does not depend
+// on the other cards, so dragging, closing or resizing one leaves the others where they are. Every card is shown on a
+// monitor, except the ones in DEFAULT_HIDDEN.
 const LAYOUT_WIDTH = 1920;
 const LAYOUT_HEIGHT = 1080;
 const DEFAULT_LAYOUT = {

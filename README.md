@@ -25,7 +25,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - Opens on the monitor of the game, every monitor keeps its own card positions and closed cards
 - Fly In, Fade and Slide animations
 
-See [DESIGN.md](DESIGN.md) for the design and the decisions behind it.
+See [DESIGN.md](DESIGN.md) for how the overlay looks and behaves, and the decisions behind it.
 
 ## Installation
 
@@ -56,6 +56,8 @@ Open the Overlay by clicking the top-bar button or by pressing `Super + G`. Clos
 - [x] Music addon
 - [x] Discord addon
 - [ ] Brightness addon
+
+More additions are planned from a feature comparison with the Xbox Game Bar: [GameBar Overlay vs Xbox Game Bar](https://claude.ai/artifact/NPvYtSz9yVR9kUL5B9N9bt).
 
 ## Known issues
 

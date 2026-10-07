@@ -1,4 +1,4 @@
-/*-Card styles, see design/gnome-game-overlay-handoff.md-*/
+/*-Card styles, see DESIGN.md-*/
 
 .gamebar-card {
     color: #ffffff;
@@ -6,7 +6,7 @@
     background-color: #222226;
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 15px;
-    /*The shadow of the shell popup menus, the one in the design is much heavier*/
+    /*The shadow of the shell popup menus*/
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
 }
 
@@ -225,7 +225,6 @@
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
 }
 
-/*Square instead of the 52x56 of the design, the content is centred*/
 .gamebar-dash-button {
     width: 52px;
     height: 52px;
@@ -341,7 +340,7 @@
     color: #d0d0d4;
 }
 
-/*Tab bar switching between players, the tab bar of the Gallery card in the design (like GNOME Files)*/
+/*Tab bar switching between players, the tab bar of the Gallery card (like GNOME Files)*/
 .gamebar-tabs {
     padding: 0 6px;
 }

@@ -97,7 +97,7 @@ export class Capture {
         });
         body.add_child(this._record.button);
 
-        // The design has no recording state yet, the button stops a running recording.
+        // The button stops a running recording.
         Main.screenshotUI.connectObject('notify::screencast-in-progress', () => this._syncRecordButton(), this._addonContainer);
         // Whether the shell can record is only known once its recorder answered.
         this._overlay.connectObject('notify::visible', () => this._syncRecordButton(), this._addonContainer);

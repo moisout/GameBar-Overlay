@@ -6,7 +6,7 @@ import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { setCardHidden, isCardPinned, setCardPinned, trackPinButton } from './cardPosition.js';
 
-// Building blocks for the Adwaita style cards, see design/gnome-game-overlay-handoff.md.
+// Building blocks for the Adwaita style cards, see DESIGN.md.
 
 // Properties of a vertical or horizontal St.BoxLayout. Its vertical property is deprecated since GNOME 48,
 // older versions have no orientation.
@@ -195,7 +195,7 @@ const createLabel = (text, styleClass = '', props = {}) => {
     return label;
 };
 
-// Tab bar below the header bar, like the tab bar of GNOME Files and of the Gallery card of the design.
+// Tab bar below the header bar, like the tab bar of GNOME Files.
 // The tabs are equally wide, a separator is only shown between two unselected tabs.
 // The body below gets more padding while the tab bar is shown.
 class TabBar {
@@ -299,7 +299,7 @@ class LevelLayout extends Clutter.LayoutManager {
     }
 });
 
-// Bar showing a fraction in the accent colour, like the level bars of the design.
+// Bar showing a fraction in the accent colour.
 class LevelBar {
     constructor() {
         this._layout = new LevelLayout();

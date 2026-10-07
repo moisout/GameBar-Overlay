@@ -18,6 +18,6 @@ A fork of Dekotale's GameBar-Overlay, keep the credits in the README.
 
 ## Conventions
 
-- `DESIGN.md` records how the implementation follows or departs from the design in `design/`, and why. Update it with every change of behaviour, the README feature list too.
+- `DESIGN.md` records how the overlay looks and behaves, and why. Update it with every change of behaviour, the README feature list too.
 - After changing the schema run `glib-compile-schemas schemas/`, `gschemas.compiled` is committed.
 - Comments say why, in plain sentences. Commits: a short imperative subject and a body in prose that says what changes for the user.

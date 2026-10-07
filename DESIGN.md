@@ -1,13 +1,8 @@
 # Design
 
-The overlay follows the GNOME Adwaita look. The design was made with claude.design and lives in `design/`:
+The overlay follows the GNOME Adwaita look. It has the Audio, Capture, Gallery, Clock, Hardware, Battery, Music, Discord and Settings cards, together with the dash at the bottom that shows and hides them.
 
-- `design/gnome-game-overlay-handoff.md`: design tokens, layout and the description of every card.
-- `design/overlay-mockup.dc.html`: the HTML/CSS mockup at 1920×1080. It needs the design tool's runtime and does not render in a browser, read it as text for exact values.
-
-Implemented are the Audio, Capture, Gallery, Clock, Hardware, Battery, Music and Discord cards, together with the dash at the bottom that shows and hides them. The Settings card is not in the design.
-
-This file records where the implementation follows the design, where it departs from it and why.
+This file records how the overlay looks and behaves, and why.
 
 ## Cards
 
@@ -24,12 +19,12 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
 | Secondary text | `#b5b5ba`, subtitles 13px |
 | Numbers | tabular figures (`font-feature-settings: "tnum"`) |
 
-- **Audio** (440px): groups Output, Input and Applications. Output and Input have a device row (opens the device list inside the card, with a check on the active device) and a row with the mute button and the volume slider. Applications starts with "System Sounds" like the volume levels of GNOME Settings, the volume of the event sounds with the name and the icon (`audio-x-generic`) Gvc gives it, followed by one row per app: icon, name, mute button, slider. The group is hidden without System Sounds and without an app playing audio.
+- **Audio** (440px, room for the names of the apps): groups Output, Input and Applications. Output and Input have a device row (opens the device list inside the card, with a check on the active device) and a row with the mute button and the volume slider. Applications starts with "System Sounds" like the volume levels of GNOME Settings, the volume of the event sounds with the name and the icon (`audio-x-generic`) Gvc gives it, followed by one row per app: icon, name, mute button, slider. The group is hidden without System Sounds and without an app playing audio.
 - **Clock** (min 400px): no header bar, time and the date below it in secondary grey. The time size is the Font Size setting, 64px by default. The time follows the clock format of GNOME, 12 or 24 hours.
 - **Capture** (520px): the pill buttons "Take Screenshot" and "Record Screen" (destructive). Both close the overlay first and wait until the overlay and its backdrop are gone, showing the overlay again in between cancels them. Both capture the monitor of the overlay right away:
   - The screenshot works like the Shift+Print key of the shell (`Shell.Screenshot.screenshot_stage_to_content()` and `captureScreenshot()` from `screenshot.js`), cropped to the monitor: saved to the screenshots folder and the clipboard, with the sound and the notification of the shell, without the pointer.
   - The recording goes through the screenshot UI of the shell, so the shell shows its recording indicator with the stop button and the notification. The screenshot UI has no API to record a monitor right away: its screen mode and the monitor are set on its private buttons, `_startScreencast()` reads the area before its first await, and the previous mode is restored right after. Without these internals the screenshot UI opens in screencast mode instead.
-  - While a recording runs the record button turns into "Stop Recording", the design has no recording state. Without PipeWire or the GStreamer plugins the record button is disabled.
+  - While a recording runs the record button turns into "Stop Recording". Without PipeWire or the GStreamer plugins the record button is disabled.
 - **Gallery** (520px): the tabs All, Screenshots and Recordings below the header, and the six latest captures of the tab in rows of three (8px apart, rows 12px apart). A tile is the 16:9 thumbnail with radius 8px, an icon in the middle (a picture for screenshots, play for recordings), the time at the bottom left and the length of a recording at the bottom right. The time is the time today in the clock format of GNOME, "Yesterday", the day this year and the date before. Clicking a tile opens the capture in its app once the overlay is closed. The button on the left of the header opens the folder of the tab, All opens the folder of the newest capture. The card is hidden until it is shown from the dash.
   - The captures are read from the folders the shell saves to, `Pictures/Screenshots` and `Videos/Screencasts` with the folder names translated by the shell, every time the overlay opens.
   - Thumbnails come from the freedesktop thumbnail cache (`~/.cache/thumbnails`), so the ones of GNOME Files are used too. Missing ones and the lengths of recordings are made by `helpers/galleryThumbnailer.js`, a gjs process of its own: decoding in the shell would block it, and a broken file or codec could take it down. Screenshots are scaled with GdkPixbuf, recordings are opened with GStreamer for their length and a frame 10% in (at most 3 s), the first frame is often black. Thumbnails are x-large (512px) like the spec, sharp at 200%, with the URI and modification time of the file. Files it cannot read are not tried again until they change. A helper that takes longer than 30 seconds is ended.
@@ -42,7 +37,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - `tests/hidppProbe.js` prints the Logitech devices without the shell: `gjs -m tests/hidppProbe.js`.
 - **Music** (400px): one boxed group with the cover (56px, radius 8px), the title in bold over "artist · player app", and the previous, play/pause and next buttons. Below them the elapsed time, a seek slider and the length. The players are found over MPRIS on the session bus like the media controls of the shell, which has no position and whose API differs between GNOME versions, so the card has its own proxies:
   - The card shows the player that played last, playing players before paused ones. Stopped players have no track and are left out. Without a player the card says "Nothing playing".
-  - With several players a tab bar below the header switches between them. The design leaves switching open, the tab bar is the one of the Gallery card (like GNOME Files): equal-width tabs, 44px high, radius 9px, the selected one filled `rgba(255,255,255,0.11)` and bold, a separator between two unselected tabs. Tabs are named after the app, players of the same app (two browser tabs) after their track, and stay in the order the players appeared. A picked player stays shown until it goes away or the overlay closes, then the card shows the player that played last again.
+  - With several players a tab bar below the header switches between them. The tab bar is the one of the Gallery card (like GNOME Files): equal-width tabs, 44px high, radius 9px, the selected one filled `rgba(255,255,255,0.11)` and bold, a separator between two unselected tabs. Tabs are named after the app, players of the same app (two browser tabs) after their track, and stay in the order the players appeared. A picked player stays shown until it goes away or the overlay closes, then the card shows the player that played last again.
   - Players do not announce their position. It is read when the overlay opens, when the status or the track changes and on `Seeked`, and counted on between reads while playing.
   - Dragging the slider seeks once it is let go, with `SetPosition`, or with `Seek` for players without a valid track id. Streams have no length, their card has no slider. Buttons the player does not offer are greyed out.
   - Covers are a background image, which follows the rounded corners like the user avatars of the shell. `file://` covers are shown as they are, covers on the web (Spotify) are downloaded with libsoup to `~/.cache/gamebar-overlay@m0.is/covers`, keeping only the last one. The last one of an earlier session is deleted after a day.
@@ -65,32 +60,27 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - **Network**: download and upload rate from `/proc/net/dev`, counting only interfaces with a device behind them. Loopback, VPN and container interfaces would count the same traffic twice.
 - **Settings** (400px): the settings changed while playing, the others stay in the preferences window. A boxed list with Pinned Card Opacity, a slider from 10% to 100% like the preferences with the percentage on the right, and "Reset Card Positions", a row that is a button like the button rows of Adwaita. Reset moves the cards of the monitor of the overlay back, the positions are saved per monitor, and is greyed out while no card there was dragged. Below the list the pill button "More Settings…" closes the overlay and opens the preferences window, which would open behind it. The card has a close button and no pin button, a pinned card could not be used. It is below the Hardware card and hidden until it is shown from the dash, its dash button is the `preferences-system-symbolic` of the icon theme.
 
-## Departures from the design
+## Choices
 
-- **Audio and Battery cards are 440px wide** instead of 400px, for the names of the apps (108px instead of 68px). The cards are 32px apart across instead of 40px, so the four of them side by side still fit 1920px.
-- **Group names "Output" and "Input"** instead of "Output" and "Microphone", so both groups are named the same way.
-- **Card shadow** `0 2px 4px 0 rgba(0,0,0,0.2)` instead of the design's `0 10px 30px rgba(0,0,0,0.5)`. The design's shadow is far heavier than anything in GNOME. The value is the one of the shell popup menus and Quick Settings. For comparison, libadwaita windows use three centred layers (`0 0 14px 5px` 15%, `0 0 5px 2px` 10%, 1px 5%), which St cannot draw since it supports only one shadow.
-- **Row separators** in the card background `#222226` instead of the design's lighter `rgba(255,255,255,0.08)`. GNOME lists show the background between the rows.
-- **Mute and media buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons, instead of the design's 44×44.
-- **Pin button** shows an outline pin until the card is pinned, then the filled pin on a filled circle like a pressed toggle button. Icon themes have no outline pin, so pins are shipped for Adwaita and Papirus, whichever `view-pin-symbolic` comes from: Papirus-Dark and the other variants have the pin of Papirus. Adwaita's outline (`icons/gamebar-pin-outline-symbolic.svg`) is its pin inset like its outline icons, which have 2px walls: its "not starred" star is its star inset by 2px. The pin is narrower than the star, so the walls are 2px on the flat top and bottom, which stay on the pixel grid, and 1.5px on the slanted sides of its neck. Papirus' pin is slanted, it gets an upright pin and its outline in the style of Papirus instead (`icons/gamebar-pin-papirus-symbolic.svg`, `icons/gamebar-pin-outline-papirus-symbolic.svg`), drawn on a 24px grid. Other themes show their own pin, dimmed to 35% like the "not starred" star of Papirus. The design does not show the pinned state. The Clock has no header bar, its pin button is in its top left corner while the pointer is over the card or it is pinned.
-- **No overlay close button.** The overlay closes with Esc, the shortcut, the top bar indicator and a click on an empty area, which is now on by default.
+- **Card shadow** `0 2px 4px 0 rgba(0,0,0,0.2)`, the one of the shell popup menus and Quick Settings. Heavier shadows look out of place in GNOME. libadwaita windows use three centred layers (`0 0 14px 5px` 15%, `0 0 5px 2px` 10%, 1px 5%), which St cannot draw since it supports only one shadow.
+- **Row separators** are the card background `#222226`, GNOME lists show the background between the rows.
+- **Mute and media buttons** are 28×28 (6px padding around a 16px icon), the size of the Quick Settings slider buttons.
+- **Pin button** shows an outline pin until the card is pinned, then the filled pin on a filled circle like a pressed toggle button. Icon themes have no outline pin, so pins are shipped for Adwaita and Papirus, whichever `view-pin-symbolic` comes from: Papirus-Dark and the other variants have the pin of Papirus. Adwaita's outline (`icons/gamebar-pin-outline-symbolic.svg`) is its pin inset like its outline icons, which have 2px walls: its "not starred" star is its star inset by 2px. The pin is narrower than the star, so the walls are 2px on the flat top and bottom, which stay on the pixel grid, and 1.5px on the slanted sides of its neck. Papirus' pin is slanted, it gets an upright pin and its outline in the style of Papirus instead (`icons/gamebar-pin-papirus-symbolic.svg`, `icons/gamebar-pin-outline-papirus-symbolic.svg`), drawn on a 24px grid. Other themes show their own pin, dimmed to 35% like the "not starred" star of Papirus. The Clock has no header bar, its pin button is in its top left corner while the pointer is over the card or it is pinned.
+- **No overlay close button.** The overlay closes with Esc, the shortcut, the top bar indicator and a click on an empty area, which is on by default.
 - **Network arrows** are the Adwaita `go-down` and `go-up` chevrons. Adwaita has no plain arrows, and its `network-receive` and `network-transmit` icons are horizontal arrow pairs.
 - **Sparklines start empty** each time the overlay opens, unless the Hardware card is pinned: the card then goes on with the samples of its pinned card. Linux keeps no usage history, so the extension only samples while the overlay is open. Sampling in the background would be cheap for the CPU and sysfs GPUs, but would run `nvidia-smi` every second for nothing.
-- **Device picker** opens inside the card instead of as a popup menu.
-- **Player tabs** on the Music card, the design has no way to switch between players yet.
-- **Discord states** are shown without the design's "Speaking" and "Muted" texts: the ring is enough for speaking, muted and deafened are icons, a deafened member has both. A deafened member and the active deafen button show the crossed out headphones of the icon theme (`audio-volume-muted-headphones`, Papirus has them). Adwaita has none, themes without them get `icons/gamebar-headphones-disabled-symbolic.svg`: Adwaita's `audio-headphones` crossed out like its `microphone-disabled`. Active mute and deafen buttons switch to the muted glyph in secondary grey, like the mute buttons of the Audio card.
-- **Disconnect icon** is `call-stop` of the icon theme, so it matches the other icons. Themes without it get the receiver of Adwaita's, shipped in `icons/`. The button has the neutral fill of mute and deafen instead of the design's destructive red: themes like Papirus colour their `call-stop` red, which hardly shows on a red button.
+- **Device picker** opens inside the card, not as a popup menu.
+- **Discord states** are shown without "Speaking" and "Muted" texts: the ring is enough for speaking, muted and deafened are icons, a deafened member has both. A deafened member and the active deafen button show the crossed out headphones of the icon theme (`audio-volume-muted-headphones`, Papirus has them). Adwaita has none, themes without them get `icons/gamebar-headphones-disabled-symbolic.svg`: Adwaita's `audio-headphones` crossed out like its `microphone-disabled`. Active mute and deafen buttons switch to the muted glyph in secondary grey, like the mute buttons of the Audio card.
+- **Disconnect icon** is `call-stop` of the icon theme, so it matches the other icons. Themes without it get the receiver of Adwaita's, shipped in `icons/`. The button has the neutral fill of mute and deafen, not a destructive red: themes like Papirus colour their `call-stop` red, which hardly shows on a red button.
 - **Icons shipped in `icons/`** are only fallbacks for icon themes that lack the icon (`fallback_gicon` of `St.Icon`), except the outline pins, which no icon theme has.
 - **Dash icon of Discord** is the Adwaita headset, Adwaita has no Discord icon and the logo is a trademark.
-- **Gallery tiles** show the type as an icon in the middle and the time and length on the thumbnail, instead of a caption like "Recording · 0:42 · 21:31" below it.
-- **Dash buttons** are square, 52×52 instead of the design's 52×56.
-- **Close cross** is the 16px `window-close-symbolic` icon of the libadwaita window controls instead of the design's 12px icon. Adwaita's cross takes only half the icon, at 12px it was a tiny 6px.
+- **Close cross** is the 16px `window-close-symbolic` icon of the libadwaita window controls. Adwaita's cross takes only half the icon, at 12px it would be a tiny 6px.
 
 ## Dash and closing cards
 
 The dash (`addons/dash.js`) sits at the bottom centre, 20px from the edge: `#36363a`, radius 24px, padding 8px, a 52×52 button per card with a 22px icon and a 5px dot that shows the card is shown. Clicking a button shows or hides its card. The dash is not draggable.
 
-Every card with a header bar has the Adwaita window control in it: a 24px circle filled `rgba(255,255,255,0.10)` with the 16px `window-close-symbolic` icon in a 44px hit area. The Clock has no header bar and is only hidden from the dash, as in the design.
+Every card with a header bar has the Adwaita window control in it: a 24px circle filled `rgba(255,255,255,0.10)` with the 16px `window-close-symbolic` icon in a 44px hit area. The Clock has no header bar and is only hidden from the dash.
 
 - Closed cards are saved for the monitor of the overlay in the `monitor-hidden-cards` setting and stay closed across sessions, like dragged positions. A card closed on one monitor is still shown on the others.
 - Closing and showing a card while the overlay is open fades and scales it (200ms, from 90%).
@@ -133,7 +123,7 @@ A pinned card stays on its monitor while the overlay is closed, over the desktop
 
 ## Layout
 
-Every card has a place of its own in the default layout (`cardPosition.js`), it does not follow the other cards. The design stacks the cards of a column with 24px between them, but then dragging a card away, closing it or a card above growing moved the cards below it. Now nothing but the card itself moves. On 1920×1080:
+Every card has a place of its own in the default layout (`cardPosition.js`), it does not follow the other cards. Cards stacked in columns moved whenever a card above them was dragged away, closed or grew, now nothing but the card itself moves. On 1920×1080:
 
 | Card | x | y | Width | Usual height |
 |---|---|---|---|---|
@@ -178,7 +168,7 @@ The sliders are the shell's own `Slider` and follow the accent colour. The spark
 ## St pitfalls
 
 - **`x_expand` propagates to the parents.** The expanding rows stretched the cards over the whole overlay, the cards set `x_expand: false` explicitly.
-- **Negative margins break `St.BoxLayout`.** The design's `margin-left: -10px` on a leading button gave its siblings broken widths, the row has a smaller left padding instead.
+- **Negative margins break `St.BoxLayout`.** A `margin-left: -10px` on a leading button gave its siblings broken widths, the row has a smaller left padding instead.
 - **`y_align: CENTER` on a `Slider`** gives it no height, the sliders fill the row.
 - **`Clutter.cairo_set_source_color` is gone** on GNOME 50, set the colour with `cr.setSourceRGBA()` from the theme node colour.
 - **`St.BoxLayout.vertical` is deprecated** since GNOME 48, which has `orientation` instead. `vertical()` in `card.js` gives the property the shell has.
@@ -198,7 +188,7 @@ These settings were removed together with their rows in the preferences:
 - `hidden-cards` and `addon-positions`, replaced by `monitor-hidden-cards` and `monitor-card-positions` with an entry per monitor. Cards closed or dragged before start in the default layout again.
 - First key and Last key of the shortcut. The Shortcut row records any combination with Ctrl, Alt or Super instead, several of the keys in the old list had names the shell does not know. The shortcuts of the shell still work while it records, holding them back makes the shell ask for permission.
 
-The schema defaults changed to match the design: overlay background `rgba(8,9,12,0.62)`, clock size 64, close on empty area click on.
+The schema defaults changed: overlay background `rgba(8,9,12,0.62)`, clock size 64, close on empty area click on.
 
 ## Testing without logging out
 

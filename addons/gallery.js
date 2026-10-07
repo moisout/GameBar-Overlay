@@ -13,7 +13,7 @@ Gio._promisify(Gio.FileEnumerator.prototype, 'next_files_async');
 Gio._promisify(Gio.FileEnumerator.prototype, 'close_async');
 Gio._promisify(Gio.Subprocess.prototype, 'communicate_utf8_async');
 
-// The latest captures shown in a tab, two rows of three like the design.
+// The latest captures shown in a tab, two rows of three.
 const ITEM_COUNT = 6;
 const COLUMNS = 3;
 
