@@ -9,29 +9,32 @@ const HIDDEN_KEY = 'monitor-hidden-cards';
 // Cards that stay on the monitor while the overlay is closed.
 const PINNED_KEY = 'monitor-pinned-cards';
 
-// Default layout from the design (design/gnome-game-overlay-handoff.md): columns of stacked cards, centred on the monitor.
-// A monitor too narrow for a layout gets the next one, the first one fits 1920px.
-const LAYOUTS = [
-    [['sound', 'battery'], ['capture', 'gallery'], ['clock', 'music', 'discord'], ['system-monitor', 'settings']],
-    [['sound', 'battery', 'music', 'discord'], ['clock', 'capture', 'gallery'], ['system-monitor', 'settings']],
-    [['sound', 'battery', 'music', 'discord'], ['clock', 'capture', 'gallery', 'system-monitor', 'settings']],
-];
-// Width of the cards in the design, a column is as wide as its widest card.
-const CARD_WIDTHS = {
-    'sound': 440,
-    'battery': 440,
-    'capture': 520,
-    'gallery': 520,
+// Default layout on a 1920x1080 monitor, after the design (design/gnome-game-overlay-handoff.md): the place of every
+// card and the size it usually has. A card does not depend on the other cards, so dragging, closing or resizing one
+// leaves the others where they are. Every card is shown on a monitor, except the ones in DEFAULT_HIDDEN.
+const LAYOUT_WIDTH = 1920;
+const LAYOUT_HEIGHT = 1080;
+const DEFAULT_LAYOUT = {
+    'sound': { x: 32, y: 84, width: 440, height: 485 },
+    'battery': { x: 32, y: 690, width: 440, height: 125 },
+    'capture': { x: 504, y: 84, width: 520, height: 110 },
+    'gallery': { x: 504, y: 218, width: 520, height: 300 },
+    'clock': { x: 1056, y: 84, width: 400, height: 150 },
+    'music': { x: 1056, y: 275, width: 400, height: 200 },
+    'discord': { x: 1056, y: 515, width: 400, height: 300 },
+    'system-monitor': { x: 1488, y: 84, width: 400, height: 380 },
+    'settings': { x: 1488, y: 490, width: 400, height: 220 },
 };
-const DEFAULT_CARD_WIDTH = 400;
-const COLUMN_GAP = 32;
-const CARD_GAP = 24;
+// Left and right of the layout, the top bar above it and the dash below it.
+const LAYOUT_MARGIN = 32;
 const LAYOUT_TOP = 84;
+const LAYOUT_BOTTOM = 110;
+const DEFAULT_HIDDEN = ['gallery', 'discord', 'settings'];
 
 // The sizes above are in pixels of the stylesheet, which the shell multiplies by its scale factor.
 const getScaleFactor = () => St.ThemeContext.get_for_stage(global.stage).scale_factor;
 
-// The cards of the overlay placed so far, the cards below a card in its column follow its height.
+// The cards of the overlay placed so far, a pinned card is placed at its card.
 const cardElements = new Map();
 // The pin buttons of the cards of the overlay and their card.
 const pinButtons = new Map();
@@ -72,41 +75,24 @@ const saveCustomPosition = (id, position) => {
     position_settings.set_value(POSITIONS_KEY, new GLib.Variant('a{sa{s(dd)}}', monitors));
 };
 
-const getColumnWidth = (column) => Math.max(...column.map(id => CARD_WIDTHS[id] ?? DEFAULT_CARD_WIDTH)) * getScaleFactor();
-
-const getLayoutWidth = (layout) => {
-    return layout.reduce((width, column) => width + getColumnWidth(column), 0) + COLUMN_GAP * getScaleFactor() * (layout.length - 1);
-};
-
-const getLayout = (monitor) => {
-    const margin = COLUMN_GAP * getScaleFactor();
-    return LAYOUTS.find(layout => getLayoutWidth(layout) + 2 * margin <= monitor.width) ?? LAYOUTS[LAYOUTS.length - 1];
-};
-
-const getDefaultPosition = (monitor, id, key) => {
+// Where a card starts along one side of the monitor. A monitor at least as big as the layout gets it unchanged, centred
+// horizontally and at the top. On a smaller one the space the card leaves on that side is shrunk, the cards keep their
+// size and overlap.
+const fitSide = (place, size, layoutSize, monitorSize, start, end, centred) => {
     const scaleFactor = getScaleFactor();
-    const layout = getLayout(monitor);
-    const columnIndex = layout.findIndex(column => column.includes(id));
-    if (columnIndex === -1) return [COLUMN_GAP * scaleFactor, LAYOUT_TOP * scaleFactor];
+    const offset = centred ? Math.max(0, monitorSize - layoutSize * scaleFactor) / 2 : 0;
+    const space = Math.max(0, Math.min(monitorSize, layoutSize * scaleFactor) - (start + end + size) * scaleFactor);
+    return offset + start * scaleFactor + (place - start) / (layoutSize - start - end - size) * space;
+};
 
-    let x = (monitor.width - getLayoutWidth(layout)) / 2;
-    for (const column of layout.slice(0, columnIndex)) {
-        x += getColumnWidth(column) + COLUMN_GAP * scaleFactor;
-    }
+const getDefaultPosition = (monitor, id) => {
+    const place = DEFAULT_LAYOUT[id];
+    if (!place) return [LAYOUT_MARGIN * getScaleFactor(), LAYOUT_TOP * getScaleFactor()];
 
-    let y = LAYOUT_TOP * scaleFactor;
-    const customPositions = getCustomPositions(key);
-    for (const other of layout[columnIndex]) {
-        if (other === id) break;
-
-        // Closed, dragged away and missing cards leave no gap. A pinned card is where its card is in the overlay, the
-        // closed cards of another monitor than the one of the overlay are only in the setting.
-        const element = cardElements.get(other);
-        const shown = key === monitorKey ? element?.visible : element && !isCardHidden(other, key);
-        if (!shown || customPositions[other]) continue;
-        y += element.get_preferred_size()[3] + CARD_GAP * scaleFactor;
-    }
-    return [x, y];
+    return [
+        fitSide(place.x, place.width, LAYOUT_WIDTH, monitor.width, LAYOUT_MARGIN, LAYOUT_MARGIN, true),
+        fitSide(place.y, place.height, LAYOUT_HEIGHT, monitor.height, LAYOUT_TOP, LAYOUT_BOTTOM, false),
+    ];
 };
 
 // Whether a card was dragged on the monitor of the overlay.
@@ -126,14 +112,15 @@ const getHiddenCards = () => {
 };
 
 const isCardHidden = (id, key = monitorKey) => {
-    return getHiddenCards()[key]?.includes(id) ?? false;
+    // A monitor without an entry has the cards that are hidden by default.
+    return (getHiddenCards()[key] ?? DEFAULT_HIDDEN).includes(id);
 };
 
 const setCardHidden = (id, hidden) => {
     if (!position_settings || isCardHidden(id) === hidden) return;
 
     const monitors = getHiddenCards();
-    const hiddenCards = (monitors[monitorKey] ?? []).filter(other => other !== id);
+    const hiddenCards = (monitors[monitorKey] ?? DEFAULT_HIDDEN).filter(other => other !== id);
     if (hidden) {
         hiddenCards.push(id);
     }
@@ -211,7 +198,7 @@ const placeCard = (monitor, element, id, key = monitorKey, offset = 0) => {
         x = custom[0] * monitor.width;
         y = custom[1] * monitor.height;
     } else {
-        [x, y] = getDefaultPosition(monitor, id, key);
+        [x, y] = getDefaultPosition(monitor, id);
     }
     y += offset;
 
@@ -231,7 +218,6 @@ const trackElement = (elements, id, element) => {
 };
 
 // Place an addon at its dragged position if it has one, or at its place in the default layout otherwise.
-// The cards below it in its column move along, they depend on its height.
 // pinKey is the monitor of a pinned card, which is placed where its card is in the overlay on that monitor, with its
 // content where the content of that card is.
 const positionAddon = (monitor, element, id, pinKey = null) => {
@@ -244,12 +230,6 @@ const positionAddon = (monitor, element, id, pinKey = null) => {
 
     trackElement(cardElements, id, element);
     placeCard(monitor, element, id);
-
-    const column = getLayout(monitor).find(other => other.includes(id)) ?? [];
-    for (const below of column.slice(column.indexOf(id) + 1)) {
-        const belowElement = cardElements.get(below);
-        if (belowElement) placeCard(monitor, belowElement, below);
-    }
 };
 
 // Calls reposition() once the size of a card changed, when the layout is done. The idle is removed with the card.

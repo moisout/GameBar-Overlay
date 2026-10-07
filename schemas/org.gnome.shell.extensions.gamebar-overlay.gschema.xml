@@ -82,7 +82,7 @@
     <key name="monitor-hidden-cards" type="a{sas}">
       <default>{}</default>
       <summary>Hidden cards of every monitor</summary>
-      <description>Cards closed with their close button or the dash, by the connector of the monitor</description>
+      <description>Cards closed with their close button or the dash, by the connector of the monitor. A monitor without an entry hides the Gallery, Discord and Settings cards</description>
     </key>
 
     <key name="pinned-cards-opacity" type="i">
@@ -101,7 +101,7 @@
     <key name="monitor-card-positions" type="a{sa{s(dd)}}">
       <default>{}</default>
       <summary>Dragged positions of the cards on every monitor</summary>
-      <description>Position of each card that was dragged in the overlay, as fractions of the monitor width and height, by the connector of the monitor. Cards without an entry use the column layout</description>
+      <description>Position of each card that was dragged in the overlay, as fractions of the monitor width and height, by the connector of the monitor. Cards without an entry use the default layout</description>
     </key>
 
 

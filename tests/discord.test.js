@@ -1,6 +1,7 @@
 // The Discord card without a keyring: it offers to connect if the Discord client runs. Nothing is clicked,
 // the buttons of the card would act on the real client.
 const discord = gamebar._discord;
+showAllCards();
 await openOverlay();
 await sleep(4500);
 const state = discord._client.state;

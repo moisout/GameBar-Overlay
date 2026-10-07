@@ -2,6 +2,7 @@
 const card = id => gamebar._cards.find(other => other.id === id).addon._addonContainer;
 const monitorKey = getMonitorKey(Main.layoutManager.primaryIndex);
 const pinnedCards = () => settings.get_value('monitor-pinned-cards').deepUnpack()[monitorKey] ?? [];
+showAllCards();
 const pins = gamebar._pins;
 // The pin button is the first child of the start of the header bar.
 const pinButton = id => card(id).get_first_child().get_first_child().get_first_child().get_first_child();

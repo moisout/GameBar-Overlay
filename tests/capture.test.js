@@ -1,6 +1,7 @@
 // Taking a screenshot from the Capture card, and finding it on the Gallery card.
 const capture = gamebar._capture;
 const gallery = gamebar._gallery;
+showAllCards();
 await openOverlay();
 
 // The screenshot button is the first one of the card body.

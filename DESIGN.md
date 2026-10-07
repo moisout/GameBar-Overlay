@@ -30,7 +30,7 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - The screenshot works like the Shift+Print key of the shell (`Shell.Screenshot.screenshot_stage_to_content()` and `captureScreenshot()` from `screenshot.js`), cropped to the monitor: saved to the screenshots folder and the clipboard, with the sound and the notification of the shell, without the pointer.
   - The recording goes through the screenshot UI of the shell, so the shell shows its recording indicator with the stop button and the notification. The screenshot UI has no API to record a monitor right away: its screen mode and the monitor are set on its private buttons, `_startScreencast()` reads the area before its first await, and the previous mode is restored right after. Without these internals the screenshot UI opens in screencast mode instead.
   - While a recording runs the record button turns into "Stop Recording", the design has no recording state. Without PipeWire or the GStreamer plugins the record button is disabled.
-- **Gallery** (520px): the tabs All, Screenshots and Recordings below the header, and the six latest captures of the tab in rows of three (8px apart, rows 12px apart). A tile is the 16:9 thumbnail with radius 8px, an icon in the middle (a picture for screenshots, play for recordings), the time at the bottom left and the length of a recording at the bottom right. The time is the time today in the clock format of GNOME, "Yesterday", the day this year and the date before. Clicking a tile opens the capture in its app once the overlay is closed. The button on the left of the header opens the folder of the tab, All opens the folder of the newest capture.
+- **Gallery** (520px): the tabs All, Screenshots and Recordings below the header, and the six latest captures of the tab in rows of three (8px apart, rows 12px apart). A tile is the 16:9 thumbnail with radius 8px, an icon in the middle (a picture for screenshots, play for recordings), the time at the bottom left and the length of a recording at the bottom right. The time is the time today in the clock format of GNOME, "Yesterday", the day this year and the date before. Clicking a tile opens the capture in its app once the overlay is closed. The button on the left of the header opens the folder of the tab, All opens the folder of the newest capture. The card is hidden until it is shown from the dash.
   - The captures are read from the folders the shell saves to, `Pictures/Screenshots` and `Videos/Screencasts` with the folder names translated by the shell, every time the overlay opens.
   - Thumbnails come from the freedesktop thumbnail cache (`~/.cache/thumbnails`), so the ones of GNOME Files are used too. Missing ones and the lengths of recordings are made by `helpers/galleryThumbnailer.js`, a gjs process of its own: decoding in the shell would block it, and a broken file or codec could take it down. Screenshots are scaled with GdkPixbuf, recordings are opened with GStreamer for their length and a frame 10% in (at most 3 s), the first frame is often black. Thumbnails are x-large (512px) like the spec, sharp at 200%, with the URI and modification time of the file. Files it cannot read are not tried again until they change. A helper that takes longer than 30 seconds is ended.
   - Thumbnails are a background image, which follows the rounded corners. The time and length are on dark badges and the icon on a dark circle, readable on any thumbnail.
@@ -63,11 +63,11 @@ All cards are built from the helpers in `card.js` and styled in `stylesheet.css`
   - **Memory**: "used of total" in GiB, a level bar and the percentage. Used is total minus available from `/proc/meminfo`, like GNOME System Monitor.
   - **Disk**: the same for the filesystem of the home folder in GB, on image based systems the root filesystem is a small read-only image. The percentage is used of the whole size like GNOME Settings, so it is a few points lower than `df`, which leaves out the space reserved for root.
   - **Network**: download and upload rate from `/proc/net/dev`, counting only interfaces with a device behind them. Loopback, VPN and container interfaces would count the same traffic twice.
-- **Settings** (400px): the settings changed while playing, the others stay in the preferences window. A boxed list with Pinned Card Opacity, a slider from 10% to 100% like the preferences with the percentage on the right, and "Reset Card Positions", a row that is a button like the button rows of Adwaita. Reset moves the cards of the monitor of the overlay back, the positions are saved per monitor, and is greyed out while no card there was dragged. Below the list the pill button "More Settings…" closes the overlay and opens the preferences window, which would open behind it. The card has a close button and no pin button, a pinned card could not be used. It is below the Hardware card, its dash button is the `preferences-system-symbolic` of the icon theme.
+- **Settings** (400px): the settings changed while playing, the others stay in the preferences window. A boxed list with Pinned Card Opacity, a slider from 10% to 100% like the preferences with the percentage on the right, and "Reset Card Positions", a row that is a button like the button rows of Adwaita. Reset moves the cards of the monitor of the overlay back, the positions are saved per monitor, and is greyed out while no card there was dragged. Below the list the pill button "More Settings…" closes the overlay and opens the preferences window, which would open behind it. The card has a close button and no pin button, a pinned card could not be used. It is below the Hardware card and hidden until it is shown from the dash, its dash button is the `preferences-system-symbolic` of the icon theme.
 
 ## Departures from the design
 
-- **Audio and Battery cards are 440px wide** instead of 400px, for the names of the apps (108px instead of 68px). The columns are 32px apart instead of 40px, so the four columns still fit 1920px.
+- **Audio and Battery cards are 440px wide** instead of 400px, for the names of the apps (108px instead of 68px). The cards are 32px apart across instead of 40px, so the four of them side by side still fit 1920px.
 - **Group names "Output" and "Input"** instead of "Output" and "Microphone", so both groups are named the same way.
 - **Card shadow** `0 2px 4px 0 rgba(0,0,0,0.2)` instead of the design's `0 10px 30px rgba(0,0,0,0.5)`. The design's shadow is far heavier than anything in GNOME. The value is the one of the shell popup menus and Quick Settings. For comparison, libadwaita windows use three centred layers (`0 0 14px 5px` 15%, `0 0 5px 2px` 10%, 1px 5%), which St cannot draw since it supports only one shadow.
 - **Row separators** in the card background `#222226` instead of the design's lighter `rgba(255,255,255,0.08)`. GNOME lists show the background between the rows.
@@ -129,32 +129,29 @@ A pinned card stays on its monitor while the overlay is closed, over the desktop
 
 - The overlay covers one monitor: the one of the focused window when it opens, the game, or the one of the pointer when no window has the focus. The other monitors stay as they are. The Capture card captures the monitor of the overlay.
 - Every monitor has its own card positions and closed cards. A monitor is known by its connector (`DP-1`, `eDP-1`), which stays the same across sessions unlike its index. A monitor plugged into another port is a new monitor. GNOME 49 and newer list the connectors of the monitors (`Meta.MonitorManager.get_logical_monitors()`), GNOME 46 to 48 do not: there the connectors are read from `/sys/class/drm` and matched with `get_monitor_for_connector()`. That path is not tested.
-- A monitor without saved positions starts in the column layout with every card shown.
+- A monitor without saved positions starts in the default layout, with every card shown except Gallery, Discord and Settings.
 
 ## Layout
 
-Cards start in the column layout of the design (`cardPosition.js`):
+Every card has a place of its own in the default layout (`cardPosition.js`), it does not follow the other cards. The design stacks the cards of a column with 24px between them, but then dragging a card away, closing it or a card above growing moved the cards below it. Now nothing but the card itself moves. On 1920×1080:
 
-| Column | Width | Cards, top to bottom |
-|---|---|---|
-| 1 | 440 | Audio, Battery |
-| 2 | 520 | Capture, Gallery |
-| 3 | 400 | Clock, Music, Discord |
-| 4 | 400 | Hardware |
+| Card | x | y | Width | Usual height |
+|---|---|---|---|---|
+| Audio | 32 | 84 | 440 | 485 |
+| Battery | 32 | 690 | 440 | 125 |
+| Capture | 504 | 84 | 520 | 110 |
+| Gallery | 504 | 218 | 520 | 300 |
+| Clock | 1056 | 84 | 400 | 150 |
+| Music | 1056 | 275 | 400 | 200 |
+| Discord | 1056 | 515 | 400 | 300 |
+| Hardware | 1488 | 84 | 400 | 380 |
+| Settings | 1488 | 490 | 400 | 220 |
 
-Columns are 32px apart and the grid is centred on the monitor, at y = 84. The cards of a column are stacked 24px apart, closed, dragged away and missing cards leave no gap, and the cards below a card move along when its height changes. On 1920×1080 this gives the x positions 32, 504, 1056 and 1488.
+The usual height is the height of a card in common use: Audio with four apps, Gallery full, Music playing, Hardware with every row. The places leave room for that, so a card has to grow well beyond it to reach the card below. Gallery, Discord and Settings are hidden by default, a monitor without closed cards saved has those three closed.
 
-Monitors too narrow for the four columns get fewer:
+A monitor larger than 1920×1080 gets the layout as it is, centred across and 84px from the top. On a smaller one the space each card leaves is shrunk along the side that is too small: a card that is 32px from the left edge stays there, one that ends 32px from the right edge stays there, and the ones in between are spread out in proportion. Vertically the layout lies between 84px from the top and 110px from the bottom, above the dash. The cards keep their size, so on a small monitor like 1280×800 they overlap. The dash is always kept above the cards.
 
-| Monitor width | Columns |
-|---|---|
-| 1920 and more | Audio, Battery · Capture, Gallery · Clock, Music, Discord · Hardware |
-| 1488 to 1919 | Audio, Battery, Music, Discord · Clock, Capture, Gallery · Hardware |
-| below 1488 | Audio, Battery, Music, Discord · Clock, Capture, Gallery, Hardware |
-
-On 1280×800 not every card fits above the dash, the bottom of the Hardware card reaches behind it. The dash is always kept above the cards.
-
-Cards can still be dragged anywhere. Dragged positions are saved for the monitor in `monitor-card-positions`, as fractions of its size. The Reset button in the preferences moves the cards back to the column layout on every monitor.
+Cards can still be dragged anywhere. Dragged positions are saved for the monitor in `monitor-card-positions`, as fractions of its size. The Reset button in the Settings card moves the cards of the monitor of the overlay back to the default layout, the one in the preferences the cards of every monitor.
 
 ## Behaviour matched to GNOME Shell
 
@@ -196,9 +193,9 @@ The sliders are the shell's own `Slider` and follow the accent colour. The spark
 These settings were removed together with their rows in the preferences:
 
 - Overlay Opening Monitor and Show App Description (were already unused).
-- Padding and the Position of every addon (replaced by the column layout).
+- Padding and the Position of every addon (replaced by the default layout).
 - Icon Size (app icons are 24px) and Icon Type (the fallback icon is always symbolic).
-- `hidden-cards` and `addon-positions`, replaced by `monitor-hidden-cards` and `monitor-card-positions` with an entry per monitor. Cards closed or dragged before start shown and in the column layout again.
+- `hidden-cards` and `addon-positions`, replaced by `monitor-hidden-cards` and `monitor-card-positions` with an entry per monitor. Cards closed or dragged before start in the default layout again.
 - First key and Last key of the shortcut. The Shortcut row records any combination with Ctrl, Alt or Super instead, several of the keys in the old list had names the shell does not know. The shortcuts of the shell still work while it records, holding them back makes the shell ask for permission.
 
 The schema defaults changed to match the design: overlay background `rgba(8,9,12,0.62)`, clock size 64, close on empty area click on.

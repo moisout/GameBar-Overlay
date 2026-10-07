@@ -628,8 +628,6 @@ class GameBar extends PanelMenu.Button {
                     onComplete: () => {
                         this._hidingCards.delete(id);
                         container.hide();
-                        // The cards below it in its column move up.
-                        this._positionCards();
                         container.set_opacity(255);
                         container.set_scale(1, 1);
                         container.set_translation(0, 0, 0);
@@ -638,8 +636,6 @@ class GameBar extends PanelMenu.Button {
             }
         });
 
-        // Cards in a column stack, they move when a card above them is shown or hidden.
-        this._positionCards();
     }
 
     _resetOverlayChildren() {

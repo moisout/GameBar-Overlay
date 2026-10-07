@@ -7,8 +7,12 @@
             return false;
         }));
         const check = (condition, message) => log(`${condition ? 'ok' : 'FAIL'} ${message}`);
+        // Gallery, Discord and Settings are hidden by default, scenarios about them show every card on the primary monitor.
+        const showAllCards = () => settings.set_value('monitor-hidden-cards',
+            new imports.gi.GLib.Variant('a{sas}', { [getMonitorKey(Main.layoutManager.primaryIndex)]: [] }));
 
-        const seat = Clutter.get_default_backend().get_default_seat();
+        // GNOME 51 has no default backend, the stage knows its context.
+        const seat = (Clutter.get_default_backend?.() ?? global.stage.get_context().get_backend()).get_default_seat();
         const pointer = seat.create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         const keyboard = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         const now = () => imports.gi.GLib.get_monotonic_time();

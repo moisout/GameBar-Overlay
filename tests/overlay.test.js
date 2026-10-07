@@ -3,6 +3,12 @@ const card = id => gamebar._cards.find(other => other.id === id).addon._addonCon
 const state = () => `open=${gamebar._isOpen} visible=${gamebar._overlay.visible} modal=${Main.modalCount}`;
 const monitorKey = getMonitorKey(Main.layoutManager.primaryIndex);
 const hiddenCards = () => settings.get_value('monitor-hidden-cards').deepUnpack()[monitorKey] ?? [];
+// The places of the other cards, which must not move when a card is dragged, closed or shown.
+const places = except => gamebar._cards.filter(({ id, addon }) => id !== except && addon._addonContainer?.visible)
+    .map(({ id, addon }) => `${id} ${addon._addonContainer.x},${addon._addonContainer.y}`).join(' ');
+
+check(hiddenCards().length === 0 && !card('gallery').visible && !card('discord').visible && !card('settings').visible &&
+    card('music').visible, 'the Gallery, Discord and Settings cards are hidden by default');
 
 await openOverlay();
 check(gamebar._isOpen && gamebar._overlay.visible && Main.modalCount === 1, `the overlay opens (${state()})`);
@@ -23,12 +29,15 @@ await click(card('music'));
 check(gamebar._isOpen, 'a click on a card does not close it');
 
 const musicButton = gamebar._dash._buttons.get('music').button;
+const beforeHiding = places('music');
 await click(musicButton);
 await sleep(400);
 check(!card('music').visible && hiddenCards().includes('music'), 'the dash button hides the Music card');
+check(places('music') === beforeHiding, 'and the other cards stay where they are');
 await click(musicButton);
 await sleep(400);
-check(card('music').visible && !hiddenCards().includes('music'), 'and shows it again');
+check(card('music').visible && !hiddenCards().includes('music') && hiddenCards().includes('discord'),
+    'and shows it again, Discord stays hidden');
 
 // The close button is the last child of the header bar.
 const closeButton = card('battery').get_first_child().get_first_child().get_last_child();
@@ -40,7 +49,9 @@ await sleep(400);
 
 const clock = card('clock');
 const [startX, startY] = [clock.x, clock.y];
+const beforeDrag = places('clock');
 await drag(clock, -200, 300);
+check(places('clock') === beforeDrag, 'dragging a card leaves the other cards where they are');
 check(Math.abs(clock.x - (startX - 200)) < 3 && Math.abs(clock.y - (startY + 300)) < 3,
     `dragging moves the Clock card (${clock.x - startX}, ${clock.y - startY})`);
 check('clock' in (settings.get_value('monitor-card-positions').deepUnpack()[monitorKey] ?? {}), `and saves its position for ${monitorKey}`);

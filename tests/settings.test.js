@@ -3,6 +3,7 @@ const card = id => gamebar._cards.find(other => other.id === id).addon._addonCon
 const monitorKey = getMonitorKey(Main.layoutManager.primaryIndex);
 const positions = () => settings.get_value('monitor-card-positions').deepUnpack()[monitorKey] ?? {};
 const settingsCard = gamebar._settingsCard;
+showAllCards();
 
 await openOverlay();
 const header = card('settings').get_first_child().get_first_child();
