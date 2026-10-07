@@ -44,3 +44,22 @@ await openOverlay();
 await sleep(2500);
 check(sampler.gpu.usage !== null && sampler.gpuHistory.length >= 2, `it is read while the card is shown (${sampler.gpuHistory.length} samples)`);
 delete sampler._canSampleGpuInBackground;
+
+// Turned off, nothing is sampled while the overlay is closed and the sparklines start when it opens.
+settings.set_boolean('hardware-background-sampling', false);
+gamebar._closeOverlay();
+await closed();
+await sleep(2500);
+check(sampler._timeoutId === 0 && sampler.cpuHistory.length === 0 && sampler.gpuHistory.length === 0,
+    'turned off, nothing is sampled while the overlay is closed');
+await openOverlay();
+await sleep(2500);
+check(sampler.cpuHistory.length >= 2 && sampler.gpuHistory.length >= 2,
+    `and the usage is sampled while the card is shown (${sampler.cpuHistory.length} CPU, ${sampler.gpuHistory.length} GPU samples)`);
+gamebar._closeOverlay();
+await closed();
+await sleep(1500);
+check(sampler._timeoutId === 0, 'and stops when the overlay closes');
+settings.reset('hardware-background-sampling');
+await sleep(2500);
+check(sampler.cpuHistory.length >= 1, 'turned on again, it samples in the background');

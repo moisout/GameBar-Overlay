@@ -26,8 +26,8 @@ const pushSample = (history, value) => {
     if (history.length > HISTORY_LENGTH) history.shift();
 };
 
-// The CPU and GPU usage for the sparklines of the Hardware cards, one sample a second. The usage is sampled while the
-// overlay is closed too, so the sparklines are filled when it opens. In the background only the usage is read, which
+// The CPU and GPU usage for the sparklines of the Hardware cards, one sample a second. Unless it is turned off, the
+// usage is sampled while the overlay is closed too, so the sparklines are filled when it opens. In the background only the usage is read, which
 // is a read of /proc/stat and of one sysfs file or a line of nvidia-smi: nothing that draws, nothing in the way of a
 // game. The temperature and the VRAM are only read while a card is shown.
 export class HardwareSampler {
@@ -37,6 +37,7 @@ export class HardwareSampler {
         this.cpuUsage = null;
         this.gpu = NO_GPU_READING;
 
+        this._background = false;
         this._cpuEnabled = false;
         this._gpuEnabled = false;
         this._gpuDevice = null;
@@ -67,6 +68,7 @@ export class HardwareSampler {
     updateSettings(settings) {
         this._stop();
 
+        this._background = settings.get_boolean('hardware-background-sampling');
         this._cpuEnabled = settings.get_boolean('cpu-monitoring') && GTop !== null;
         this._gpuEnabled = settings.get_boolean('gpu-monitoring');
         // The selected GPU, or the first one if it does not exist.
@@ -81,9 +83,7 @@ export class HardwareSampler {
         this._gpuHasUsage = this._gpuDriver === 'amdgpu' || this._gpuDriver === 'nvidia';
         this._nvidiaMissing = false;
 
-        this.cpuHistory.length = 0;
         this.gpuHistory.length = 0;
-        this.cpuUsage = null;
         this.gpu = NO_GPU_READING;
         this._start();
     }
@@ -105,12 +105,15 @@ export class HardwareSampler {
         this._start();
     }
 
-    // The timer runs while there is something to sample, also while no card is shown.
+    // The timer runs while a card is shown, and while there is something to sample in the background.
     _start() {
         if (this._destroyed) return;
 
-        const needed = this._cpuEnabled || this._gpuDevice !== null || this._watchers.size > 0;
+        const needed = this._watchers.size > 0 || (this._background && (this._cpuEnabled || this._gpuDevice !== null));
         if (needed && !this._timeoutId) {
+            // A sparkline with a gap would be misleading, it starts anew.
+            this.cpuHistory.length = 0;
+            this.cpuUsage = null;
             this._cpuTimes = null;
             this._sampleCpu();
             // Seconds, so the wakeups of the shell are bundled.
@@ -170,7 +173,7 @@ export class HardwareSampler {
         if (!this._gpuDevice) return;
 
         const watched = this._watchers.size > 0;
-        const sampling = watched || (this._gpuHasUsage && this._canSampleGpuInBackground());
+        const sampling = watched || (this._background && this._gpuHasUsage && this._canSampleGpuInBackground());
         // A sparkline with a gap would be misleading, it starts anew when the GPU is read again.
         if (!sampling) {
             this._stopNvidia();

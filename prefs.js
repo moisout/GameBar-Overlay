@@ -336,6 +336,16 @@ export default class Preferences extends ExtensionPreferences {
             settings.bind(key, row, 'active', Gio.SettingsBindFlags.DEFAULT);
         });
 
+        // Sampling while the overlay is closed, for people who want nothing to run while they play.
+        const chartsGroup = new Adw.PreferencesGroup({ title: _('Charts') });
+        monitorPage.add(chartsGroup);
+        const backgroundRow = new Adw.SwitchRow({
+            title: _('Sample in the Background'),
+            subtitle: _('Keep the CPU and GPU usage while the overlay is closed, so the charts are filled when it opens'),
+        });
+        chartsGroup.add(backgroundRow);
+        settings.bind('hardware-background-sampling', backgroundRow, 'active', Gio.SettingsBindFlags.DEFAULT);
+
         // GPU settings
         const gpuGroup = new Adw.PreferencesGroup({
             title: _('GPU Settings'),

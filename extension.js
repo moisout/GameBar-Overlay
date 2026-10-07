@@ -700,6 +700,8 @@ class GameBar extends PanelMenu.Button {
             this._clock._updateSettings(settings);
             this._onCardsRecreated();
             this._pins.rebuild();
+        } else if (key === 'hardware-background-sampling') {
+            this._hardwareSampler.updateSettings(settings);
         } else if (SYSTEM_MONITOR_KEYS.includes(key)) {
             if (SAMPLER_KEYS.includes(key)) this._hardwareSampler.updateSettings(settings);
             this._systemMonitor._updateSettings(settings);
