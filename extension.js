@@ -17,6 +17,7 @@ import { getMonitorKey } from './utils.js';
 import {Clock} from './addons/clock.js';
 import {SoundControls} from './addons/soundControls.js';
 import {SystemMonitor} from './addons/systemMonitor.js';
+import {HardwareSampler} from './addons/hardwareSampler.js';
 import {Dash} from './addons/dash.js';
 import {Capture} from './addons/capture.js';
 import {Battery, BatteryModel, BATTERY_KEYS} from './addons/battery.js';
@@ -29,6 +30,8 @@ import {SettingsCard} from './addons/settings.js';
 
 // The settings of the Clock and the Hardware card, changing one recreates the card.
 const CLOCK_KEYS = ['clock-addon-font-size', 'clock-addon-show-seconds'];
+// The settings of what the sampler of the Hardware card reads, changing one starts its sparklines anew.
+const SAMPLER_KEYS = ['cpu-monitoring', 'gpu-monitoring', 'gpu-device'];
 const SYSTEM_MONITOR_KEYS = ['cpu-temperature-unit', 'gpu-device', 'gpu-monitoring', 'cpu-monitoring', 'memory-monitoring',
     'disk-monitoring', 'network-monitoring'];
 
@@ -108,7 +111,9 @@ class GameBar extends PanelMenu.Button {
         // Create instances of addons and pass the overlay widget and the monitor
         this._clock = new Clock(this._overlay, monitor); // Clock addon
         this._soundControls = new SoundControls(this._overlay, monitor); // Sound controls addon
-        this._systemMonitor = new SystemMonitor(this._overlay, monitor); // System Monitor stats addon
+        // The CPU and GPU usage is sampled once for the card and its pinned copies, also while the overlay is closed.
+        this._hardwareSampler = new HardwareSampler();
+        this._systemMonitor = new SystemMonitor(this._overlay, monitor, this._hardwareSampler); // System Monitor stats addon
         // The pinned cards are hidden for a screenshot, a recording hides them while it runs.
         this._capture = new Capture(this._overlay, monitor,
             callback => this._runWithOverlayClosed(() => this._pins.hideWhile(callback))); // Screenshot and screencast buttons
@@ -123,8 +128,8 @@ class GameBar extends PanelMenu.Button {
         // A pinned card is the card built again for the monitor it is pinned on, without a header bar.
         // Its buttons are never clicked, the pointer goes to the windows below the pinned cards.
         const pinned = (Addon, ...args) => (layer, pinMonitor, pinKey) => new Addon(layer, pinMonitor, ...args, { pinKey });
-        const pinnedWithSettings = (Addon) => (...args) => {
-            const addon = pinned(Addon)(...args);
+        const pinnedWithSettings = (Addon, ...extra) => (...args) => {
+            const addon = pinned(Addon, ...extra)(...args);
             addon._updateSettings(this._settings);
             return addon;
         };
@@ -141,7 +146,7 @@ class GameBar extends PanelMenu.Button {
             { id: 'clock', name: _('Clock'), iconName: 'preferences-system-time-symbolic', addon: this._clock,
                 createPinned: pinnedWithSettings(Clock) },
             { id: 'system-monitor', name: _('Hardware'), iconName: 'computer-symbolic', addon: this._systemMonitor,
-                createPinned: pinnedWithSettings(SystemMonitor) },
+                createPinned: pinnedWithSettings(SystemMonitor, this._hardwareSampler) },
             { id: 'battery', name: _('Battery'), iconName: 'battery-symbolic', addon: this._battery,
                 createPinned: pinned(Battery, this._batteryModel) },
             { id: 'music', name: _('Music'), iconName: 'audio-x-generic-symbolic', addon: this._music,
@@ -696,6 +701,7 @@ class GameBar extends PanelMenu.Button {
             this._onCardsRecreated();
             this._pins.rebuild();
         } else if (SYSTEM_MONITOR_KEYS.includes(key)) {
+            if (SAMPLER_KEYS.includes(key)) this._hardwareSampler.updateSettings(settings);
             this._systemMonitor._updateSettings(settings);
             this._onCardsRecreated();
             this._pins.rebuild();
@@ -713,6 +719,7 @@ class GameBar extends PanelMenu.Button {
 
         this._clock._updateSettings(settings);
         this._soundControls._updateSettings(settings);
+        this._hardwareSampler.updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
         this._batteryModel.updateSettings(settings);
         this._settingsCard._updateSettings(settings);
@@ -755,6 +762,8 @@ class GameBar extends PanelMenu.Button {
         this._soundControls = null;
         this._systemMonitor?.destroy();
         this._systemMonitor = null;
+        this._hardwareSampler?.destroy();
+        this._hardwareSampler = null;
         this._capture?.destroy();
         this._capture = null;
         this._battery?.destroy();

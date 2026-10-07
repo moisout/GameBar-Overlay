@@ -7,7 +7,7 @@ A fork of Dekotale's GameBar-Overlay, keep the credits in the README.
 
 - `extension.js`: the overlay, its enter and exit animations and the list of cards.
 - `card.js`: the Adwaita style building blocks of the cards. `cardPosition.js`: the default layout, dragged positions, closed and pinned cards, all per monitor.
-- `addons/`: one card per file. A card built with a `pinKey` is its pinned copy, without a header bar (`pinnedCards.js`, `pinTransition.js`).
+- `addons/`: one card per file, and what several cards share: `hardwareSampler.js` samples the CPU and GPU usage in the background, `batterySources/` reads the batteries. A card built with a `pinKey` is its pinned copy, without a header bar (`pinnedCards.js`, `pinTransition.js`).
 - `prefs.js`: the preferences window, GTK4 and libadwaita in a process of its own, it cannot share widgets with the shell.
 
 ## Testing

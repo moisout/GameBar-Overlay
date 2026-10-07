@@ -12,7 +12,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 
 - Fullscreen overlay for quick access to essential information, styled after GNOME Adwaita
 - Audio controls: output and input device switching, volume and mute for the devices and every app
-- CPU/GPU usage and temperature monitor, memory, disk and network
+- CPU/GPU usage and temperature monitor, memory, disk and network. The usage of the last 30 seconds is sampled in the background, so the charts are filled when the overlay opens
 - Instant screenshot and screen recording of the monitor, saved and shown like GNOME's own
 - A gallery of the latest screenshots and recordings
 - Battery of the computer and of connected devices like mice, headsets and controllers, also of devices on a Logi Bolt receiver over HID++

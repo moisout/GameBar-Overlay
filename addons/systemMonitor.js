@@ -7,28 +7,11 @@ import Pango from 'gi://Pango';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, createCard, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
-import { readFile, getGpuDriver, listGpus, findCpuHwmon, findFirstHwmon, celsiusToFahrenheit } from '../utils.js';
-
-const NO_GPU_READING = { usage: null, temperature: null, vram: null };
-
-// A number read from sysfs or a tool, null without one.
-const toNumber = (text) => {
-    const number = Number(text);
-    return typeof text === 'string' && text.trim() !== '' && Number.isFinite(number) ? number : null;
-};
-
-// Import GTop conditionally
-let GTop = null;
-try {
-    GTop = await import('gi://GTop');
-} catch (e) {
-    // GTop is not available, it is already null
-}
-
-// Number of usage samples in a sparkline, one per second.
-const HISTORY_LENGTH = 30;
+import { readFile, findCpuHwmon, celsiusToFahrenheit } from '../utils.js';
+import { HISTORY_LENGTH, toNumber } from './hardwareSampler.js';
 
 // Line chart of the latest usage percentages, drawn in the colour of the stylesheet (the accent colour).
+// The values are the history of the sampler, which is shared by the card in the overlay and its pinned card.
 class Sparkline {
     constructor() {
         this._values = [];
@@ -40,26 +23,8 @@ class Sparkline {
         this.actor.connect('repaint', () => this._draw());
     }
 
-    push(value) {
-        const percent = parseFloat(value);
-        if (!Number.isFinite(percent)) {
-            return;
-        }
-
-        this._values.push(Math.max(0, Math.min(percent, 100)));
-        if (this._values.length > HISTORY_LENGTH) {
-            this._values.shift();
-        }
-        this.actor.queue_repaint();
-    }
-
-    clear() {
-        this._values = [];
-        this.actor.queue_repaint();
-    }
-
-    continueFrom(other) {
-        this._values = [...other._values];
+    setValues(values) {
+        this._values = values;
         this.actor.queue_repaint();
     }
 
@@ -115,8 +80,10 @@ const formatRate = (bytesPerSecond) => {
 };
 
 export class SystemMonitor {
-    constructor(overlay, monitor, { pinKey = null } = {}) {
+    constructor(overlay, monitor, sampler, { pinKey = null } = {}) {
         this._overlay = overlay;
+        // The CPU and GPU usage, sampled while the overlay is closed too.
+        this._sampler = sampler;
         // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
         this._pinKey = pinKey;
         this._monitor = monitor;
@@ -126,7 +93,6 @@ export class SystemMonitor {
 
         this._gpuRow = null;
         this._gpuMonitoring = null;
-        this._gpuDevice = null;
 
         this._cpuMonitoring = true;
         this._memoryMonitoring = true;
@@ -138,23 +104,14 @@ export class SystemMonitor {
         this._networkRow = null;
         this._prevNetwork = null;
         
-        this._timeoutId = null;
+        this._watchId = 0;
         this._addonContainer = null;
         this._visibilityChangedId = null;
-        this._prevCpu = null;
-        this._gtopAvailable = GTop !== null;
         this._tempUnit = 'C'; // Default to Celsius
     }
 
     _createMonitorWidget() {
-        if (this._gtopAvailable) {
-            this._prevCpu = new GTop.default.glibtop_cpu();
-        }
         this._cpuHwmonPath = findCpuHwmon();
-        this._cancellable = new Gio.Cancellable();
-        this._nvidiaProcess = null;
-        this._nvidiaMissing = false;
-        this._findGpu();
 
         // Without any row there is no card. A hidden card would not finish the exit animation the overlay waits for.
         if (!this._cpuMonitoring && !this._gpuMonitoring && !this._memoryMonitoring && !this._diskMonitoring && !this._networkMonitoring) {
@@ -171,7 +128,7 @@ export class SystemMonitor {
 
         // Without GTop there is no usage to chart, the row only explains what is missing.
         if (this._cpuMonitoring) {
-            this._cpuRow = this._createStatRow(_('CPU'), this._gtopAvailable ? 'sparkline' : null);
+            this._cpuRow = this._createStatRow(_('CPU'), this._sampler.cpuAvailable ? 'sparkline' : null);
             list.addRow(this._cpuRow.actor);
         }
 
@@ -277,13 +234,11 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
     return { actor: row, download: addRate('go-down-symbolic'), upload: addRate('go-up-symbolic') };
   }
 
+  // The sampler calls back every second while the card is shown.
   _startMonitor() {
-    // A sparkline with a gap from the time the overlay was closed would be misleading.
-    this._cpuRow?.sparkline?.clear();
-    this._gpuRow?.sparkline?.clear();
     this._prevNetwork = null;
 
-    // An exception in the timer would end it, and the card would stand still.
+    // An exception in the update would end the timer of the sampler, and every card would stand still.
     const update = () => {
       try {
         this._updateMonitor();
@@ -291,19 +246,12 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
         console.warn(`GameBar: ${e.message}`);
       }
     };
+    if (!this._watchId) this._watchId = this._sampler.watch(update);
     update();
-
-    // Start the timer only if it's not already running
-    if (!this._timeoutId) {
-      this._timeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-        update();
-        return GLib.SOURCE_CONTINUE;
-      });
-    }
   }
 
   // The card of the overlay and its pinned card are one card while the overlay opens and closes, the one that
-  // just started goes on with the samples of the other one.
+  // just started shows what the other one showed until the next sample. Their sparklines are the same already.
   continueFrom(other) {
     for (const name of ['_cpuRow', '_gpuRow', '_memoryRow', '_diskRow', '_networkRow']) {
       const [row, from] = [this[name], other[name]];
@@ -311,15 +259,13 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
       for (const label of ['subtitle', 'usage', 'download', 'upload']) {
         if (row[label] && from[label]) row[label].text = from[label].text;
       }
-      if (row.sparkline && from.sparkline) row.sparkline.continueFrom(from.sparkline);
     }
   }
 
   _stopMonitor() {
-    // Remove the timeout if it exists
-    if (this._timeoutId) {
-      GLib.Source.remove(this._timeoutId);
-      this._timeoutId = null;
+    if (this._watchId) {
+      this._sampler.unwatch(this._watchId);
+      this._watchId = 0;
     }
   }
 
@@ -327,92 +273,11 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
     positionAddon(this._monitor, this._addonContainer, 'system-monitor', this._pinKey);
   }
 
-  _getCpuUsage() {
-    if (!this._gtopAvailable){
-      return '-';
-    }
-
-    const cpu = new GTop.default.glibtop_cpu();
-    GTop.default.glibtop_get_cpu(cpu);
-
-    const total = cpu.total - this._prevCpu.total;
-    const user = cpu.user - this._prevCpu.user;
-    const sys = cpu.sys - this._prevCpu.sys;
-    const nice = cpu.nice - this._prevCpu.nice;
-
-    this._prevCpu = cpu;
-
-    return Math.round((user + sys + nice) / Math.max(total, 1.0) * 100);
-  }
-
   // Millidegrees Celsius as "45 °C" or "113 °F", null without a reading.
   _formatTemperature(millidegrees) {
     if (millidegrees === null) return null;
     const celsius = Math.round(millidegrees / 1000);
     return this._tempUnit === 'C' ? `${celsius} °C` : `${Math.round(celsiusToFahrenheit(celsius))} °F`;
-  }
-
-  // The GPU to read, the selected one or the first one if it does not exist, with its driver and temperature sensor.
-  _findGpu() {
-    const gpus = listGpus().map(([id]) => id);
-    if (!gpus.includes(this._gpuDevice)) {
-      this._gpuDevice = gpus[0] ?? null;
-    }
-    this._gpuDriver = this._gpuDevice ? getGpuDriver(this._gpuDevice) : null;
-    // Integrated Intel GPUs have no sensor.
-    this._gpuHwmonPath = this._gpuDevice ? findFirstHwmon(this._gpuDevice) : null;
-    this._nvidia = NO_GPU_READING;
-  }
-
-  // Usage in percent, temperature in millidegrees Celsius and VRAM in use in bytes, null for what the driver does not tell.
-  _readGpu() {
-    if (!this._gpuDevice) return NO_GPU_READING;
-
-    if (this._gpuDriver === 'nvidia') {
-      this._queryNvidia();
-      return this._nvidia;
-    }
-
-    // Only amdgpu has the usage and the VRAM in sysfs, Intel and nouveau have neither.
-    const device = '/sys/class/drm/' + this._gpuDevice + '/device';
-    const amd = this._gpuDriver === 'amdgpu';
-    return {
-      usage: amd ? toNumber(readFile(device + '/gpu_busy_percent')) : null,
-      temperature: this._gpuHwmonPath ? toNumber(readFile(this._gpuHwmonPath + '/temp1_input')) : null,
-      vram: amd ? toNumber(readFile(device + '/mem_info_vram_used')) : null,
-    };
-  }
-
-  // nvidia-smi takes too long to wait for it in the shell. It runs on its own, the row shows what its last run said.
-  _queryNvidia() {
-    if (this._nvidiaProcess || this._nvidiaMissing) return;
-
-    let process;
-    try {
-      process = Gio.Subprocess.new(
-        ['nvidia-smi', '--query-gpu=utilization.gpu,temperature.gpu,memory.used', '--format=csv,noheader,nounits'],
-        Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE);
-    } catch (e) {
-      this._nvidiaMissing = true;
-      return;
-    }
-
-    this._nvidiaProcess = process;
-    process.communicate_utf8_async(null, this._cancellable, (source, result) => {
-      if (this._nvidiaProcess === process) this._nvidiaProcess = null;
-      try {
-        const [, stdout] = source.communicate_utf8_finish(result);
-        // One line per GPU, the first one. The memory is in MiB.
-        const [usage, temperature, memory] = (stdout ?? '').split('\n')[0].split(',').map(toNumber);
-        this._nvidia = {
-          usage: usage ?? null,
-          temperature: typeof temperature === 'number' ? temperature * 1000 : null,
-          vram: typeof memory === 'number' ? memory * 1024 ** 2 : null,
-        };
-      } catch (e) {
-        if (!e.matches?.(Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED)) console.warn(`GameBar: ${e.message}`);
-      }
-    });
   }
 
     // Used memory like GNOME System Monitor: everything that is not available.
@@ -486,12 +351,12 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
       return false;
     }
 
-    if (this._cpuRow && !this._gtopAvailable) {
+    if (this._cpuRow && !this._sampler.cpuAvailable) {
       this._cpuRow.subtitle.set_text(_("Install 'libgtop' for the CPU usage"));
     } else if (this._cpuRow) {
-      const cpuUsage = this._getCpuUsage();
-      this._cpuRow.usage.set_text(cpuUsage + "%");
-      this._cpuRow.sparkline.push(cpuUsage);
+      const cpuUsage = this._sampler.cpuUsage;
+      this._cpuRow.usage.set_text(cpuUsage === null ? "-" : cpuUsage + "%");
+      this._cpuRow.sparkline.setValues(this._sampler.cpuHistory);
 
       if (this._cpuHwmonPath) {
         this._cpuRow.subtitle.set_text(this._formatTemperature(toNumber(readFile(this._cpuHwmonPath))) ?? _("N/A"));
@@ -501,11 +366,9 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
     }
 
     if (this._gpuRow) {
-      const gpu = this._readGpu();
+      const gpu = this._sampler.gpu;
       this._gpuRow.usage.set_text(gpu.usage === null ? "-" : Math.round(gpu.usage) + "%");
-      if (gpu.usage !== null) {
-        this._gpuRow.sparkline.push(gpu.usage);
-      }
+      this._gpuRow.sparkline.setValues(this._sampler.gpuHistory);
 
       const details = [this._formatTemperature(gpu.temperature) ?? _("N/A")];
       if (gpu.vram !== null) {
@@ -537,7 +400,6 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
 
   _updateSettings(settings) {
     this._tempUnit = settings.get_string('cpu-temperature-unit'); // Get unit from settings
-    this._gpuDevice = settings.get_string('gpu-device');
     this._gpuMonitoring = settings.get_boolean('gpu-monitoring');
     this._cpuMonitoring = settings.get_boolean('cpu-monitoring');
     this._memoryMonitoring = settings.get_boolean('memory-monitoring');
@@ -554,9 +416,6 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
   destroy() {
     // Stop the monitor
     this._stopMonitor();
-    this._cancellable?.cancel();
-    this._nvidiaProcess?.force_exit();
-    this._nvidiaProcess = null;
 
     // Disconnect signals
     if (this._visibilityChangedId > 0) {
@@ -577,7 +436,6 @@ followCardSize(this._addonContainer, () => this.set_addon_position());
     this._diskRow = null;
     this._networkRow = null;
     this._prevNetwork = null;
-    this._prevCpu = null;
     this._cpuHwmonPath = null;
   }
 }
