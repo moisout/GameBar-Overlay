@@ -7,7 +7,7 @@ import Soup from 'gi://Soup?version=3.0';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
-import { vertical, backgroundImageStyle, createCard, BoxedList, createRow, createLabel, createIconButton, TabBar } from '../card.js';
+import { vertical, backgroundImageStyle, setIcon, createCard, BoxedList, ChoiceRow, createRow, createLabel, createIconButton, TabBar } from '../card.js';
 import { formatPlaybackTime, deleteOldFiles } from '../utils.js';
 
 // Media players over MPRIS, like the media controls of the shell (js/ui/mpris.js).
@@ -17,6 +17,14 @@ const MPRIS_PATH = '/org/mpris/MediaPlayer2';
 const PLAYER_INTERFACE = 'org.mpris.MediaPlayer2.Player';
 // Track id of a player without a track, SetPosition() needs a real one.
 const NO_TRACK = '/org/mpris/MediaPlayer2/TrackList/NoTrack';
+// The Spotify clients on this computer: the app (spotify), spotifyd and spotify_player. While Spotify Connect shows the
+// playback of the account they are left out, they would show the same track a second time.
+const SPOTIFY_PREFIX = `${MPRIS_PREFIX}spotify`;
+
+// The icons of the volume of a Spotify device, like the ones of the Audio card.
+const VOLUME_ICONS = ['audio-volume-muted-symbolic', 'audio-volume-low-symbolic', 'audio-volume-medium-symbolic', 'audio-volume-high-symbolic'];
+// The volume the mute button goes back to when it does not know the one before.
+const DEFAULT_VOLUME = 0.5;
 
 // Downloaded covers of earlier sessions are deleted after a day, in seconds.
 const COVER_MAX_AGE = 24 * 60 * 60;
@@ -80,6 +88,8 @@ const formatTime = (microseconds) => formatPlaybackTime(microseconds / 1000000);
 class Player {
     constructor(busName, onChanged) {
         this.busName = busName;
+        // The id of the player in the card.
+        this.id = busName;
         this._onChanged = onChanged;
         this._cancellable = new Gio.Cancellable();
         // When it last started playing, the card shows the player that played last.
@@ -301,13 +311,6 @@ class MusicModel {
         return [...this._players.values()].filter(player => player.ready && ['Playing', 'Paused'].includes(player.status));
     }
 
-    // The player the card shows unless another one is picked: the one that played last, playing players first.
-    get current() {
-        const players = this.players;
-        players.sort((a, b) => Number(b.status === 'Playing') - Number(a.status === 'Playing') || b.lastActive - a.lastActive);
-        return players[0] ?? null;
-    }
-
     destroy() {
         this._cancellable.cancel();
         if (this._nameOwnerChangedId) {
@@ -417,8 +420,18 @@ class CoverCache {
     }
 }
 
+const setStyleClass = (actor, styleClass, enabled) => {
+    if (enabled) {
+        actor.add_style_class_name(styleClass);
+    } else {
+        actor.remove_style_class_name(styleClass);
+    }
+};
+
 export class Music {
-    constructor(overlay, monitor, { pinKey = null } = {}) {
+    // spotify: the SpotifyConnect of the extension. runWithOverlayClosed(callback) closes the overlay first, signing in
+    // to Spotify is in the browser behind it.
+    constructor(overlay, monitor, spotify, runWithOverlayClosed, { pinKey = null } = {}) {
         this._overlay = overlay;
         // The monitor of a pinned card, which has no header bar and stays while the overlay is closed.
         this._pinKey = pinKey;
@@ -426,10 +439,13 @@ export class Music {
         this._addonContainer = null;
         this._visibilityChangedId = null;
         this._timeoutId = null;
-        // The bus name of the player picked in the tab bar, null for the one that played last.
-        this._selectedBusName = null;
+        // The id of the player picked in the tab bar, null for the one that played last.
+        this._selectedId = null;
         this._covers = new CoverCache();
         this._model = new MusicModel(() => this._sync());
+        this._spotify = spotify;
+        this._spotifyChangedId = spotify.connect('changed', () => this._sync());
+        this._runWithOverlayClosed = runWithOverlayClosed;
         this._createMusicWidget();
     }
 
@@ -441,8 +457,8 @@ export class Music {
         const { card, body } = createCard(this._pinKey ? null : _('Music'), 'gamebar-music-card', 'music');
 
         // With several players a tab bar below the header switches between them.
-        this._tabBar = new TabBar(card, body, busName => {
-            const player = this._model.players.find(other => other.busName === busName);
+        this._tabBar = new TabBar(card, body, id => {
+            const player = this._players.find(other => other.id === id);
             if (player) this._selectPlayer(player);
         });
 
@@ -459,6 +475,12 @@ export class Music {
         this._playerList.actor.add_child(this._createProgressRow());
         body.add_child(this._playerList.actor);
 
+        // Spotify Connect: the device that plays below the player, or the offer to sign in.
+        this._createDeviceList();
+        body.add_child(this._deviceList.actor);
+        this._createConnectList();
+        body.add_child(this._connectList.actor);
+
         this._coverUrl = null;
         this._sync();
 
@@ -469,19 +491,92 @@ export class Music {
         followCardSize(this._addonContainer, () => this.set_addon_position());
 
         // The elapsed time only moves while the overlay is open.
-        // Opening the overlay shows the player that played last again.
+        // Opening the overlay shows the player that played last again, with the device list closed.
         this._visibilityChangedId = this._overlay.connect('notify::visible', () => {
             if (this._overlay.visible) {
                 this._startProgress();
             } else {
                 this._stopProgress();
-                this._selectedBusName = null;
+                this._selectedId = null;
+                this._deviceRow.setExpanded(false);
                 this._sync();
             }
+            this._syncWatch();
         });
+        this._addonContainer.connect('notify::visible', () => this._syncWatch());
         if (this._overlay.visible) {
             this._startProgress();
         }
+        this._syncWatch();
+    }
+
+    // Spotify is only asked for the playback while the card is on screen, and for the devices while their list is open.
+    _syncWatch() {
+        if (!this._spotify) return;
+
+        if (this._overlay.visible && this._addonContainer?.visible) {
+            this._spotify.watch(this, this._deviceRow.expanded);
+        } else {
+            this._spotify.unwatch(this);
+        }
+    }
+
+    // The device Spotify plays on, which opens the list of the devices to move the playback to, and its volume.
+    _createDeviceList() {
+        this._deviceList = new BoxedList();
+        this._deviceList.actor.add_style_class_name('gamebar-music-group');
+        this._deviceRow = new ChoiceRow(this._deviceList, _('Device'), () => this._syncWatch());
+
+        this._muteButton = createIconButton(VOLUME_ICONS[3]);
+        this._muteButton.connect('clicked', () => {
+            const volume = this._volumeSlider.value;
+            if (volume > 0) this._volumeBeforeMute = volume;
+            this._spotify.setVolume(volume > 0 ? 0 : this._volumeBeforeMute);
+        });
+        this._volumeBeforeMute = DEFAULT_VOLUME;
+
+        this._volumeSlider = new Slider(0);
+        this._volumeSlider.x_expand = true;
+        this._volumeSlider.accessible_name = _('Volume');
+        this._syncingVolume = false;
+        this._draggingVolume = false;
+        this._volumeSlider.connect('drag-begin', () => {
+            this._draggingVolume = true;
+        });
+        this._volumeSlider.connect('drag-end', () => {
+            this._draggingVolume = false;
+        });
+        this._volumeSlider.connect('notify::value', () => {
+            if (this._syncingVolume) return;
+            this._spotify.setVolume(this._volumeSlider.value);
+            this._syncVolumeIcon();
+        });
+
+        this._volumeRow = createRow('gamebar-row-leading-button');
+        this._volumeRow.add_child(this._muteButton);
+        this._volumeRow.add_child(this._volumeSlider);
+        this._deviceList.addRow(this._volumeRow);
+        // The separator above the row goes with it.
+        this._volumeSeparator = this._volumeRow.get_previous_sibling();
+    }
+
+    // Shown with a client ID in the preferences until the user signed in.
+    _createConnectList() {
+        this._connectList = new BoxedList();
+        this._connectList.actor.add_style_class_name('gamebar-music-group');
+        const row = createRow();
+        this._connectLabel = createLabel('', 'gamebar-dim', { x_expand: true });
+        row.add_child(this._connectLabel);
+        const button = new St.Button({
+            style_class: 'gamebar-row-action',
+            label: _('Connect'),
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        button.connect('clicked', () => {
+            this._runWithOverlayClosed(() => this._spotify?.authorize().catch(logError));
+        });
+        row.add_child(button);
+        this._connectList.addRow(row);
     }
 
     // Cover, title over "artist · player app", previous, play/pause and next.
@@ -553,33 +648,54 @@ export class Music {
             }
         });
 
+        // Spotify Connect frames the slider with shuffle and like, where they do not take room from the title. Like is
+        // the plus in a circle of Spotify, a check in a filled circle once the track is liked.
+        this._shuffleButton = createIconButton('media-playlist-shuffle-symbolic');
+        this._shuffleButton.connect('clicked', () => this._spotify?.toggleShuffle());
+        this._likeButton = createIconButton('');
+        this._likeButton.connect('clicked', () => this._spotify?.toggleSaved());
+
+        this._progressRow.add_child(this._shuffleButton);
         this._progressRow.add_child(this._elapsedLabel);
         this._progressRow.add_child(this._slider);
         this._progressRow.add_child(this._lengthLabel);
+        this._progressRow.add_child(this._likeButton);
         return this._progressRow;
     }
 
+    // The players with a track, in the order they appeared, Spotify Connect last.
+    get _players() {
+        if (!this._model || !this._spotify) return [];
+        if (!this._spotify.ready) return this._model.players;
+        return [...this._model.players.filter(player => !player.busName.startsWith(SPOTIFY_PREFIX)), this._spotify];
+    }
+
+    // The player picked in the tab bar, otherwise the one that played last, playing players first.
     get _shownPlayer() {
-        if (!this._model) return null;
-        return this._model.players.find(player => player.busName === this._selectedBusName) ?? this._model.current;
+        const players = this._players;
+        const selected = players.find(player => player.id === this._selectedId);
+        if (selected) return selected;
+
+        players.sort((a, b) => Number(b.status === 'Playing') - Number(a.status === 'Playing') || b.lastActive - a.lastActive);
+        return players[0] ?? null;
     }
 
     _selectPlayer(player) {
-        this._selectedBusName = player.busName;
+        this._selectedId = player.id;
         player.refreshPosition();
         this._sync();
     }
 
     // One tab per player, named after its app. Players of the same app, like two browser tabs, are named after their track.
     _syncTabs(shownPlayer) {
-        const players = shownPlayer ? this._model.players : [];
+        const players = shownPlayer ? this._players : [];
         const appNames = players.map(player => player.appName);
         const names = players.map((player, index) =>
             appNames[index] && appNames.indexOf(appNames[index]) === appNames.lastIndexOf(appNames[index]) ? appNames[index] : player.title);
 
         this._tabBar.visible = players.length > 1;
-        this._tabBar.setTabs(players.map((player, index) => ({ id: player.busName, name: names[index] })));
-        this._tabBar.selected = shownPlayer?.busName ?? null;
+        this._tabBar.setTabs(players.map((player, index) => ({ id: player.id, name: names[index] })));
+        this._tabBar.selected = shownPlayer?.id ?? null;
     }
 
     _seekToSlider() {
@@ -594,6 +710,7 @@ export class Music {
         this._syncTabs(player);
         this._emptyList.actor.visible = !player;
         this._playerList.actor.visible = !!player;
+        this._syncSpotify(player);
         if (!player) {
             this._setCover('');
             return;
@@ -615,6 +732,81 @@ export class Music {
         this._slider.reactive = player.canSeek;
         this._lengthLabel.text = formatTime(player.length);
         this._syncProgress();
+    }
+
+    // The device group below the Spotify Connect player. A pinned card cannot be clicked, it has neither the group
+    // nor the offer to sign in.
+    _syncSpotify(player) {
+        const spotify = !this._pinKey && player === this._spotify ? this._spotify : null;
+        // Signed in before liking was there, the sign-in has to be asked for again.
+        this._connectList.actor.visible = !this._pinKey && (this._spotify.state === 'signed-out' || this._spotify.needsReconnect);
+        this._connectLabel.text = this._spotify.needsReconnect ? _('Connect again to like tracks') : _('Spotify is not connected');
+        this._syncSpotifyButtons(player === this._spotify ? this._spotify : null);
+        this._deviceList.actor.visible = !!spotify;
+        if (!spotify) {
+            this._deviceRow.setExpanded(false);
+            return;
+        }
+
+        const device = spotify.device;
+        this._deviceRow.value = device.name;
+        this._deviceRow.setChoices(spotify.devices.map(({ id, name, iconName, active }) => ({
+            id, name, iconName, active,
+            select: () => this._spotify?.transfer(id),
+        })));
+
+        // Not every device lets Spotify set its volume.
+        const hasVolume = device.volume !== null;
+        this._volumeRow.visible = hasVolume;
+        this._volumeSeparator.visible = hasVolume;
+        if (hasVolume && !this._draggingVolume) {
+            this._syncingVolume = true;
+            this._volumeSlider.value = device.volume;
+            this._syncingVolume = false;
+            this._syncVolumeIcon();
+        }
+    }
+
+    // Shown in the pinned card too, which cannot be clicked: whether shuffle is on and the track liked.
+    _syncSpotifyButtons(spotify) {
+        this._shuffleButton.visible = !!spotify;
+        this._likeButton.visible = !!spotify && !spotify.needsReconnect;
+        if (!spotify) return;
+
+        const shuffle = spotify.shuffle;
+        this._shuffleButton.reactive = spotify.canShuffle;
+        this._shuffleButton.accessible_name = shuffle ? _('Turn Shuffle Off') : _('Turn Shuffle On');
+        setStyleClass(this._shuffleButton, 'gamebar-icon-button-on', shuffle);
+
+        const saved = spotify.saved;
+        setIcon(/** @type {St.Icon} */ (this._likeButton.child), null, saved ? 'gamebar-check-circle-filled-symbolic' : 'gamebar-add-circle-symbolic');
+        this._likeButton.reactive = spotify.canSave;
+        if (spotify.isEpisode) {
+            this._likeButton.accessible_name = saved ? _('Remove from Your Episodes') : _('Save to Your Episodes');
+        } else {
+            this._likeButton.accessible_name = saved ? _('Remove from Liked Songs') : _('Add to Liked Songs');
+        }
+        setStyleClass(this._likeButton, 'gamebar-icon-button-on', saved);
+    }
+
+    _syncVolumeIcon() {
+        const [muted, low, medium, high] = VOLUME_ICONS;
+        const volume = this._volumeSlider.value;
+        let iconName = high;
+        if (volume <= 0) {
+            iconName = muted;
+        } else if (volume <= 0.3) {
+            iconName = low;
+        } else if (volume <= 0.7) {
+            iconName = medium;
+        }
+        /** @type {St.Icon} */ (this._muteButton.child).icon_name = iconName;
+        this._muteButton.accessible_name = volume > 0 ? _('Mute') : _('Unmute');
+        if (volume <= 0) {
+            this._muteButton.add_style_class_name('gamebar-dim');
+        } else {
+            this._muteButton.remove_style_class_name('gamebar-dim');
+        }
     }
 
     _syncProgress() {
@@ -664,6 +856,7 @@ export class Music {
 
     _destroyWidget() {
         this._stopProgress();
+        this._spotify?.unwatch(this);
 
         if (this._visibilityChangedId) {
             this._overlay.disconnect(this._visibilityChangedId);
@@ -679,6 +872,8 @@ export class Music {
 
     destroy() {
         this._destroyWidget();
+        this._spotify?.disconnect(this._spotifyChangedId);
+        this._spotify = null;
         this._model?.destroy();
         this._model = null;
         this._covers?.destroy();

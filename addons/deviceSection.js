@@ -1,14 +1,9 @@
 import St from 'gi://St';
-import Clutter from 'gi://Clutter';
-import Graphene from 'gi://Graphene';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Slider} from 'resource:///org/gnome/shell/ui/slider.js';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { setStreamVolume, toggleStreamMute } from './streamVolume.js';
-import { vertical, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, createIconButton } from '../card.js';
-
-// Expanding the device list animates like a submenu of the shell (js/ui/popupMenu.js).
-const EXPAND_DURATION = 250;
+import { vertical, createGroupTitle, BoxedList, ChoiceRow, createRow, createIconButton } from '../card.js';
 
 const KINDS = {
     output: {
@@ -47,7 +42,6 @@ export class DeviceSection {
         this._stream = null;
         this._isSyncingUI = false;
         this._isSettingVolume = false;
-        this._expanded = false;
 
         this.actor = new St.BoxLayout({ ...vertical() });
         this.title = createGroupTitle(title);
@@ -57,38 +51,7 @@ export class DeviceSection {
         this.actor.add_child(list.actor);
 
         // Row with the name of the current device, opens the device list
-        this._deviceLabel = createLabel('', 'gamebar-device-name', {
-            x_expand: true,
-            x_align: Clutter.ActorAlign.END,
-        });
-
-        this._arrow = new St.Icon({
-            icon_name: 'pan-down-symbolic',
-            icon_size: 16,
-            y_align: Clutter.ActorAlign.CENTER,
-            pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
-        });
-
-        const deviceRow = createRow();
-        deviceRow.add_child(new St.Label({ text: _('Device'), y_align: Clutter.ActorAlign.CENTER }));
-        deviceRow.add_child(this._deviceLabel);
-        deviceRow.add_child(this._arrow);
-
-        this._deviceButton = new St.Button({
-            style_class: 'gamebar-row-button gamebar-device-row',
-            child: deviceRow,
-            x_expand: true
-        });
-        this._deviceButton.connect('clicked', () => this._setExpanded(!this._expanded, true));
-        list.addRow(this._deviceButton);
-
-        // Every item adds its own separator, so the hidden list leaves no double line.
-        this._deviceList = new St.BoxLayout({
-            ...vertical(),
-            visible: false,
-            clip_to_allocation: true // Hides the items that do not fit yet while the list grows.
-        });
-        list.actor.add_child(this._deviceList);
+        this._deviceRow = new ChoiceRow(list, _('Device'));
 
         // Mute button and volume slider
         this._muteButton = createIconButton(this._kind.icons[3]);
@@ -114,7 +77,7 @@ export class DeviceSection {
 
     // Called every time the overlay opens
     sync() {
-        this._setExpanded(false);
+        this._deviceRow.setExpanded(false);
         this._syncStream();
     }
 
@@ -219,101 +182,25 @@ export class DeviceSection {
         const activeDevice = devices.find(device => device.get_id() === activeId);
 
         if (activeDevice) {
-            this._deviceLabel.text = this._getDeviceName(activeDevice);
+            this._deviceRow.value = this._getDeviceName(activeDevice);
         } else {
-            this._deviceLabel.text = this._stream?.get_description() || this._kind.getEmptyLabel();
+            this._deviceRow.value = this._stream?.get_description() || this._kind.getEmptyLabel();
         }
 
-        this._deviceList.destroy_all_children();
-        devices.forEach(device => {
-            let icon = new St.Icon({
-                gicon: device.get_gicon(),
-                fallback_icon_name: 'audio-card-symbolic',
-                icon_size: 16,
-                y_align: Clutter.ActorAlign.CENTER
-            });
-
-            let label = createLabel(this._getDeviceName(device), '', { x_expand: true });
-
-            let check = new St.Icon({
-                icon_name: 'object-select-symbolic',
-                icon_size: 16,
-                y_align: Clutter.ActorAlign.CENTER,
-                opacity: device === activeDevice ? 255 : 0
-            });
-
-            let itemRow = createRow();
-            itemRow.add_child(icon);
-            itemRow.add_child(label);
-            itemRow.add_child(check);
-
-            let item = new St.Button({
-                style_class: 'gamebar-row-button',
-                child: itemRow,
-                x_expand: true
-            });
-
+        this._deviceRow.setChoices(devices.map(device => {
             const id = device.get_id();
-            item.connect('clicked', () => {
-                const selected = this._kind.lookupDevice(this._control, id);
-                if (selected) {
-                    this._kind.changeDevice(this._control, selected);
-                }
-                this._setExpanded(false, true);
-            });
-
-            this._deviceList.add_child(createSeparator());
-            this._deviceList.add_child(item);
-        });
-
-        // Nothing to choose from with a single device
-        const canChoose = devices.length > 1;
-        this._deviceButton.reactive = canChoose;
-        this._arrow.visible = canChoose;
-        if (!canChoose) {
-            this._setExpanded(false);
-        }
-    }
-
-    _setExpanded(expanded, animate = false) {
-        this._expanded = expanded;
-
-        // Continue from where a running animation is, it stops at its current height.
-        this._deviceList.remove_all_transitions();
-        this._arrow.remove_all_transitions();
-
-        const duration = animate ? EXPAND_DURATION : 0;
-        const mode = Clutter.AnimationMode.EASE_OUT_EXPO;
-
-        if (expanded) {
-            const startHeight = this._deviceList.visible ? this._deviceList.height : 0;
-            this._deviceList.show();
-            this._deviceList.set_height(-1);
-            const [, naturalHeight] = this._deviceList.get_preferred_height(-1);
-            this._deviceList.height = startHeight;
-            this._deviceList.ease({
-                height: naturalHeight,
-                duration,
-                mode,
-                onComplete: () => this._deviceList.set_height(-1),
-            });
-        } else {
-            this._deviceList.ease({
-                height: 0,
-                duration,
-                mode,
-                onComplete: () => {
-                    this._deviceList.hide();
-                    this._deviceList.set_height(-1);
+            return {
+                id,
+                name: this._getDeviceName(device),
+                gicon: device.get_gicon(),
+                active: device === activeDevice,
+                select: () => {
+                    const selected = this._kind.lookupDevice(this._control, id);
+                    if (selected) {
+                        this._kind.changeDevice(this._control, selected);
+                    }
                 },
-            });
-        }
-
-        // The down arrow turns to point up.
-        this._arrow.ease({
-            rotation_angle_z: expanded ? 180 : 0,
-            duration,
-            mode,
-        });
+            };
+        }));
     }
 }

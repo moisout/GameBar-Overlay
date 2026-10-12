@@ -4,7 +4,7 @@ import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 
 import {ExtensionPreferences, gettext as _} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
-import { listGpus, getGpuModel, readFile } from './utils.js';
+import { listGpus, getGpuModel, readFile, SPOTIFY_REDIRECT_URI } from './utils.js';
 import { listHidppNodes } from './addons/batterySources/hidpp.js';
 
 export default class Preferences extends ExtensionPreferences {
@@ -433,5 +433,55 @@ export default class Preferences extends ExtensionPreferences {
             accessRow.add_prefix(new Gtk.Image({ icon_name: 'dialog-warning-symbolic' }));
             sourcesGroup.add(accessRow);
         }
+
+        // Music addon page
+        const musicPage = new Adw.PreferencesPage({
+            title: _('Music'),
+            icon_name: 'audio-x-generic-symbolic',
+        });
+        window.add(musicPage);
+
+        // Spotify only gives access to an app the user registered, an extension cannot bring one for everybody.
+        const spotifyGroup = new Adw.PreferencesGroup({
+            title: _('Spotify Connect'),
+            description: _('Control Spotify from the Music card, also while it plays on another device like a phone or a speaker. Spotify only allows this with an app of your own: create one in the developer dashboard with the redirect URI below and the Web API, and enter its client ID here. The Music card then offers to connect. Controlling the playback needs Spotify Premium. Clearing the client ID disconnects from Spotify.'),
+        });
+        musicPage.add(spotifyGroup);
+
+        const clientIdRow = new Adw.EntryRow({
+            title: _('Client ID'),
+            text: settings.get_string('spotify-client-id'),
+            show_apply_button: true,
+        });
+        clientIdRow.connect('apply', () => {
+            settings.set_string('spotify-client-id', clientIdRow.text.trim());
+        });
+        spotifyGroup.add(clientIdRow);
+
+        const redirectRow = new Adw.ActionRow({
+            title: _('Redirect URI'),
+            subtitle: SPOTIFY_REDIRECT_URI,
+            subtitle_selectable: true,
+        });
+        const copyButton = new Gtk.Button({
+            icon_name: 'edit-copy-symbolic',
+            tooltip_text: _('Copy'),
+            valign: Gtk.Align.CENTER,
+            css_classes: ['flat'],
+        });
+        copyButton.connect('clicked', () => window.get_clipboard().set(SPOTIFY_REDIRECT_URI));
+        redirectRow.add_suffix(copyButton);
+        spotifyGroup.add(redirectRow);
+
+        const dashboardRow = new Adw.ActionRow({
+            title: _('Spotify Developer Dashboard'),
+            subtitle: 'developer.spotify.com/dashboard',
+            activatable: true,
+        });
+        dashboardRow.add_suffix(new Gtk.Image({ icon_name: 'adw-external-link-symbolic' }));
+        dashboardRow.connect('activated', () => {
+            new Gtk.UriLauncher({ uri: 'https://developer.spotify.com/dashboard' }).launch(window, null, null);
+        });
+        spotifyGroup.add(dashboardRow);
     }
 }

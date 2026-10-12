@@ -485,3 +485,71 @@ msgstr ""
 #: prefs.js
 msgid "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"
 msgstr ""
+
+#: addons/music.js
+msgid "Volume"
+msgstr ""
+
+#: addons/music.js
+msgid "Spotify is not connected"
+msgstr ""
+
+#: addons/spotifyConnect.js
+msgid "GameBar Overlay is connected to Spotify. You can close this page."
+msgstr ""
+
+#: addons/spotifyConnect.js
+msgid "Spotify did not give GameBar Overlay access."
+msgstr ""
+
+#: prefs.js
+msgid "Spotify Connect"
+msgstr ""
+
+#: prefs.js
+msgid "Control Spotify from the Music card, also while it plays on another device like a phone or a speaker. Spotify only allows this with an app of your own: create one in the developer dashboard with the redirect URI below and the Web API, and enter its client ID here. The Music card then offers to connect. Controlling the playback needs Spotify Premium. Clearing the client ID disconnects from Spotify."
+msgstr ""
+
+#: prefs.js
+msgid "Client ID"
+msgstr ""
+
+#: prefs.js
+msgid "Redirect URI"
+msgstr ""
+
+#: prefs.js
+msgid "Copy"
+msgstr ""
+
+#: prefs.js
+msgid "Spotify Developer Dashboard"
+msgstr ""
+
+#: addons/music.js
+msgid "Connect again to like tracks"
+msgstr ""
+
+#: addons/music.js
+msgid "Turn Shuffle On"
+msgstr ""
+
+#: addons/music.js
+msgid "Turn Shuffle Off"
+msgstr ""
+
+#: addons/music.js
+msgid "Add to Liked Songs"
+msgstr ""
+
+#: addons/music.js
+msgid "Remove from Liked Songs"
+msgstr ""
+
+#: addons/music.js
+msgid "Save to Your Episodes"
+msgstr ""
+
+#: addons/music.js
+msgid "Remove from Your Episodes"
+msgstr ""

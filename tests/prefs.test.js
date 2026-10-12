@@ -4,9 +4,10 @@ await sleep(5000);
 const window = global.get_window_actors().map(actor => actor.meta_window).find(metaWindow => metaWindow.get_title() !== null);
 check(!!window, `the preferences window opens (${window?.get_title()})`);
 
-// The shortcut row is the last one of the first page, at the bottom of the window once scrolled down.
+// The shortcut row is the last one of the first page, at the bottom of the window once scrolled down, above the
+// bar the pages are switched in: with five pages they no longer fit into the header bar.
 const frame = window.get_frame_rect();
-const shortcutRow = [frame.x + frame.width / 2 - 60, frame.y + frame.height - 50];
+const shortcutRow = [frame.x + frame.width / 2 - 60, frame.y + frame.height - 96];
 await scroll([frame.x + frame.width / 2, frame.y + frame.height / 2], 8);
 const shortcut = () => settings.get_strv('toggle-gamebar').join(' ');
 

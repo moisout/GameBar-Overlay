@@ -3,6 +3,7 @@ import Gio from 'gi://Gio';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
+import Graphene from 'gi://Graphene';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { setCardHidden, isCardPinned, setCardPinned, trackPinButton } from './cardPosition.js';
 
@@ -195,6 +196,158 @@ const createLabel = (text, styleClass = '', props = {}) => {
     return label;
 };
 
+// Expanding the choices animates like a submenu of the shell (js/ui/popupMenu.js).
+const EXPAND_DURATION = 250;
+
+// Row of a boxed list that names the current choice on the right and opens the list of the choices below it,
+// with a check on the current one. onExpanded(expanded) is called when the list opens or closes.
+class ChoiceRow {
+    constructor(list, title, onExpanded = null) {
+        this._onExpanded = onExpanded;
+        this._expanded = false;
+        this._key = null;
+
+        this._valueLabel = createLabel('', 'gamebar-device-name', {
+            x_expand: true,
+            x_align: Clutter.ActorAlign.END,
+        });
+
+        this._arrow = new St.Icon({
+            icon_name: 'pan-down-symbolic',
+            icon_size: 16,
+            y_align: Clutter.ActorAlign.CENTER,
+            pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+        });
+
+        const row = createRow();
+        row.add_child(new St.Label({ text: title, y_align: Clutter.ActorAlign.CENTER }));
+        row.add_child(this._valueLabel);
+        row.add_child(this._arrow);
+
+        this._button = new St.Button({
+            style_class: 'gamebar-row-button gamebar-device-row',
+            child: row,
+            x_expand: true,
+        });
+        this._button.connect('clicked', () => this.setExpanded(!this._expanded, true));
+        list.addRow(this._button);
+
+        // Every choice adds its own separator, so the hidden list leaves no double line.
+        this._choices = new St.BoxLayout({
+            ...vertical(),
+            visible: false,
+            clip_to_allocation: true, // Hides the choices that do not fit yet while the list grows.
+        });
+        list.actor.add_child(this._choices);
+    }
+
+    get expanded() {
+        return this._expanded;
+    }
+
+    set value(text) {
+        this._valueLabel.text = text;
+    }
+
+    // choices: [{ id, name, gicon or iconName, active, select() }].
+    // Only rebuilt when they change, a choice being clicked is not destroyed under the pointer.
+    setChoices(choices) {
+        // Nothing to choose from with a single choice.
+        const canChoose = choices.length > 1;
+        this._button.reactive = canChoose;
+        this._arrow.visible = canChoose;
+        if (!canChoose) this.setExpanded(false);
+
+        const key = JSON.stringify(choices.map(({ id, name, iconName, active }) => [id, name, iconName, active]));
+        if (key === this._key) return;
+        this._key = key;
+
+        this._choices.destroy_all_children();
+        choices.forEach(({ name, gicon, iconName, active, select }) => {
+            const icon = new St.Icon({
+                fallback_icon_name: 'audio-card-symbolic',
+                icon_size: 16,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            if (gicon) {
+                icon.gicon = gicon;
+            } else {
+                icon.icon_name = iconName;
+            }
+
+            const check = new St.Icon({
+                icon_name: 'object-select-symbolic',
+                icon_size: 16,
+                y_align: Clutter.ActorAlign.CENTER,
+                opacity: active ? 255 : 0,
+            });
+
+            const row = createRow();
+            row.add_child(icon);
+            row.add_child(createLabel(name, '', { x_expand: true }));
+            row.add_child(check);
+
+            const item = new St.Button({
+                style_class: 'gamebar-row-button',
+                child: row,
+                x_expand: true,
+            });
+            item.connect('clicked', () => {
+                select();
+                this.setExpanded(false, true);
+            });
+
+            this._choices.add_child(createSeparator());
+            this._choices.add_child(item);
+        });
+    }
+
+    setExpanded(expanded, animate = false) {
+        const changed = expanded !== this._expanded;
+        this._expanded = expanded;
+
+        // Continue from where a running animation is, it stops at its current height.
+        this._choices.remove_all_transitions();
+        this._arrow.remove_all_transitions();
+
+        const duration = animate ? EXPAND_DURATION : 0;
+        const mode = Clutter.AnimationMode.EASE_OUT_EXPO;
+
+        if (expanded) {
+            const startHeight = this._choices.visible ? this._choices.height : 0;
+            this._choices.show();
+            this._choices.set_height(-1);
+            const [, naturalHeight] = this._choices.get_preferred_height(-1);
+            this._choices.height = startHeight;
+            this._choices.ease({
+                height: naturalHeight,
+                duration,
+                mode,
+                onComplete: () => this._choices.set_height(-1),
+            });
+        } else {
+            this._choices.ease({
+                height: 0,
+                duration,
+                mode,
+                onComplete: () => {
+                    this._choices.hide();
+                    this._choices.set_height(-1);
+                },
+            });
+        }
+
+        // The down arrow turns to point up.
+        this._arrow.ease({
+            rotation_angle_z: expanded ? 180 : 0,
+            duration,
+            mode,
+        });
+
+        if (changed) this._onExpanded?.(expanded);
+    }
+}
+
 // Tab bar below the header bar, like the tab bar of GNOME Files.
 // The tabs are equally wide, a separator is only shown between two unselected tabs.
 // The body below gets more padding while the tab bar is shown.
@@ -362,4 +515,4 @@ const createIconButton = (iconName, styleClass = '') => new St.Button({
     child: new St.Icon({ icon_name: iconName, icon_size: 16 }),
 });
 
-export { vertical, backgroundImageStyle, setIcon, createCard, createPinButton, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, TabBar, LevelBar, createPillButton, createIconButton };
+export { vertical, backgroundImageStyle, setIcon, createCard, createPinButton, createGroupTitle, BoxedList, createSeparator, createRow, createLabel, ChoiceRow, TabBar, LevelBar, createPillButton, createIconButton };

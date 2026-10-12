@@ -136,6 +136,12 @@
     background-color: rgba(255, 255, 255, 0.18);
 }
 
+/*A toggle that is on, like shuffle or a liked track: in the accent colour where the shell has one (GNOME 47+)*/
+.gamebar-icon-button-on {
+    color: #3584e4;
+    color: -st-accent-color;
+}
+
 /*A media button the player does not offer*/
 .gamebar-icon-button:insensitive {
     color: rgba(255, 255, 255, 0.35);
@@ -382,6 +388,11 @@
 .gamebar-music-progress {
     min-height: 44px;
     spacing: 10px;
+}
+
+/*The Spotify device and the offer to sign in, below the player*/
+.gamebar-music-group {
+    margin-top: 12px;
 }
 
 /*Discord styles*/

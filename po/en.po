@@ -486,3 +486,71 @@ msgstr "No access to the Logitech receiver"
 #: prefs.js
 msgid "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"
 msgstr "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"
+
+#: addons/music.js
+msgid "Volume"
+msgstr "Volume"
+
+#: addons/music.js
+msgid "Spotify is not connected"
+msgstr "Spotify is not connected"
+
+#: addons/spotifyConnect.js
+msgid "GameBar Overlay is connected to Spotify. You can close this page."
+msgstr "GameBar Overlay is connected to Spotify. You can close this page."
+
+#: addons/spotifyConnect.js
+msgid "Spotify did not give GameBar Overlay access."
+msgstr "Spotify did not give GameBar Overlay access."
+
+#: prefs.js
+msgid "Spotify Connect"
+msgstr "Spotify Connect"
+
+#: prefs.js
+msgid "Control Spotify from the Music card, also while it plays on another device like a phone or a speaker. Spotify only allows this with an app of your own: create one in the developer dashboard with the redirect URI below and the Web API, and enter its client ID here. The Music card then offers to connect. Controlling the playback needs Spotify Premium. Clearing the client ID disconnects from Spotify."
+msgstr "Control Spotify from the Music card, also while it plays on another device like a phone or a speaker. Spotify only allows this with an app of your own: create one in the developer dashboard with the redirect URI below and the Web API, and enter its client ID here. The Music card then offers to connect. Controlling the playback needs Spotify Premium. Clearing the client ID disconnects from Spotify."
+
+#: prefs.js
+msgid "Client ID"
+msgstr "Client ID"
+
+#: prefs.js
+msgid "Redirect URI"
+msgstr "Redirect URI"
+
+#: prefs.js
+msgid "Copy"
+msgstr "Copy"
+
+#: prefs.js
+msgid "Spotify Developer Dashboard"
+msgstr "Spotify Developer Dashboard"
+
+#: addons/music.js
+msgid "Connect again to like tracks"
+msgstr "Connect again to like tracks"
+
+#: addons/music.js
+msgid "Turn Shuffle On"
+msgstr "Turn Shuffle On"
+
+#: addons/music.js
+msgid "Turn Shuffle Off"
+msgstr "Turn Shuffle Off"
+
+#: addons/music.js
+msgid "Add to Liked Songs"
+msgstr "Add to Liked Songs"
+
+#: addons/music.js
+msgid "Remove from Liked Songs"
+msgstr "Remove from Liked Songs"
+
+#: addons/music.js
+msgid "Save to Your Episodes"
+msgstr "Save to Your Episodes"
+
+#: addons/music.js
+msgid "Remove from Your Episodes"
+msgstr "Remove from Your Episodes"

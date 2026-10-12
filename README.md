@@ -17,6 +17,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - A gallery of the latest screenshots and recordings
 - Battery of the computer and of connected devices like mice, headsets and controllers, also of devices on a Logi Bolt receiver over HID++
 - Media controls with the cover, track and seek slider, and tabs to switch between several players
+- Spotify Connect in the media controls: control Spotify while it plays on another device, like tracks, turn shuffle on and off, move the playback to another device and set its volume (needs a Spotify app of your own, see below)
 - The Discord voice channel: who is in it and who is speaking, with mute, deafen and disconnect (needs the official Discord client)
 - A settings card for the opacity of the pinned cards and resetting the card positions, with a button to the preferences
 - A dash to show and hide the cards, Gallery, Discord and Settings start hidden
@@ -38,6 +39,16 @@ Installing these packages is optional, but they will provide additional function
    - On Ubuntu and derivatives, you also need the package `gir1.2-gtop-2.0` (see [issue #29](https://github.com/dekotale/GameBar-Overlay/issues/29)).
 - `hwdata` - needed to read your GPU name.
 - `solaar`, or only its udev rule `42-logitech-unify-permissions.rules` - needed by the Logitech Receivers source of the Battery card, which is off by default. The rule lets you open the Logitech receivers without root.
+
+## Spotify Connect
+
+The Music card can control Spotify on any device of your account, like a phone or a speaker. Spotify only allows this with an app of your own, and controlling the playback needs Spotify Premium:
+
+1. Create an app in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) with the redirect URI `http://127.0.0.1:18974/callback` and the Web API.
+2. Enter the client ID of the app in the preferences of the extension, on the Music page.
+3. Open the overlay and click Connect on the Music card, then allow the access in the browser.
+
+The sign-in is kept in the GNOME Keyring. Clearing the client ID in the preferences signs out. If you connected before liking tracks was added, the card asks you to connect again once.
 
 ## Usage
 

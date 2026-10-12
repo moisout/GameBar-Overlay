@@ -7,7 +7,7 @@ import Soup from 'gi://Soup?version=3.0';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js';
 import { vertical, backgroundImageStyle, setIcon, createCard, BoxedList, createRow, createLabel, createIconButton } from '../card.js';
-import { deleteOldFiles } from '../utils.js';
+import { deleteOldFiles, withTimeout } from '../utils.js';
 
 // The voice channel of the Discord client over its local RPC server. The voice commands need an OAuth token with the
 // rpc scope, which Discord only grants to approved applications. The card authorises as the StreamKit Overlay of
@@ -45,23 +45,6 @@ const logError = (error) => {
 };
 
 const cancelledError = () => GLib.Error.new_literal(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED, 'Disconnected from Discord');
-
-// Runs start(attempt) with a cancellable that is cancelled after the timeout, or with the cancellable given.
-const withTimeout = async (cancellable, timeout, start) => {
-    const attempt = new Gio.Cancellable();
-    const cancelId = cancellable.connect(() => attempt.cancel());
-    let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeout, () => {
-        timeoutId = 0;
-        attempt.cancel();
-        return GLib.SOURCE_REMOVE;
-    });
-    try {
-        return await start(attempt);
-    } finally {
-        if (timeoutId) GLib.Source.remove(timeoutId);
-        cancellable.disconnect(cancelId);
-    }
-};
 
 // The token is kept in the keyring, it allows controlling the Discord client.
 let tokenSchema = null;

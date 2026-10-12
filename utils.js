@@ -192,6 +192,28 @@ const deleteOldFiles = (path, maxAge, cancellable = null) => {
         });
 };
 
+// Runs start(attempt) with a cancellable that is cancelled after the timeout, or with the cancellable given.
+const withTimeout = async (cancellable, timeout, start) => {
+    const attempt = new Gio.Cancellable();
+    const cancelId = cancellable.connect(() => attempt.cancel());
+    let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeout, () => {
+        timeoutId = 0;
+        attempt.cancel();
+        return GLib.SOURCE_REMOVE;
+    });
+    try {
+        return await start(attempt);
+    } finally {
+        if (timeoutId) GLib.Source.remove(timeoutId);
+        cancellable.disconnect(cancelId);
+    }
+};
+
+// Spotify sends the browser back here after signing in, the Music card listens on the port meanwhile. The redirect
+// URI of the Spotify app has to be this one, the preferences show it. Spotify only takes http for a loopback address.
+const SPOTIFY_REDIRECT_PORT = 18974;
+const SPOTIFY_REDIRECT_URI = `http://127.0.0.1:${SPOTIFY_REDIRECT_PORT}/callback`;
+
 // A monitor by its connector (DP-1, eDP-1), which stays the same across sessions unlike its index.
 // GNOME 46 to 48 have no list of the monitors, their connectors are read from sysfs.
 const getMonitorKey = (index) => {
@@ -209,4 +231,4 @@ const getMonitorKey = (index) => {
     return `monitor-${index}`;
 };
 
-export { getMonitorKey, deleteOldFiles, readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit, formatPlaybackTime };
+export { getMonitorKey, withTimeout, SPOTIFY_REDIRECT_PORT, SPOTIFY_REDIRECT_URI, deleteOldFiles, readFile, listDir, findCpuHwmon, findFirstHwmon, getGpuDriver, listGpus, getGpuModel, celsiusToFahrenheit, formatPlaybackTime };

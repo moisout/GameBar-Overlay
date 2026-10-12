@@ -486,3 +486,71 @@ msgstr "Sin acceso al receptor Logitech"
 #: prefs.js
 msgid "Install Solaar or its udev rule 42-logitech-unify-permissions.rules, then plug the receiver in again"
 msgstr "Instala Solaar o su regla udev 42-logitech-unify-permissions.rules y vuelve a conectar el receptor"
+
+#: addons/music.js
+msgid "Volume"
+msgstr "Volumen"
+
+#: addons/music.js
+msgid "Spotify is not connected"
+msgstr "Spotify no está conectado"
+
+#: addons/spotifyConnect.js
+msgid "GameBar Overlay is connected to Spotify. You can close this page."
+msgstr "GameBar Overlay está conectado a Spotify. Puedes cerrar esta página."
+
+#: addons/spotifyConnect.js
+msgid "Spotify did not give GameBar Overlay access."
+msgstr "Spotify no dio acceso a GameBar Overlay."
+
+#: prefs.js
+msgid "Spotify Connect"
+msgstr "Spotify Connect"
+
+#: prefs.js
+msgid "Control Spotify from the Music card, also while it plays on another device like a phone or a speaker. Spotify only allows this with an app of your own: create one in the developer dashboard with the redirect URI below and the Web API, and enter its client ID here. The Music card then offers to connect. Controlling the playback needs Spotify Premium. Clearing the client ID disconnects from Spotify."
+msgstr "Controla Spotify desde la tarjeta Música, también mientras suena en otro dispositivo como un teléfono o un altavoz. Spotify solo lo permite con una aplicación propia: crea una en el panel de desarrolladores con la URI de redirección de abajo y la Web API, e introduce aquí su ID de cliente. La tarjeta Música ofrece entonces conectarse. Controlar la reproducción requiere Spotify Premium. Borrar el ID de cliente desconecta de Spotify."
+
+#: prefs.js
+msgid "Client ID"
+msgstr "ID de cliente"
+
+#: prefs.js
+msgid "Redirect URI"
+msgstr "URI de redirección"
+
+#: prefs.js
+msgid "Copy"
+msgstr "Copiar"
+
+#: prefs.js
+msgid "Spotify Developer Dashboard"
+msgstr "Panel de desarrolladores de Spotify"
+
+#: addons/music.js
+msgid "Connect again to like tracks"
+msgstr "Vuelve a conectar para marcar canciones con Me gusta"
+
+#: addons/music.js
+msgid "Turn Shuffle On"
+msgstr "Activar el modo aleatorio"
+
+#: addons/music.js
+msgid "Turn Shuffle Off"
+msgstr "Desactivar el modo aleatorio"
+
+#: addons/music.js
+msgid "Add to Liked Songs"
+msgstr "Añadir a Tus me gusta"
+
+#: addons/music.js
+msgid "Remove from Liked Songs"
+msgstr "Quitar de Tus me gusta"
+
+#: addons/music.js
+msgid "Save to Your Episodes"
+msgstr "Guardar en Tus episodios"
+
+#: addons/music.js
+msgid "Remove from Your Episodes"
+msgstr "Quitar de Tus episodios"

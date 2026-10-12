@@ -22,6 +22,7 @@ import {Dash} from './addons/dash.js';
 import {Capture} from './addons/capture.js';
 import {Battery, BatteryModel, BATTERY_KEYS} from './addons/battery.js';
 import {Music} from './addons/music.js';
+import {SpotifyConnect} from './addons/spotifyConnect.js';
 import {Gallery} from './addons/gallery.js';
 import {Discord, DiscordPinned} from './addons/discord.js';
 import {SettingsCard} from './addons/settings.js';
@@ -120,7 +121,10 @@ class GameBar extends PanelMenu.Button {
         // The batteries are read once for the card and its pinned copies.
         this._batteryModel = new BatteryModel();
         this._battery = new Battery(this._overlay, monitor, this._batteryModel); // Battery of the computer and connected devices
-        this._music = new Music(this._overlay, monitor); // Controls of the media player that played last
+        // The Spotify account is asked once for the card and its pinned copies.
+        this._spotify = new SpotifyConnect();
+        this._music = new Music(this._overlay, monitor, this._spotify,
+            callback => this._runWithOverlayClosed(callback)); // Controls of the media player that played last
         this._gallery = new Gallery(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The latest screenshots and recordings
         this._discord = new Discord(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // The voice channel of Discord
         this._settingsCard = new SettingsCard(this._overlay, monitor, callback => this._runWithOverlayClosed(callback)); // Pinned card opacity and positions
@@ -150,7 +154,7 @@ class GameBar extends PanelMenu.Button {
             { id: 'battery', name: _('Battery'), iconName: 'battery-symbolic', addon: this._battery,
                 createPinned: pinned(Battery, this._batteryModel) },
             { id: 'music', name: _('Music'), iconName: 'audio-x-generic-symbolic', addon: this._music,
-                createPinned: pinned(Music) },
+                createPinned: pinned(Music, this._spotify, noOverlay) },
             { id: 'discord', name: _('Discord'), iconName: 'audio-headset-symbolic', addon: this._discord,
                 createPinned: (layer, pinMonitor, pinKey) => new DiscordPinned(layer, pinMonitor, { pinKey }) },
             { id: 'settings', name: _('Settings'), iconName: 'preferences-system-symbolic', addon: this._settingsCard,
@@ -710,6 +714,9 @@ class GameBar extends PanelMenu.Button {
         } else if (BATTERY_KEYS.includes(key)) {
             // The Battery cards update themselves.
             this._batteryModel.updateSettings(settings);
+        } else if (key === 'spotify-client-id') {
+            // The Music cards update themselves.
+            this._spotify.updateSettings(settings);
         } else {
             this._updateOverlaySettings(settings);
         }
@@ -724,6 +731,7 @@ class GameBar extends PanelMenu.Button {
         this._hardwareSampler.updateSettings(settings);
         this._systemMonitor._updateSettings(settings);
         this._batteryModel.updateSettings(settings);
+        this._spotify.updateSettings(settings);
         this._settingsCard._updateSettings(settings);
         this._onCardsRecreated();
         this._updateOverlaySettings(settings);
@@ -774,6 +782,8 @@ class GameBar extends PanelMenu.Button {
         this._batteryModel = null;
         this._music?.destroy();
         this._music = null;
+        this._spotify?.destroy();
+        this._spotify = null;
         this._gallery?.destroy();
         this._gallery = null;
         this._discord?.destroy();

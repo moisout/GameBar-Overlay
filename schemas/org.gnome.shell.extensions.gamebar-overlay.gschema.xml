@@ -85,6 +85,12 @@
       <description>Show the battery of the devices on Logitech receivers on the Battery card, read over HID++ like Solaar does. Needs read and write access to the hidraw nodes of the receivers</description>
     </key>
 
+    <key name="spotify-client-id" type="s">
+      <default>''</default>
+      <summary>Client ID of the Spotify app</summary>
+      <description>The client ID of an app registered in the Spotify developer dashboard. With it the Music card can sign in to Spotify and control the playback on any device of the account. Empty turns Spotify Connect off and signs out</description>
+    </key>
+
     <key name="monitor-hidden-cards" type="a{sas}">
       <default>{}</default>
       <summary>Hidden cards of every monitor</summary>
