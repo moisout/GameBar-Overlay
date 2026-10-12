@@ -418,6 +418,8 @@ export default class Preferences extends ExtensionPreferences {
             ['battery-source-upower', _('UPower'), _('The battery of this computer and the devices the system knows')],
             ['battery-source-logitech', _('Logitech Receivers'),
                 _('Mice and keyboards on a Logi Bolt or Unifying receiver, read like Solaar does')],
+            ['battery-source-phone-connect', _('Phone Connect'),
+                _('OPPO and OnePlus phones connected to the Phone Connect service')],
         ].forEach(([key, title, subtitle]) => {
             const row = new Adw.SwitchRow({ title, subtitle });
             sourcesGroup.add(row);

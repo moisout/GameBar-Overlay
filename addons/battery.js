@@ -8,11 +8,13 @@ import { positionAddon, followCardSize, makeDraggable } from '../cardPosition.js
 import { vertical, createCard, createGroupTitle, BoxedList, createRow, createLabel, LevelBar } from '../card.js';
 import { UPowerSource } from './batterySources/upower.js';
 import { LogitechSource } from './batterySources/logitech.js';
+import { PhoneConnectSource } from './batterySources/phoneConnect.js';
 
 // The sources of the batteries, each turned on by its setting. Their devices are listed in this order.
 const SOURCES = [
     { id: 'upower', key: 'battery-source-upower', Source: UPowerSource },
     { id: 'logitech', key: 'battery-source-logitech', Source: LogitechSource },
+    { id: 'phone-connect', key: 'battery-source-phone-connect', Source: PhoneConnectSource },
 ];
 export const BATTERY_KEYS = SOURCES.map(source => source.key);
 

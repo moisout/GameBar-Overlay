@@ -15,7 +15,7 @@ A fullscreen overlay widget for GNOME that displays useful information, audio co
 - CPU/GPU usage and temperature monitor, memory, disk and network. The usage of the last 30 seconds is sampled in the background, so the charts are filled when the overlay opens (can be turned off)
 - Instant screenshot and screen recording of the monitor, saved and shown like GNOME's own
 - A gallery of the latest screenshots and recordings
-- Battery of the computer and of connected devices like mice, headsets and controllers, also of devices on a Logi Bolt receiver over HID++
+- Battery of the computer and of connected devices like mice, headsets and controllers, also of devices on a Logi Bolt receiver over HID++ and of OPPO and OnePlus phones connected to Phone Connect
 - Media controls with the cover, track and seek slider, and tabs to switch between several players
 - Spotify Connect in the media controls: control Spotify while it plays on another device, like tracks, turn shuffle on and off, move the playback to another device and set its volume (needs a Spotify app of your own, see below)
 - The Discord voice channel: who is in it and who is speaking, with mute, deafen and disconnect (needs the official Discord client)
@@ -39,6 +39,7 @@ Installing these packages is optional, but they will provide additional function
    - On Ubuntu and derivatives, you also need the package `gir1.2-gtop-2.0` (see [issue #29](https://github.com/dekotale/GameBar-Overlay/issues/29)).
 - `hwdata` - needed to read your GPU name.
 - `solaar`, or only its udev rule `42-logitech-unify-permissions.rules` - needed by the Logitech Receivers source of the Battery card, which is off by default. The rule lets you open the Logitech receivers without root.
+- The Phone Connect service (`phone-connect-daemon`) - needed by the Phone Connect source of the Battery card, which is off by default. The card shows the battery of the phones connected to it.
 
 ## Spotify Connect
 

@@ -554,3 +554,11 @@ msgstr "Guardar en Tus episodios"
 #: addons/music.js
 msgid "Remove from Your Episodes"
 msgstr "Quitar de Tus episodios"
+
+#: prefs.js
+msgid "Phone Connect"
+msgstr "Phone Connect"
+
+#: prefs.js
+msgid "OPPO and OnePlus phones connected to the Phone Connect service"
+msgstr "Teléfonos OPPO y OnePlus conectados al servicio Phone Connect"

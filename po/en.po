@@ -554,3 +554,11 @@ msgstr "Save to Your Episodes"
 #: addons/music.js
 msgid "Remove from Your Episodes"
 msgstr "Remove from Your Episodes"
+
+#: prefs.js
+msgid "Phone Connect"
+msgstr "Phone Connect"
+
+#: prefs.js
+msgid "OPPO and OnePlus phones connected to the Phone Connect service"
+msgstr "OPPO and OnePlus phones connected to the Phone Connect service"

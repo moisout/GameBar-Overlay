@@ -85,6 +85,12 @@
       <description>Show the battery of the devices on Logitech receivers on the Battery card, read over HID++ like Solaar does. Needs read and write access to the hidraw nodes of the receivers</description>
     </key>
 
+    <key name="battery-source-phone-connect" type="b">
+      <default>false</default>
+      <summary>Read the batteries of phones connected to Phone Connect</summary>
+      <description>Show the battery of the OPPO and OnePlus phones connected to the Phone Connect service (phone-connect-daemon) on the Battery card. The service is not started for this</description>
+    </key>
+
     <key name="spotify-client-id" type="s">
       <default>''</default>
       <summary>Client ID of the Spotify app</summary>
